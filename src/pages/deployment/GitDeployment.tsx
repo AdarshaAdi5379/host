@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
     Table,
@@ -11,7 +10,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { GitBranch, Terminal, Clock, CheckCircle, XCircle, Play } from 'lucide-react'
+import { GitBranch, Terminal, Clock, CheckCircle, XCircle, Play, UploadCloud, Github } from 'lucide-react'
+import { GitConfigForm } from './components/GitConfigForm'
+import { LogConsole } from './components/LogConsole'
+import { DirectUpload } from './components/DirectUpload'
+import { useToast } from '@/components/ui/toast'
 
 interface Deployment {
     id: string
@@ -20,6 +23,7 @@ interface Deployment {
     status: 'success' | 'failed' | 'pending' | 'running'
     timestamp: string
     duration: string
+    type: 'git' | 'manual'
 }
 
 const mockDeployments: Deployment[] = [
@@ -30,6 +34,7 @@ const mockDeployments: Deployment[] = [
         status: 'success',
         timestamp: '2026-01-28 14:30',
         duration: '2m 15s',
+        type: 'git',
     },
     {
         id: '2',
@@ -38,6 +43,7 @@ const mockDeployments: Deployment[] = [
         status: 'failed',
         timestamp: '2026-01-28 12:15',
         duration: '1m 45s',
+        type: 'git',
     },
     {
         id: '3',
@@ -46,12 +52,68 @@ const mockDeployments: Deployment[] = [
         status: 'success',
         timestamp: '2026-01-27 18:20',
         duration: '2m 30s',
+        type: 'git',
     },
 ]
 
+type Tab = 'git' | 'manual'
+
 export function GitDeployment() {
-    const [deployments] = useState<Deployment[]>(mockDeployments)
-    const [repoUrl, setRepoUrl] = useState('git@github.com:user/repo.git')
+    const { addToast } = useToast()
+    const [activeTab, setActiveTab] = useState<Tab>('git')
+    const [deployments, setDeployments] = useState<Deployment[]>(mockDeployments)
+    const [isDeploying, setIsDeploying] = useState(false)
+    const [showLogs, setShowLogs] = useState(false)
+    const [activeDeployment, setActiveDeployment] = useState<Deployment | null>(null)
+
+    const handleDeploy = (config: any) => {
+        setIsDeploying(true)
+        setShowLogs(true)
+        addToast({
+            title: 'Deployment Queued',
+            description: 'Your build has been queued and will start shortly.',
+        })
+
+        // Create pending deployment
+        const newDeployment: Deployment = {
+            id: Date.now().toString(),
+            branch: config.branch,
+            commit: 'HEAD',
+            status: 'running',
+            timestamp: 'Just now',
+            duration: '0s',
+            type: 'git',
+        }
+
+        setActiveDeployment(newDeployment)
+
+        // Add to history immediately
+        setDeployments(prev => [newDeployment, ...prev])
+
+        // Simulate build completion
+        setTimeout(() => {
+            setIsDeploying(false)
+            setDeployments(prev => prev.map(d =>
+                d.id === newDeployment.id
+                    ? { ...d, status: 'success', duration: '14s' }
+                    : d
+            ))
+            setActiveDeployment(prev => prev ? { ...prev, status: 'success' } : null)
+        }, 11000) // Match log console total duration roughly
+    }
+
+    const handleManualUploadComplete = () => {
+        const newDeployment: Deployment = {
+            id: Date.now().toString(),
+            branch: 'Archive Upload',
+            commit: 'zip-upload',
+            status: 'success',
+            timestamp: 'Just now',
+            duration: '0:45',
+            type: 'manual',
+        }
+        setDeployments(prev => [newDeployment, ...prev])
+    }
 
     const getStatusIcon = (status: Deployment['status']) => {
         switch (status) {
@@ -80,62 +142,65 @@ export function GitDeployment() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-brand-navy">Git Deployment</h1>
-                    <p className="text-gray-600 mt-1">Deploy your application from Git repository</p>
+                    <h1 className="text-3xl font-bold text-brand-navy">Deployment Center</h1>
+                    <p className="text-gray-600 mt-1">Manage your application deployments and build settings</p>
                 </div>
-                <Button variant="primary">
-                    <GitBranch className="w-4 h-4 mr-2" />
-                    Deploy Now
-                </Button>
             </div>
 
-            {/* Repository Configuration */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Repository Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                        <label className="text-sm font-medium mb-2 block">Repository URL</label>
-                        <Input
-                            value={repoUrl}
-                            onChange={(e) => setRepoUrl(e.target.value)}
-                            placeholder="git@github.com:username/repository.git"
-                        />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-sm font-medium mb-2 block">Default Branch</label>
-                            <Input defaultValue="main" />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium mb-2 block">Build Command</label>
-                            <Input defaultValue="npm run build" />
-                        </div>
-                    </div>
-                    <Button variant="secondary">Update Settings</Button>
-                </CardContent>
-            </Card>
+            {/* Tabs */}
+            <div className="border-b border-gray-200">
+                <nav className="flex space-x-8">
+                    <button
+                        onClick={() => setActiveTab('git')}
+                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center transition-colors ${activeTab === 'git'
+                                ? 'border-brand-purple text-brand-purple'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        disabled={showLogs}
+                    >
+                        <Github className="w-4 h-4 mr-2" />
+                        Git Integration
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('manual')}
+                        className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center transition-colors ${activeTab === 'manual'
+                                ? 'border-brand-purple text-brand-purple'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        disabled={showLogs}
+                    >
+                        <UploadCloud className="w-4 h-4 mr-2" />
+                        Direct Upload
+                    </button>
+                </nav>
+            </div>
 
-            {/* SSH Keys */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>SSH Deploy Key</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="bg-gray-50 p-4 rounded-lg font-mono text-sm overflow-x-auto">
-                        <pre className="text-xs">
-                            ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC8... deploy@hostinger.com
-                        </pre>
+            {/* Live Logs */}
+            {showLogs && activeDeployment && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex justify-end mb-2">
+                        <Button variant="ghost" size="sm" onClick={() => setShowLogs(false)}>
+                            Hide Logs
+                        </Button>
                     </div>
-                    <p className="text-sm text-gray-600 mt-2">
-                        Add this public key to your repository's deploy keys to enable automatic deployments.
-                    </p>
-                    <Button variant="secondary" className="mt-4">
-                        Copy SSH Key
-                    </Button>
-                </CardContent>
-            </Card>
+                    <LogConsole
+                        status={activeDeployment.status}
+                        repoName="github/repo"
+                        commitHash={activeDeployment.commit}
+                    />
+                </div>
+            )}
+
+            {/* Tab Content */}
+            {!showLogs && (
+                <div>
+                    {activeTab === 'git' ? (
+                        <GitConfigForm onDeploy={handleDeploy} isDeploying={isDeploying} />
+                    ) : (
+                        <DirectUpload onUploadComplete={handleManualUploadComplete} />
+                    )}
+                </div>
+            )}
 
             {/* Deployment History */}
             <Card>
@@ -153,7 +218,7 @@ export function GitDeployment() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Status</TableHead>
-                                <TableHead>Branch</TableHead>
+                                <TableHead>Source</TableHead>
                                 <TableHead>Commit</TableHead>
                                 <TableHead>Timestamp</TableHead>
                                 <TableHead>Duration</TableHead>
@@ -173,7 +238,11 @@ export function GitDeployment() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center space-x-2">
-                                            <GitBranch className="w-4 h-4 text-gray-400" />
+                                            {deployment.type === 'git' ? (
+                                                <GitBranch className="w-4 h-4 text-gray-400" />
+                                            ) : (
+                                                <UploadCloud className="w-4 h-4 text-gray-400" />
+                                            )}
                                             <span className="font-mono text-sm">{deployment.branch}</span>
                                         </div>
                                     </TableCell>

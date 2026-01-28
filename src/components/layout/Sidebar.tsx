@@ -8,6 +8,7 @@ import {
     CreditCard,
     ChevronLeft,
     ChevronRight,
+    GitBranch,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -15,7 +16,8 @@ const navigation = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Hosting', href: '/hosting', icon: Server },
     { name: 'Domains', href: '/domains', icon: Globe },
-    { name: 'Emails', href: '/emails', icon: Mail },
+    { name: 'Emails', href: '/email', icon: Mail },
+    { name: 'Deployment', href: '/deployment/git', icon: GitBranch },
     { name: 'Billing', href: '/billing', icon: CreditCard },
 ]
 
