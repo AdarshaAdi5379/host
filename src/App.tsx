@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { Dashboard } from '@/pages/Dashboard'
 import { DNSEditor } from '@/pages/hosting/DNSEditor'
 import { DatabaseManager } from '@/pages/hosting/DatabaseManager'
@@ -10,22 +11,42 @@ import { AppInstaller } from '@/pages/apps/AppInstaller'
 import { HostingManagement } from '@/pages/HostingManagement'
 import { DomainManagement } from '@/pages/DomainManagement'
 import { EmailManagement } from '@/pages/EmailManagement'
-
-
-
-function BillingPage() {
-  return <div className="text-2xl font-bold">Billing Page - Coming Soon</div>
-}
+import { BillingManagement } from '@/pages/BillingManagement'
+import { Login } from '@/pages/auth/Login'
+import { Signup } from '@/pages/auth/Signup'
+import { ForgotPassword } from '@/pages/auth/ForgotPassword'
+import { ResetPassword } from '@/pages/auth/ResetPassword'
+import { useAuthStore } from '@/store/authStore'
 
 function App() {
-  // For now, we're always authenticated in development
-  // In production, you'd add proper auth routes here
+  const { isAuthenticated } = useAuthStore()
 
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<AppLayout />}>
-          <Route index element={<Dashboard />} />
+        {/* Public Auth Routes */}
+        <Route
+          path="/login"
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
+        />
+        <Route
+          path="/signup"
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Signup />}
+        />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
+
+        {/* Protected Dashboard Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="hosting" element={<HostingManagement />} />
           <Route path="hosting/dns" element={<DNSEditor />} />
           <Route path="hosting/databases" element={<DatabaseManager />} />
@@ -35,8 +56,21 @@ function App() {
           <Route path="apps" element={<AppInstaller />} />
           <Route path="domains" element={<DomainManagement />} />
           <Route path="emails" element={<EmailManagement />} />
-          <Route path="billing" element={<BillingPage />} />
+          <Route
+            path="billing"
+            element={
+              <ProtectedRoute requiredPermission="manage_billing">
+                <BillingManagement />
+              </ProtectedRoute>
+            }
+          />
         </Route>
+
+        {/* Catch all - redirect to login or dashboard */}
+        <Route
+          path="*"
+          element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+        />
       </Routes>
     </BrowserRouter>
   )

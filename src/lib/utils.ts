@@ -48,3 +48,24 @@ export function getPercentage(used: number, total: number): number {
     if (total === 0) return 0
     return Math.round((used / total) * 100)
 }
+
+/**
+ * Format currency with localized symbols and formatting
+ */
+export function formatCurrency(
+    amount: number,
+    currency: 'USD' | 'INR' | 'EUR' = 'USD'
+): string {
+    const symbols = {
+        USD: '$',
+        INR: '₹',
+        EUR: '€',
+    }
+
+    const formatted = amount.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    })
+
+    return `${symbols[currency]}${formatted}`
+}
