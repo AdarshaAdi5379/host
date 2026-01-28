@@ -1,19 +1,102 @@
-Hostinger Clone: High-Performance hPanel FrontendA professional-grade, cloud-native deployment platform interface built with Pure React. This project mirrors the functionality and aesthetic of the Hostinger "hPanel," providing a seamless experience for managing hosting, domains, and web infrastructure.🚀 Project OverviewThis application is a feature-rich Single Page Application (SPA) designed to abstract the complexities of server management. It provides a clean, information-dense dashboard that allows users to manage their digital assets—from DNS records to email accounts—with a "zero-config" philosophy.Core ModulesService Hub: Centralized dashboard for active hosting, VPS, and domain tracking.Site Manager (hPanel): Detailed management for individual websites, featuring resource gauges and CMS tools.Domain Engine: A robust DNS Zone Editor and domain lifecycle management tool.Email Suite: Professional email account creation and security configuration.Billing & Finance: Automated subscription tracking and tax-compliant invoice management.🛠️ Tech StackLayerTechnologyKey UsageFoundationReact 18/19Core UI library for component-based architecture.Build ToolViteFast HMR and optimized production bundling.RoutingReact Router v7Complex nested routing for dashboard sub-modules.StylingTailwind CSSUtility-first styling for a custom design system.UI ComponentsShadcn/UIAccessible, accessible primitives (Radix UI based).State (Server)TanStack QueryPolling server statuses and optimistic UI updates.State (Client)ZustandGlobal UI state (sidebar, theme, user context).ChartsRechartsInfrastructure monitoring (CPU/RAM/Bandwidth).📁 Architecture & Folder StructureThe project follows a Feature-Based Structure to ensure scalability and easy maintenance.Plaintextsrc/
-├── assets/             # Brand logos, illustrations, and static icons
-├── components/         # Common UI components (Buttons, Modals, Inputs)
-├── layouts/            # DashboardLayout, AuthLayout, BillingLayout
-├── features/           # Domain-driven modules
-│   ├── hosting/        # Site management, File Manager, CMS tools
-│   ├── domains/        # DNS Editor, Transfer locks, WHOIS
-│   ├── emails/         # Account creation, Forwarders, Anti-spam
-│   └── billing/        # Invoices, Subscriptions, Payment methods
-├── hooks/              # Global custom hooks (useAuth, useResourceMonitor)
-├── store/              # Zustand stores for global UI state
-└── utils/              # Form validators (Zod), formatters, and API helpers
-📋 Roadmap (Phase 1: Frontend Shell)[x] Project Initialization: Setup Vite, Tailwind, and Shadcn.[ ] Global UI Shell: Build the signature "Hostinger Purple" sidebar and responsive topbar.[ ] Service Hub: Create the main dashboard grid with usage progress bars.[ ] DNS Manager: Build a professional-grade table for complex record management.[ ] Resource Monitor: Implement SVG-based line charts for server health tracking.[ ] Auth Flow: Develop polished Login, Signup, and Setup Wizard pages.⚡ Getting Started1. Clone the repositoryBashgit clone https://github.com/your-username/hostinger-clone-frontend.git
-cd hostinger-clone-frontend
-2. Install dependenciesBashnpm install
-3. Set up environment variablesCreate a .env file in the root:Code snippetVITE_API_URL=https://mock.api.yoursite.com
-VITE_APP_NAME="hPanel Clone"
-4. Start the development serverBashnpm run dev
-🎨 Design GuidelinesColors: Primary Purple (#673DE6), Success Green (#00B090), Background Gray (#F4F5F9).Typography: Inter (Body), DM Sans (Headings).Interactions: Use Skeleton Loaders for all async data and Sonner for toast notifications.
+<div align="center">
+  <h1>🚀 hPanel Frontend Clone</h1>
+  <p><strong>Professional-Grade Deployment & Hosting Management Platform</strong></p>
+  
+  <p>
+    <img src="https://img.shields.io/badge/React-19-blue.svg" alt="React 19">
+    <img src="https://img.shields.io/badge/Vite-6.0-purple.svg" alt="Vite">
+    <img src="https://img.shields.io/badge/Tailwind-4.0-38b2ac.svg" alt="Tailwind">
+    <img src="https://img.shields.io/badge/TypeScript-Ready-blue.svg" alt="TypeScript">
+  </p>
+</div>
+
+<hr />
+
+<h2>📖 Overview</h2>
+<p>
+  This project is a high-fidelity <b>Single Page Application (SPA)</b> built with <b>React</b>. It replicates the sophisticated user experience of the Hostinger "hPanel," focusing on modularity, security, and developer productivity. It is designed to handle complex server management tasks through an intuitive, mobile-responsive interface.
+</p>
+
+
+
+<hr />
+
+<h2>🛠️ Tech Stack</h2>
+<table width="100%">
+  <tr>
+    <th align="left">Category</th>
+    <th align="left">Technology</th>
+    <th align="left">Purpose</th>
+  </tr>
+  <tr>
+    <td><b>Core</b></td>
+    <td>React 19 + Vite</td>
+    <td>Fast HMR and component-based rendering.</td>
+  </tr>
+  <tr>
+    <td><b>Styling</b></td>
+    <td>Tailwind CSS + Shadcn/UI</td>
+    <td>Accessible, utility-first design system.</td>
+  </tr>
+  <tr>
+    <td><b>State</b></td>
+    <td>Zustand + TanStack Query</td>
+    <td>Global UI state and server data caching.</td>
+  </tr>
+  <tr>
+    <td><b>Routing</b></td>
+    <td>React Router 7</td>
+    <td>Deep-nested dashboard navigation.</td>
+  </tr>
+  <tr>
+    <td><b>Validation</b></td>
+    <td>Zod + React Hook Form</td>
+    <td>Strict type-safe form management.</td>
+  </tr>
+</table>
+
+<hr />
+
+<h2>📂 Key Features</h2>
+<ul>
+  <li><b>Unified Dashboard:</b> Overview of hosting, domains, and resource consumption.</li>
+  <li><b>DNS Manager:</b> Advanced table interface for managing complex DNS records (A, MX, CNAME).</li>
+  <li><b>File Explorer:</b> Browser-based directory management with upload/edit capabilities.</li>
+  <li><b>Identity Suite:</b> Secure RBAC (Role-Based Access Control) with MFA support.</li>
+  <li><b>Billing Center:</b> Automated subscription tracking and PDF invoice generation.</li>
+</ul>
+
+
+
+<hr />
+
+<h2>🏗️ Project Structure</h2>
+
+<pre>
+src/
+├── <b>components/</b>   # Reusable UI atoms (Buttons, Modals, Tables)
+├── <b>features/</b>     # Domain-specific logic (Hosting, Domains, Auth)
+├── <b>hooks/</b>        # Custom React hooks for data/UI logic
+├── <b>layouts/</b>      # Dashboard and Auth shell wrappers
+├── <b>store/</b>        # Zustand global state definitions
+└── <b>utils/</b>        # API interceptors and data formatters
+</pre>
+
+<hr />
+
+<h2>🚦 Getting Started</h2>
+
+<h3>1. Installation</h3>
+<p>Clone the repository and install dependencies:</p>
+<code>git clone https://github.com/your-username/hpanel-clone.git</code><br/>
+<code>npm install</code>
+
+<h3>2. Development</h3>
+<p>Launch the Vite development server:</p>
+<code>npm run dev</code>
+
+<hr />
+
+<div align="center">
+  <p>Created for Computer Science Portfolio - 2026</p>
+</div>

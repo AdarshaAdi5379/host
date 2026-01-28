@@ -16,6 +16,11 @@ import { Login } from '@/pages/auth/Login'
 import { Signup } from '@/pages/auth/Signup'
 import { ForgotPassword } from '@/pages/auth/ForgotPassword'
 import { ResetPassword } from '@/pages/auth/ResetPassword'
+import { SettingsLayout } from '@/pages/settings/SettingsLayout'
+import { GeneralSettings } from '@/pages/settings/GeneralSettings'
+import { SecuritySettings } from '@/pages/settings/SecuritySettings'
+import { NotificationSettings } from '@/pages/settings/NotificationSettings'
+import { SessionManagement } from '@/pages/settings/SessionManagement'
 import { useAuthStore } from '@/store/authStore'
 
 function App() {
@@ -64,6 +69,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Settings Routes */}
+          <Route path="settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="/settings/general" replace />} />
+            <Route path="general" element={<GeneralSettings />} />
+            <Route path="security" element={<SecuritySettings />} />
+            <Route path="notifications" element={<NotificationSettings />} />
+            <Route path="sessions" element={<SessionManagement />} />
+          </Route>
         </Route>
 
         {/* Catch all - redirect to login or dashboard */}
