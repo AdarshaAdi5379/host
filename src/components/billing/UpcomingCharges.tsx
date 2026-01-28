@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
 import { Calendar, TrendingUp } from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
 
 interface UpcomingCharge {
     id: string
@@ -32,8 +33,17 @@ const mockCharges: UpcomingCharge[] = [
 ]
 
 export function UpcomingCharges() {
-    const totalAmount = mockCharges.reduce((sum, charge) => sum + charge.amount, 0)
-    const currency = mockCharges[0]?.currency || 'USD'
+    const { user } = useAuthStore()
+
+    // Only show charges for admin users
+    const isAdmin = user?.role === 'owner'
+    const charges = isAdmin ? mockCharges : []
+
+    // Don't render anything if no charges
+    if (charges.length === 0) return null
+
+    const totalAmount = charges.reduce((sum, charge) => sum + charge.amount, 0)
+    const currency = charges[0]?.currency || 'USD'
 
     return (
         <Card>
@@ -54,7 +64,7 @@ export function UpcomingCharges() {
 
                 {/* Charge List */}
                 <div className="space-y-3">
-                    {mockCharges.map((charge) => (
+                    {charges.map((charge) => (
                         <div
                             key={charge.id}
                             className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
@@ -75,12 +85,6 @@ export function UpcomingCharges() {
                         </div>
                     ))}
                 </div>
-
-                {mockCharges.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                        <p>No upcoming charges in the next 30 days</p>
-                    </div>
-                )}
             </CardContent>
         </Card>
     )

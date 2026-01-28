@@ -23,13 +23,22 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
         'manage_email',
     ],
     viewer: ['view_analytics', 'view_logs'],
+    user: [
+        'manage_websites',
+        'manage_files',
+        'manage_databases',
+        'view_analytics',
+        'view_logs',
+        'manage_dns',
+        'manage_email',
+    ],
 }
 
 /**
  * Check if a role has a specific permission
  */
 export function hasPermission(role: Role, permission: Permission): boolean {
-    return ROLE_PERMISSIONS[role].includes(permission)
+    return ROLE_PERMISSIONS[role]?.includes(permission) ?? false
 }
 
 /**
@@ -82,6 +91,7 @@ export function getRoleDisplayName(role: Role): string {
         owner: 'Owner',
         editor: 'Editor',
         viewer: 'Viewer',
+        user: 'User',
     }
     return names[role]
 }
@@ -94,6 +104,7 @@ export function getRoleDescription(role: Role): string {
         owner: 'Full access to billing, servers, and team management',
         editor: 'Can manage websites and files but cannot see billing or delete services',
         viewer: 'Read-only access to monitoring and logs',
+        user: 'Standard access to manage own services and domains',
     }
     return descriptions[role]
 }

@@ -1,6 +1,7 @@
 import { AlertTriangle, XCircle, CreditCard } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useAuthStore } from '@/store/authStore'
 
 interface Alert {
     id: string
@@ -37,7 +38,13 @@ const mockAlerts: Alert[] = [
 ]
 
 export function BillingAlerts() {
-    if (mockAlerts.length === 0) return null
+    const { user } = useAuthStore()
+
+    // Only show alerts for admin users
+    const isAdmin = user?.role === 'owner'
+    const alerts = isAdmin ? mockAlerts : []
+
+    if (alerts.length === 0) return null
 
     const getAlertStyles = (type: Alert['type']) => {
         const styles = {
@@ -65,7 +72,7 @@ export function BillingAlerts() {
 
     return (
         <div className="space-y-3">
-            {mockAlerts.map((alert) => {
+            {alerts.map((alert) => {
                 const styles = getAlertStyles(alert.type)
                 return (
                     <div

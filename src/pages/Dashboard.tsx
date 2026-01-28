@@ -5,11 +5,22 @@ import { ResourceUsageCard } from '@/components/dashboard/ResourceUsageCard'
 import { QuickActions } from '@/components/dashboard/QuickActions'
 import { mockServices, mockResourceUsage } from '@/data/mockData'
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
+import { useAuthStore } from '@/store/authStore'
+import { Server, Globe, Mail, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useNavigate } from 'react-router-dom'
 
 export function Dashboard() {
-    const hostingServices = mockServices.filter(s => s.type === 'hosting')
-    const domainServices = mockServices.filter(s => s.type === 'domain')
-    const emailServices = mockServices.filter(s => s.type === 'email')
+    const { user } = useAuthStore()
+    const navigate = useNavigate()
+
+    // Show demo data only for admin (owner role)
+    const isAdmin = user?.role === 'owner'
+    const hostingServices = isAdmin ? mockServices.filter(s => s.type === 'hosting') : []
+    const domainServices = isAdmin ? mockServices.filter(s => s.type === 'domain') : []
+    const emailServices = isAdmin ? mockServices.filter(s => s.type === 'email') : []
+
+    const hasAnyServices = hostingServices.length > 0 || domainServices.length > 0 || emailServices.length > 0
 
     return (
         <div className="space-y-6">
@@ -18,52 +29,117 @@ export function Dashboard() {
 
             {/* Welcome Section */}
             <div>
-                <h1 className="text-3xl font-bold text-brand-navy">Welcome back, John!</h1>
-                <p className="text-gray-600 mt-1">Here's what's happening with your services today.</p>
+                <h1 className="text-3xl font-bold text-brand-navy">Welcome back, {user?.name || 'User'}!</h1>
+                <p className="text-gray-600 mt-1">
+                    {hasAnyServices
+                        ? "Here's what's happening with your services today."
+                        : "Get started by setting up your first service."}
+                </p>
             </div>
 
-            {/* Resource Usage */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                    <ResourceUsageCard usage={mockResourceUsage} />
-                </div>
-                <div>
-                    <QuickActions />
-                </div>
-            </div>
-
-            {/* Hosting Services */}
-            {hostingServices.length > 0 && (
-                <div>
-                    <h2 className="text-xl font-bold mb-4">Hosting Services</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {hostingServices.map(service => (
-                            <HostingCard key={service.id} service={service} />
-                        ))}
+            {/* Show content based on whether user has services */}
+            {hasAnyServices ? (
+                <>
+                    {/* Resource Usage - Only for admin with services */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="lg:col-span-2">
+                            <ResourceUsageCard usage={mockResourceUsage} />
+                        </div>
+                        <div>
+                            <QuickActions />
+                        </div>
                     </div>
-                </div>
-            )}
 
-            {/* Domain Services */}
-            {domainServices.length > 0 && (
-                <div>
-                    <h2 className="text-xl font-bold mb-4">Domains</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {domainServices.map(service => (
-                            <DomainCard key={service.id} service={service} />
-                        ))}
-                    </div>
-                </div>
-            )}
+                    {/* Hosting Services */}
+                    {hostingServices.length > 0 && (
+                        <div>
+                            <h2 className="text-xl font-bold mb-4">Hosting Services</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {hostingServices.map(service => (
+                                    <HostingCard key={service.id} service={service} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-            {/* Email Services */}
-            {emailServices.length > 0 && (
-                <div>
-                    <h2 className="text-xl font-bold mb-4">Email Services</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {emailServices.map(service => (
-                            <EmailCard key={service.id} service={service} />
-                        ))}
+                    {/* Domain Services */}
+                    {domainServices.length > 0 && (
+                        <div>
+                            <h2 className="text-xl font-bold mb-4">Domains</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {domainServices.map(service => (
+                                    <DomainCard key={service.id} service={service} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Email Services */}
+                    {emailServices.length > 0 && (
+                        <div>
+                            <h2 className="text-xl font-bold mb-4">Email Services</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {emailServices.map(service => (
+                                    <EmailCard key={service.id} service={service} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </>
+            ) : (
+                /* Empty State for Regular Users */
+                <div className="py-16">
+                    <div className="max-w-3xl mx-auto text-center">
+                        <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Server className="w-12 h-12 text-brand-purple" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-brand-navy mb-3">
+                            You Haven't Hosted Anything Yet
+                        </h2>
+                        <p className="text-gray-600 mb-8 max-w-xl mx-auto">
+                            Start your journey by setting up your first hosting service, registering a domain, or creating an email account.
+                        </p>
+
+                        {/* Quick Start Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div className="border border-gray-200 rounded-lg p-6 hover:border-brand-purple transition-colors cursor-pointer"
+                                onClick={() => navigate('/hosting')}>
+                                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                                    <Server className="w-6 h-6 text-blue-600" />
+                                </div>
+                                <h3 className="font-semibold text-brand-navy mb-2">Create Hosting</h3>
+                                <p className="text-sm text-gray-600">
+                                    Deploy your website with our powerful hosting platform
+                                </p>
+                            </div>
+
+                            <div className="border border-gray-200 rounded-lg p-6 hover:border-brand-purple transition-colors cursor-pointer"
+                                onClick={() => navigate('/domains/search')}>
+                                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                                    <Globe className="w-6 h-6 text-green-600" />
+                                </div>
+                                <h3 className="font-semibold text-brand-navy mb-2">Register Domain</h3>
+                                <p className="text-sm text-gray-600">
+                                    Find and register your perfect domain name
+                                </p>
+                            </div>
+
+                            <div className="border border-gray-200 rounded-lg p-6 hover:border-brand-purple transition-colors cursor-pointer"
+                                onClick={() => navigate('/email')}>
+                                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                                    <Mail className="w-6 h-6 text-brand-purple" />
+                                </div>
+                                <h3 className="font-semibold text-brand-navy mb-2">Setup Email</h3>
+                                <p className="text-sm text-gray-600">
+                                    Create professional email accounts for your domain
+                                </p>
+                            </div>
+                        </div>
+
+                        <Button variant="primary" size="lg" onClick={() => navigate('/hosting')}>
+                            <Plus className="w-5 h-5 mr-2" />
+                            Get Started
+                        </Button>
                     </div>
                 </div>
             )}

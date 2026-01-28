@@ -72,15 +72,235 @@
 
 <h2>🏗️ Project Structure</h2>
 
+<details>
+<summary><b>📁 Click to expand detailed project structure</b></summary>
+
+<h3>📂 Root Directory</h3>
 <pre>
-src/
-├── <b>components/</b>   # Reusable UI atoms (Buttons, Modals, Tables)
-├── <b>features/</b>     # Domain-specific logic (Hosting, Domains, Auth)
-├── <b>hooks/</b>        # Custom React hooks for data/UI logic
-├── <b>layouts/</b>      # Dashboard and Auth shell wrappers
-├── <b>store/</b>        # Zustand global state definitions
-└── <b>utils/</b>        # API interceptors and data formatters
+host/
+├── 📄 package.json          # Dependencies and scripts
+├── 📄 vite.config.ts         # Vite build configuration
+├── 📄 tailwind.config.js     # Tailwind CSS customization
+├── 📄 tsconfig.json          # TypeScript compiler options
+└── 📁 src/                   # Source code directory
 </pre>
+
+<hr />
+
+<h3>📂 Source Directory (<code>src/</code>)</h3>
+
+<h4>🎨 <code>components/</code> - Reusable UI Components</h4>
+<table width="100%">
+  <tr>
+    <th align="left">Folder</th>
+    <th align="left">Purpose</th>
+    <th align="left">Examples</th>
+  </tr>
+  <tr>
+    <td><code>ui/</code></td>
+    <td>Shadcn/UI base components</td>
+    <td>Button, Input, Card, Badge, Toast</td>
+  </tr>
+  <tr>
+    <td><code>layout/</code></td>
+    <td>App shell and navigation</td>
+    <td>Navbar, Sidebar, AppLayout</td>
+  </tr>
+  <tr>
+    <td><code>auth/</code></td>
+    <td>Authentication components</td>
+    <td>ProtectedRoute, AuthLayout</td>
+  </tr>
+  <tr>
+    <td><code>dashboard/</code></td>
+    <td>Dashboard-specific widgets</td>
+    <td>StatsCard, QuickActions, ResourceUsage</td>
+  </tr>
+  <tr>
+    <td><code>domains/</code></td>
+    <td>Domain management components</td>
+    <td>DomainCart, EPPCodeInput, PrivacyProtectionModal</td>
+  </tr>
+  <tr>
+    <td><code>settings/</code></td>
+    <td>Settings page components</td>
+    <td>AvatarUpload, FloatingSaveBar</td>
+  </tr>
+  <tr>
+    <td><code>deployment/</code></td>
+    <td>Deployment workflow components</td>
+    <td>FileUploader, CodeEditor, DeploymentLogs</td>
+  </tr>
+</table>
+
+<h4>📄 <code>pages/</code> - Route Components</h4>
+<pre>
+pages/
+├── 📁 auth/                  # Authentication pages
+│   ├── Login.tsx
+│   ├── Signup.tsx
+│   ├── ForgotPassword.tsx
+│   └── ResetPassword.tsx
+├── 📁 domains/               # Domain management
+│   ├── DomainSearch.tsx
+│   └── DomainTransferWizard.tsx
+├── 📁 settings/              # User settings
+│   ├── SettingsLayout.tsx
+│   ├── GeneralSettings.tsx
+│   ├── SecuritySettings.tsx
+│   ├── NotificationSettings.tsx
+│   └── SessionManagement.tsx
+├── 📁 hosting/               # Hosting management
+│   ├── DNSEditor.tsx
+│   ├── DatabaseManager.tsx
+│   └── FileManager.tsx
+├── 📁 deployment/            # Deployment workflows
+│   ├── GitDeployment.tsx
+│   └── FileManager.tsx
+├── 📁 apps/                  # App installer
+│   └── AppInstaller.tsx
+├── Dashboard.tsx             # Main dashboard
+├── HostingManagement.tsx     # Hosting overview
+├── DomainManagement.tsx      # Domain list
+├── EmailManagement.tsx       # Email accounts
+├── BillingManagement.tsx     # Billing & invoices
+└── Analytics.tsx             # Analytics dashboard
+</pre>
+
+<h4>🗃️ <code>store/</code> - State Management (Zustand)</h4>
+<table width="100%">
+  <tr>
+    <th align="left">Store</th>
+    <th align="left">Purpose</th>
+  </tr>
+  <tr>
+    <td><code>authStore.ts</code></td>
+    <td>User authentication state, login/logout, session management</td>
+  </tr>
+  <tr>
+    <td><code>domainStore.ts</code></td>
+    <td>Domain cart, selected domains, checkout state</td>
+  </tr>
+  <tr>
+    <td><code>deploymentStore.ts</code></td>
+    <td>Git connections, build settings, deployment history</td>
+  </tr>
+  <tr>
+    <td><code>settingsStore.ts</code></td>
+    <td>User preferences, notification settings, localization</td>
+  </tr>
+  <tr>
+    <td><code>toastStore.ts</code></td>
+    <td>Toast notification queue and management</td>
+  </tr>
+  <tr>
+    <td><code>themeStore.ts</code></td>
+    <td>Theme preferences (light/dark mode)</td>
+  </tr>
+</table>
+
+<h4>🔧 <code>lib/</code> - Utility Functions & Helpers</h4>
+<table width="100%">
+  <tr>
+    <th align="left">File</th>
+    <th align="left">Purpose</th>
+  </tr>
+  <tr>
+    <td><code>utils.ts</code></td>
+    <td>General utility functions (cn, formatters)</td>
+  </tr>
+  <tr>
+    <td><code>domainUtils.ts</code></td>
+    <td>Domain validation, TLD extraction, EPP code validation</td>
+  </tr>
+  <tr>
+    <td><code>deploymentUtils.ts</code></td>
+    <td>Build command validation, log parsing, status colors</td>
+  </tr>
+  <tr>
+    <td><code>identicon.ts</code></td>
+    <td>Generate fallback avatars with initials</td>
+  </tr>
+  <tr>
+    <td><code>settingsValidation.ts</code></td>
+    <td>Zod schemas for settings forms</td>
+  </tr>
+  <tr>
+    <td><code>authValidation.ts</code></td>
+    <td>Zod schemas for authentication forms</td>
+  </tr>
+  <tr>
+    <td><code>mockData.ts</code></td>
+    <td>Mock data for development and testing</td>
+  </tr>
+</table>
+
+<h4>📝 <code>types/</code> - TypeScript Type Definitions</h4>
+<pre>
+types/
+├── auth.ts                   # User, Role, Permission, Session types
+├── domain.ts                 # Domain, Transfer, Cart, Suggestion types
+└── deployment.ts             # Repository, Build, Deployment types
+</pre>
+
+<h4>🪝 <code>hooks/</code> - Custom React Hooks</h4>
+<table width="100%">
+  <tr>
+    <th align="left">Hook</th>
+    <th align="left">Purpose</th>
+  </tr>
+  <tr>
+    <td><code>useDomainSearch.ts</code></td>
+    <td>Debounced domain search with TanStack Query caching</td>
+  </tr>
+  <tr>
+    <td><code>usePermissions.ts</code></td>
+    <td>Check user permissions for RBAC</td>
+  </tr>
+</table>
+
+<h4>📊 <code>data/</code> - Static Data & Constants</h4>
+<pre>
+data/
+└── mockData.ts               # Mock API responses for development
+</pre>
+
+</details>
+
+<hr />
+
+<h3>🎯 Architecture Highlights</h3>
+
+<table width="100%">
+  <tr>
+    <th align="left">Pattern</th>
+    <th align="left">Implementation</th>
+  </tr>
+  <tr>
+    <td><b>Component Organization</b></td>
+    <td>Atomic design - UI atoms → Feature components → Pages</td>
+  </tr>
+  <tr>
+    <td><b>State Management</b></td>
+    <td>Zustand for global state + TanStack Query for server state</td>
+  </tr>
+  <tr>
+    <td><b>Type Safety</b></td>
+    <td>Strict TypeScript with Zod runtime validation</td>
+  </tr>
+  <tr>
+    <td><b>Code Splitting</b></td>
+    <td>Route-based lazy loading with React.lazy()</td>
+  </tr>
+  <tr>
+    <td><b>Authentication</b></td>
+    <td>Protected routes with RBAC (Role-Based Access Control)</td>
+  </tr>
+  <tr>
+    <td><b>Styling</b></td>
+    <td>Tailwind CSS with custom design tokens + Shadcn/UI components</td>
+  </tr>
+</table>
 
 <hr />
 

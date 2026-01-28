@@ -7,7 +7,7 @@ const mockLogin = async (credentials: LoginCredentials): Promise<{ user: User; t
     // Simulate API delay
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // Mock validation
+    // Admin user
     if (credentials.email === 'demo@example.com' && credentials.password === 'Demo@123') {
         return {
             user: {
@@ -23,6 +23,25 @@ const mockLogin = async (credentials: LoginCredentials): Promise<{ user: User; t
                 lastLoginLocation: 'Bangalore, India',
             },
             token: 'mock-jwt-token-' + Date.now(),
+        }
+    }
+
+    // Regular user (non-admin)
+    if (credentials.email === 'user@example.com' && credentials.password === 'User@123') {
+        return {
+            user: {
+                id: '2',
+                email: credentials.email,
+                name: 'Sarah Johnson',
+                role: 'user',
+                avatar: undefined,
+                emailVerified: true,
+                mfaEnabled: false,
+                createdAt: '2025-12-15T10:30:00Z',
+                lastLoginAt: new Date().toISOString(),
+                lastLoginLocation: 'Mumbai, India',
+            },
+            token: 'mock-jwt-token-user-' + Date.now(),
         }
     }
 

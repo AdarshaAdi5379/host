@@ -1,4 +1,4 @@
-export type Role = 'owner' | 'editor' | 'viewer'
+export type Role = 'owner' | 'editor' | 'viewer' | 'user'
 
 export type Permission =
     | 'manage_billing'
