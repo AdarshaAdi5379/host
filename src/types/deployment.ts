@@ -1,8 +1,10 @@
-export enum GitProvider {
-    GITHUB = 'github',
-    GITLAB = 'gitlab',
-    BITBUCKET = 'bitbucket',
-}
+export const GitProvider = {
+    GITHUB: 'github',
+    GITLAB: 'gitlab',
+    BITBUCKET: 'bitbucket',
+} as const
+
+export type GitProvider = typeof GitProvider[keyof typeof GitProvider]
 
 export interface Repository {
     id: string
@@ -24,13 +26,16 @@ export interface BuildSettings {
     autoDeployOnPush: boolean
 }
 
-export enum DeploymentStatus {
-    PENDING = 'pending',
-    BUILDING = 'building',
-    SUCCESS = 'success',
-    FAILED = 'failed',
-    CANCELLED = 'cancelled',
-}
+export const DeploymentStatus = {
+    PENDING: 'pending',
+    BUILDING: 'building',
+    SUCCESS: 'success',
+    FAILED: 'failed',
+    CANCELLED: 'cancelled',
+} as const
+
+export type DeploymentStatus = typeof DeploymentStatus[keyof typeof DeploymentStatus]
+
 
 export interface Deployment {
     id: string

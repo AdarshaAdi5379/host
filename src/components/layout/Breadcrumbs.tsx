@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 interface BreadcrumbItem {
     label: string
     href?: string
+    to?: string
 }
 
 interface BreadcrumbsProps {
@@ -16,9 +17,9 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
             {items.map((item, index) => (
                 <div key={index} className="flex items-center space-x-2">
                     {index > 0 && <ChevronRight className="w-4 h-4 text-gray-400" />}
-                    {item.href ? (
+                    {item.href || item.to ? (
                         <Link
-                            to={item.href}
+                            to={item.to || item.href!}
                             className="text-gray-600 hover:text-brand-purple transition-colors"
                         >
                             {item.label}

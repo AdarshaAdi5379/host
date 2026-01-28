@@ -22,6 +22,10 @@ import { SecuritySettings } from '@/pages/settings/SecuritySettings'
 import { NotificationSettings } from '@/pages/settings/NotificationSettings'
 import { SessionManagement } from '@/pages/settings/SessionManagement'
 import { useAuthStore } from '@/store/authStore'
+import { CreateHosting } from '@/pages/hosting/CreateHosting'
+import { DomainSearch } from '@/pages/domains/DomainSearch'
+import { CreateEmail } from '@/pages/email/CreateEmail'
+import { DomainTransferWizard } from '@/pages/domains/DomainTransferWizard'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -52,7 +56,9 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+
           <Route path="hosting" element={<HostingManagement />} />
+          <Route path="hosting/create" element={<CreateHosting />} />
           <Route path="hosting/dns" element={<DNSEditor />} />
           <Route path="hosting/databases" element={<DatabaseManager />} />
           <Route path="hosting/files" element={<FileManager />} />
@@ -60,7 +66,10 @@ function App() {
           <Route path="deployment/git" element={<GitDeployment />} />
           <Route path="apps" element={<AppInstaller />} />
           <Route path="domains" element={<DomainManagement />} />
-          <Route path="emails" element={<EmailManagement />} />
+          <Route path="domains/search" element={<DomainSearch />} />
+          <Route path="domains/transfer" element={<DomainTransferWizard />} />
+          <Route path="email" element={<EmailManagement />} />
+          <Route path="email/create" element={<CreateEmail />} />
           <Route
             path="billing"
             element={
