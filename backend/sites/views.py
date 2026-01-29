@@ -20,6 +20,11 @@ from .docker_utils import (
     run_docker_compose_down_volumes,
     check_docker_running
 )
+from .hosts_manager import (
+    add_hosts_entry,
+    remove_hosts_entry,
+    is_admin
+)
 
 
 class WordPressSiteViewSet(viewsets.ModelViewSet):
@@ -86,6 +91,12 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
+            # Add hosts file entry for .local domain
+            hosts_success, hosts_message = add_hosts_entry(domain)
+            if not hosts_success:
+                # Don't fail site creation, just warn
+                print(f"Warning: {hosts_message}")
+            
             # Return created site
             response_serializer = WordPressSiteSerializer(site)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -145,6 +156,11 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
     def terminate(self, request, pk=None):
         """Terminate and delete a WordPress site"""
         site = self.get_object()
+        
+        # Remove hosts file entry
+        hosts_success, hosts_message = remove_hosts_entry(site.domain)
+        if not hosts_success:
+            print(f"Warning: {hosts_message}")
         
         # Stop and remove containers and volumes
         success, output = run_docker_compose_down_volumes(site.site_directory)

@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  ng_db:
+    image: mysql:8.0
+    container_name: ng_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: sHv8uLKhCOdAULVt
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: sHv8uLKhCOdAULVt
+    volumes:
+    - ng_db_data:/var/lib/mysql
+    networks:
+    - ng_network
+  ng_wordpress:
+    depends_on:
+    - ng_db
+    image: wordpress:latest
+    container_name: ng_wp
+    restart: unless-stopped
+    ports:
+    - 9002:80
+    environment:
+      WORDPRESS_DB_HOST: ng_db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: sHv8uLKhCOdAULVt
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+    - ng_wp_data:/var/www/html
+    networks:
+    - ng_network
+volumes:
+  ng_db_data: {}
+  ng_wp_data: {}
+networks:
+  ng_network:
+    driver: bridge
