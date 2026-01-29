@@ -25,6 +25,12 @@ from .hosts_manager import (
     remove_hosts_entry,
     is_admin
 )
+from .nginx_manager import (
+    write_site_config,
+    remove_site_config,
+    reload_nginx,
+    is_nginx_running
+)
 
 
 class WordPressSiteViewSet(viewsets.ModelViewSet):
@@ -97,6 +103,19 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 # Don't fail site creation, just warn
                 print(f"Warning: {hosts_message}")
             
+            # Generate Nginx configuration
+            nginx_success, nginx_message, config_path = write_site_config(site.name, domain, port)
+            if nginx_success:
+                print(f"Nginx config created: {config_path}")
+                # Reload Nginx to apply changes
+                reload_success, reload_message = reload_nginx()
+                if reload_success:
+                    print(f"Nginx reloaded: {reload_message}")
+                else:
+                    print(f"Warning: {reload_message}")
+            else:
+                print(f"Warning: {nginx_message}")
+            
             # Return created site
             response_serializer = WordPressSiteSerializer(site)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -161,6 +180,19 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         hosts_success, hosts_message = remove_hosts_entry(site.domain)
         if not hosts_success:
             print(f"Warning: {hosts_message}")
+        
+        # Remove Nginx configuration
+        nginx_success, nginx_message = remove_site_config(site.name)
+        if nginx_success:
+            print(f"Nginx config removed: {nginx_message}")
+            # Reload Nginx to apply changes
+            reload_success, reload_message = reload_nginx()
+            if reload_success:
+                print(f"Nginx reloaded: {reload_message}")
+            else:
+                print(f"Warning: {reload_message}")
+        else:
+            print(f"Warning: {nginx_message}")
         
         # Stop and remove containers and volumes
         success, output = run_docker_compose_down_volumes(site.site_directory)
