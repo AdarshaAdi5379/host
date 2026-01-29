@@ -14,11 +14,11 @@ export function Dashboard() {
     const { user } = useAuthStore()
     const navigate = useNavigate()
 
-    // Show demo data only for admin (owner role)
+    // Show demo data for all users but check role for visibility
     const isAdmin = user?.role === 'owner'
-    const hostingServices = isAdmin ? mockServices.filter(s => s.type === 'hosting') : []
-    const domainServices = isAdmin ? mockServices.filter(s => s.type === 'domain') : []
-    const emailServices = isAdmin ? mockServices.filter(s => s.type === 'email') : []
+    const hostingServices = mockServices.filter(s => s.type === 'hosting')
+    const domainServices = mockServices.filter(s => s.type === 'domain')
+    const emailServices = mockServices.filter(s => s.type === 'email')
 
     const hasAnyServices = hostingServices.length > 0 || domainServices.length > 0 || emailServices.length > 0
 
@@ -40,18 +40,27 @@ export function Dashboard() {
             {/* Show content based on whether user has services */}
             {hasAnyServices ? (
                 <>
-                    {/* Resource Usage - Only for admin with services */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div className="lg:col-span-2">
-                            <ResourceUsageCard usage={mockResourceUsage} />
+                    {/* Main Dashboard Grid */}
+                    {isAdmin ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Resource Usage - Only for admin */}
+                            <div className="lg:col-span-2">
+                                <ResourceUsageCard usage={mockResourceUsage} />
+                            </div>
+                            {/* Quick Actions */}
+                            <div>
+                                <QuickActions />
+                            </div>
                         </div>
-                        <div>
+                    ) : (
+                        // Regular User - Only Quick Actions
+                        <div className="grid grid-cols-1 gap-6">
                             <QuickActions />
                         </div>
-                    </div>
+                    )}
 
-                    {/* Hosting Services */}
-                    {hostingServices.length > 0 && (
+                    {/* Hosting Services - Admin Only */}
+                    {isAdmin && hostingServices.length > 0 && (
                         <div>
                             <h2 className="text-xl font-bold mb-4">Hosting Services</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -62,8 +71,8 @@ export function Dashboard() {
                         </div>
                     )}
 
-                    {/* Domain Services */}
-                    {domainServices.length > 0 && (
+                    {/* Domain Services - Admin Only */}
+                    {isAdmin && domainServices.length > 0 && (
                         <div>
                             <h2 className="text-xl font-bold mb-4">Domains</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -74,8 +83,8 @@ export function Dashboard() {
                         </div>
                     )}
 
-                    {/* Email Services */}
-                    {emailServices.length > 0 && (
+                    {/* Email Services - Admin Only */}
+                    {isAdmin && emailServices.length > 0 && (
                         <div>
                             <h2 className="text-xl font-bold mb-4">Email Services</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

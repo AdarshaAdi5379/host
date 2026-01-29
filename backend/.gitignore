@@ -1,0 +1,15 @@
+# Backend (Django + Python)
+venv/
+*.pyc
+__pycache__/
+*.sqlite3
+*.db
+.env
+*.log
+
+# Django
+*.pot
+local_settings.py
+db.sqlite3
+media/
+staticfiles/

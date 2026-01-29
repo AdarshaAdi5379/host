@@ -1,0 +1,140 @@
+"""
+WordPress Orchestrator - Core logic for provisioning WordPress instances
+"""
+import os
+import socket
+import yaml
+from pathlib import Path
+from django.conf import settings
+
+
+def find_available_port(start_port=9000, end_port=9999):
+    """Find an available port in the specified range"""
+    for port in range(start_port, end_port + 1):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            try:
+                sock.bind(('127.0.0.1', port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError(f"No available ports in range {start_port}-{end_port}")
+
+
+def generate_docker_compose(site_name, db_password, port):
+    """
+    Generate docker-compose.yml configuration for a WordPress site
+    
+    Args:
+        site_name: Name of the site (used for container names)
+        db_password: MySQL root password
+        port: Host port to map to WordPress container
+    
+    Returns:
+        dict: Docker Compose configuration
+    """
+    compose_config = {
+        'version': '3.8',
+        'services': {
+            f'{site_name}_db': {
+                'image': 'mysql:8.0',
+                'container_name': f'{site_name}_mysql',
+                'restart': 'unless-stopped',
+                'environment': {
+                    'MYSQL_ROOT_PASSWORD': db_password,
+                    'MYSQL_DATABASE': 'wordpress',
+                    'MYSQL_USER': 'wordpress',
+                    'MYSQL_PASSWORD': db_password,
+                },
+                'volumes': [
+                    f'{site_name}_db_data:/var/lib/mysql'
+                ],
+                'networks': [
+                    f'{site_name}_network'
+                ]
+            },
+            f'{site_name}_wordpress': {
+                'depends_on': [
+                    f'{site_name}_db'
+                ],
+                'image': 'wordpress:latest',
+                'container_name': f'{site_name}_wp',
+                'restart': 'unless-stopped',
+                'ports': [
+                    f'{port}:80'
+                ],
+                'environment': {
+                    'WORDPRESS_DB_HOST': f'{site_name}_db:3306',
+                    'WORDPRESS_DB_USER': 'wordpress',
+                    'WORDPRESS_DB_PASSWORD': db_password,
+                    'WORDPRESS_DB_NAME': 'wordpress',
+                },
+                'volumes': [
+                    f'{site_name}_wp_data:/var/www/html'
+                ],
+                'networks': [
+                    f'{site_name}_network'
+                ]
+            }
+        },
+        'volumes': {
+            f'{site_name}_db_data': {},
+            f'{site_name}_wp_data': {}
+        },
+        'networks': {
+            f'{site_name}_network': {
+                'driver': 'bridge'
+            }
+        }
+    }
+    
+    return compose_config
+
+
+def write_docker_compose(site_directory, compose_config):
+    """Write docker-compose.yml to the site directory"""
+    compose_path = Path(site_directory) / 'docker-compose.yml'
+    
+    with open(compose_path, 'w') as f:
+        yaml.dump(compose_config, f, default_flow_style=False, sort_keys=False)
+    
+    return str(compose_path)
+
+
+def generate_nginx_config(site_name, domain, port):
+    """
+    Generate Nginx server block configuration
+    
+    Args:
+        site_name: Name of the site
+        domain: Local domain (e.g., mysite.local)
+        port: Port where WordPress is running
+    
+    Returns:
+        str: Nginx configuration content
+    """
+    config = f"""server {{
+    listen 80;
+    server_name {domain};
+
+    location / {{
+        proxy_pass http://127.0.0.1:{port};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }}
+}}
+"""
+    return config
+
+
+def create_site_directory(site_name):
+    """Create directory structure for a WordPress site"""
+    sites_dir = settings.WORDPRESS_SITES_DIR
+    site_dir = sites_dir / site_name
+    
+    # Create directories
+    os.makedirs(site_dir, exist_ok=True)
+    os.makedirs(sites_dir, exist_ok=True)
+    
+    return str(site_dir)

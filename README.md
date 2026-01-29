@@ -60,6 +60,7 @@
 <h2>📂 Key Features</h2>
 <ul>
   <li><b>Unified Dashboard:</b> Overview of hosting, domains, and resource consumption.</li>
+  <li><b>Deployment Engine:</b> CI/CD pipeline with Git integration, real-time streaming build logs, and direct drag-and-drop uploads.</li>
   <li><b>DNS Manager:</b> Advanced table interface for managing complex DNS records (A, MX, CNAME).</li>
   <li><b>File Explorer:</b> Browser-based directory management with upload/edit capabilities.</li>
   <li><b>Identity Suite:</b> Secure RBAC (Role-Based Access Control) with MFA support.</li>
