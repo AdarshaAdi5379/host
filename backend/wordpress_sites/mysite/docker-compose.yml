@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  mysite_db:
+    image: mysql:8.0
+    container_name: mysite_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: OsjjF5XeslH0C4lP
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: OsjjF5XeslH0C4lP
+    volumes:
+    - mysite_db_data:/var/lib/mysql
+    networks:
+    - mysite_network
+  mysite_wordpress:
+    depends_on:
+    - mysite_db
+    image: wordpress:latest
+    container_name: mysite_wp
+    restart: unless-stopped
+    ports:
+    - 9001:80
+    environment:
+      WORDPRESS_DB_HOST: mysite_db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: OsjjF5XeslH0C4lP
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+    - mysite_wp_data:/var/www/html
+    networks:
+    - mysite_network
+volumes:
+  mysite_db_data: {}
+  mysite_wp_data: {}
+networks:
+  mysite_network:
+    driver: bridge

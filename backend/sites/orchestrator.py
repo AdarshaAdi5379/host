@@ -9,8 +9,22 @@ from django.conf import settings
 
 
 def find_available_port(start_port=9000, end_port=9999):
-    """Find an available port in the specified range"""
+    """
+    Find an available port in the specified range
+    Checks both network availability and database assignments
+    """
+    # Import here to avoid circular dependency
+    from .models import WordPressSite
+    
+    # Get all ports already assigned in database
+    assigned_ports = set(WordPressSite.objects.values_list('port', flat=True))
+    
     for port in range(start_port, end_port + 1):
+        # Skip if port is already assigned in database
+        if port in assigned_ports:
+            continue
+            
+        # Check if port is available on the network
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             try:
                 sock.bind(('127.0.0.1', port))
