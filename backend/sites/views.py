@@ -144,6 +144,25 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         if success:
             site.status = 'running'
             site.save()
+            
+            # Ensure networking (Hosts + Nginx) is set up
+            # This handles cases where sites were created before Phase 4
+            # or if configs were lost/cleared.
+            
+            # 1. Hosts File
+            hosts_success, hosts_message = add_hosts_entry(site.domain)
+            if not hosts_success:
+                print(f"Start Warning: {hosts_message}")
+                
+            # 2. Nginx Config
+            nginx_success, nginx_message, config_path = write_site_config(site.name, site.domain, site.port)
+            if nginx_success:
+                reload_success, reload_message = reload_nginx()
+                if not reload_success:
+                    print(f"Start Warning: {reload_message}")
+            else:
+                print(f"Start Warning: {nginx_message}")
+                
             return Response({'status': 'Site started successfully'})
         else:
             site.status = 'error'

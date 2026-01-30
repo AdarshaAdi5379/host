@@ -196,7 +196,7 @@ export function HostingManagement() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => window.open(`http://${site.domain}`, '_blank')}
+                                        onClick={() => window.open(`http://localhost:${site.port}`, '_blank')}
                                         disabled={site.status !== 'running'}
                                     >
                                         <ExternalLink className="w-4 h-4" />

@@ -81,6 +81,7 @@ def generate_docker_compose(site_name, db_password, port):
                     'WORDPRESS_DB_USER': 'wordpress',
                     'WORDPRESS_DB_PASSWORD': db_password,
                     'WORDPRESS_DB_NAME': 'wordpress',
+                    'WORDPRESS_CONFIG_EXTRA': "define('WP_HOME', 'http://' . $$_SERVER['HTTP_HOST']); define('WP_SITEURL', 'http://' . $$_SERVER['HTTP_HOST']);",
                 },
                 'volumes': [
                     f'{site_name}_wp_data:/var/www/html'
