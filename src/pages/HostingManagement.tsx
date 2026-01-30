@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Server, Plus, Play, Square, Trash2, ExternalLink, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
+import { ResourceMonitor } from '@/components/hosting/ResourceMonitor'
 import { useToast } from '@/components/ui/toast'
 
 export function HostingManagement() {
@@ -162,6 +163,10 @@ export function HostingManagement() {
                                         <span className="text-gray-600">Admin:</span>
                                         <span className="text-xs">{site.admin_username}</span>
                                     </div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <ResourceMonitor siteId={site.id} isRunning={site.status === 'running'} />
                                 </div>
 
                                 <div className="flex items-center space-x-2">

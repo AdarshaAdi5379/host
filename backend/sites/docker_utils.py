@@ -118,3 +118,80 @@ def check_docker_running() -> bool:
         return result.returncode == 0
     except:
         return False
+
+def get_container_stats(container_name: str) -> dict:
+    """
+    Get real-time CPU and Memory stats for a container
+    
+    Args:
+        container_name: Name of the container to query
+        
+    Returns:
+        dict: {
+            'cpu_percent': float,
+            'memory_usage_mb': float,
+            'memory_limit_mb': float,
+            'memory_percent': float,
+            'status': str
+        } or None if container not found
+    """
+    try:
+        import docker
+        client = docker.from_env()
+        
+        try:
+            container = client.containers.get(container_name)
+            
+            if container.status != 'running':
+                return {
+                    'status': 'offline',
+                    'cpu_percent': 0,
+                    'memory_usage_mb': 0,
+                    'memory_limit_mb': 0,
+                    'memory_percent': 0
+                }
+                
+            # Get stats (stream=False to get a single snapshot)
+            stats = container.stats(stream=False)
+            
+            # --- CPU Calculation ---
+            # Based on Docker CLI implementation
+            cpu_delta = stats['cpu_stats']['cpu_usage']['total_usage'] - \
+                        stats['precpu_stats']['cpu_usage']['total_usage']
+                        
+            system_delta = stats['cpu_stats']['system_cpu_usage'] - \
+                           stats['precpu_stats']['system_cpu_usage']
+                           
+            online_cpus = stats['cpu_stats'].get('online_cpus', 1)
+            
+            if system_delta > 0 and cpu_delta > 0:
+                cpu_percent = (cpu_delta / system_delta) * online_cpus * 100.0
+            else:
+                cpu_percent = 0.0
+                
+            # --- Memory Calculation ---
+            memory_usage = stats['memory_stats']['usage']
+            # Adjust for cache if available (Docker CLI does this)
+            if 'cache' in stats['memory_stats'].get('stats', {}):
+                memory_usage -= stats['memory_stats']['stats']['cache']
+                
+            memory_limit = stats['memory_stats']['limit']
+            memory_percent = (memory_usage / memory_limit) * 100.0
+            
+            return {
+                'status': 'online',
+                'cpu_percent': round(cpu_percent, 2),
+                'memory_usage_mb': round(memory_usage / (1024 * 1024), 2),
+                'memory_limit_mb': round(memory_limit / (1024 * 1024), 2),
+                'memory_percent': round(memory_percent, 2)
+            }
+            
+        except docker.errors.NotFound:
+            return None
+            
+    except ImportError:
+        # Fallback if docker-py is not installed (though it should be)
+        return None
+    except Exception as e:
+        print(f"Error fetching stats for {container_name}: {e}")
+        return None

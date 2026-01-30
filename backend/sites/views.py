@@ -225,3 +225,28 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         # Delete site record
         site.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['get'])
+    def stats(self, request, pk=None):
+        """
+        Get real-time statistics for the site's container
+        """
+        site = self.get_object()
+        container_name = f"{site.name}_wp"
+        
+        # Import here to avoid circular dependency issues if any
+        from .docker_utils import get_container_stats
+        
+        stats = get_container_stats(container_name)
+        
+        if stats:
+            return Response(stats)
+        else:
+            # If stats are None, it might be offline or not found
+            return Response({
+                'status': 'offline',
+                'cpu_percent': 0,
+                'memory_usage_mb': 0,
+                'memory_limit_mb': 0,
+                'memory_percent': 0
+            })

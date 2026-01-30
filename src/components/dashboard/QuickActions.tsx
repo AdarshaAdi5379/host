@@ -18,7 +18,7 @@ const quickActions = [
     {
         name: 'WordPress',
         icon: Wrench,
-        href: '/hosting/wordpress',
+        href: '/hosting/create',
         color: 'bg-purple-100 text-purple-600',
     },
     {
