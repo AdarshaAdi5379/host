@@ -1,0 +1,40 @@
+version: '3.8'
+services:
+  test6_db:
+    image: mysql:8.0
+    container_name: test6_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: kFlqfg73wjDbvDTW
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: kFlqfg73wjDbvDTW
+    volumes:
+    - test6_db_data:/var/lib/mysql
+    networks:
+    - test6_network
+  test6_wordpress:
+    depends_on:
+    - test6_db
+    image: wordpress:latest
+    container_name: test6_wp
+    restart: unless-stopped
+    ports:
+    - 9001:80
+    environment:
+      WORDPRESS_DB_HOST: test6_db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: kFlqfg73wjDbvDTW
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_CONFIG_EXTRA: define('WP_HOME', 'http://' . $$_SERVER['HTTP_HOST']);
+        define('WP_SITEURL', 'http://' . $$_SERVER['HTTP_HOST']);
+    volumes:
+    - test6_wp_data:/var/www/html
+    networks:
+    - test6_network
+volumes:
+  test6_db_data: {}
+  test6_wp_data: {}
+networks:
+  test6_network:
+    driver: bridge

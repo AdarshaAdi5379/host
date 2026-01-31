@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  test11_db:
+    image: mysql:8.0
+    container_name: test11_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: pRbK7bgZ6AXPIeoO
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: pRbK7bgZ6AXPIeoO
+    volumes:
+    - test11_db_data:/var/lib/mysql
+    networks:
+    - test11_network
+  test11_wordpress:
+    depends_on:
+    - test11_db
+    image: wordpress:latest
+    container_name: test11_wp
+    restart: unless-stopped
+    ports:
+    - 9004:80
+    environment:
+      WORDPRESS_DB_HOST: test11_db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: pRbK7bgZ6AXPIeoO
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+    - test11_wp_data:/var/www/html
+    networks:
+    - test11_network
+volumes:
+  test11_db_data: {}
+  test11_wp_data: {}
+networks:
+  test11_network:
+    driver: bridge

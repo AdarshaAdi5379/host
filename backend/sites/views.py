@@ -12,7 +12,9 @@ from .orchestrator import (
     generate_docker_compose,
     write_docker_compose,
     create_site_directory,
-    generate_nginx_config
+    generate_nginx_config,
+    generate_wp_config_content,
+    write_wp_config
 )
 from .docker_utils import (
     run_docker_compose_up,
@@ -20,17 +22,7 @@ from .docker_utils import (
     run_docker_compose_down_volumes,
     check_docker_running
 )
-from .hosts_manager import (
-    add_hosts_entry,
-    remove_hosts_entry,
-    is_admin
-)
-from .nginx_manager import (
-    write_site_config,
-    remove_site_config,
-    reload_nginx,
-    is_nginx_running
-)
+
 
 
 class WordPressSiteViewSet(viewsets.ModelViewSet):
@@ -67,6 +59,15 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             # Create site directory
             site_dir = create_site_directory(site_name)
             
+            # Generate and write wp-config.php
+            wp_config_content = generate_wp_config_content(
+                db_host=f"{site_name}_db:3306",
+                db_name='wordpress',
+                db_user='wordpress',
+                db_password=db_password
+            )
+            write_wp_config(site_dir, wp_config_content)
+            
             # Generate and write docker-compose.yml
             compose_config = generate_docker_compose(site_name, db_password, port)
             compose_path = write_docker_compose(site_dir, compose_config)
@@ -87,6 +88,26 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             success, output = run_docker_compose_up(site_dir)
             
             if success:
+                # FIX: Bind mounts for individual files are flaky on Windows Docker Desktop
+                # We manually copy the config file and restart the container
+                import subprocess
+                
+                # Copy wp-config.php
+                from pathlib import Path
+                container_name = f"{site_name}_wp"
+                config_src = str(Path(site_dir) / 'wp-config.php')
+                # Escape path for Windows shell if needed, but subprocess handles list args well usually.
+                # However, for docker cp, it sometimes needs care.
+                
+                cp_cmd = ['docker', 'cp', config_src, f'{container_name}:/var/www/html/wp-config.php']
+                cp_result = subprocess.run(cp_cmd, capture_output=True, text=True)
+                
+                if cp_result.returncode == 0:
+                    # Restart container to apply config
+                    subprocess.run(['docker', 'restart', container_name], capture_output=True)
+                else:
+                    print(f"Warning: Failed to copy wp-config.php: {cp_result.stderr}")
+
                 site.status = 'running'
                 site.save()
             else:
@@ -97,24 +118,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
-            # Add hosts file entry for .local domain
-            hosts_success, hosts_message = add_hosts_entry(domain)
-            if not hosts_success:
-                # Don't fail site creation, just warn
-                print(f"Warning: {hosts_message}")
-            
-            # Generate Nginx configuration
-            nginx_success, nginx_message, config_path = write_site_config(site.name, domain, port)
-            if nginx_success:
-                print(f"Nginx config created: {config_path}")
-                # Reload Nginx to apply changes
-                reload_success, reload_message = reload_nginx()
-                if reload_success:
-                    print(f"Nginx reloaded: {reload_message}")
-                else:
-                    print(f"Warning: {reload_message}")
-            else:
-                print(f"Warning: {nginx_message}")
+
             
             # Return created site
             response_serializer = WordPressSiteSerializer(site)
@@ -145,23 +149,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             site.status = 'running'
             site.save()
             
-            # Ensure networking (Hosts + Nginx) is set up
-            # This handles cases where sites were created before Phase 4
-            # or if configs were lost/cleared.
-            
-            # 1. Hosts File
-            hosts_success, hosts_message = add_hosts_entry(site.domain)
-            if not hosts_success:
-                print(f"Start Warning: {hosts_message}")
-                
-            # 2. Nginx Config
-            nginx_success, nginx_message, config_path = write_site_config(site.name, site.domain, site.port)
-            if nginx_success:
-                reload_success, reload_message = reload_nginx()
-                if not reload_success:
-                    print(f"Start Warning: {reload_message}")
-            else:
-                print(f"Start Warning: {nginx_message}")
+
                 
             return Response({'status': 'Site started successfully'})
         else:
@@ -195,23 +183,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         """Terminate and delete a WordPress site"""
         site = self.get_object()
         
-        # Remove hosts file entry
-        hosts_success, hosts_message = remove_hosts_entry(site.domain)
-        if not hosts_success:
-            print(f"Warning: {hosts_message}")
-        
-        # Remove Nginx configuration
-        nginx_success, nginx_message = remove_site_config(site.name)
-        if nginx_success:
-            print(f"Nginx config removed: {nginx_message}")
-            # Reload Nginx to apply changes
-            reload_success, reload_message = reload_nginx()
-            if reload_success:
-                print(f"Nginx reloaded: {reload_message}")
-            else:
-                print(f"Warning: {reload_message}")
-        else:
-            print(f"Warning: {nginx_message}")
+
         
         # Stop and remove containers and volumes
         success, output = run_docker_compose_down_volumes(site.site_directory)
