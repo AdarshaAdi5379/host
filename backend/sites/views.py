@@ -222,3 +222,96 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 'memory_limit_mb': 0,
                 'memory_percent': 0
             })
+    
+    @action(detail=True, methods=['post'])
+    def start_tunnel(self, request, pk=None):
+        """
+        Start a Cloudflare tunnel for the site
+        Returns: { "tunnel_url": "https://xyz.trycloudflare.com" }
+        """
+        site = self.get_object()
+        
+        # Import tunnel manager
+        from .tunnel_manager import start_tunnel, check_cloudflared_installed, get_installation_instructions
+        
+        # Check if site is running
+        if site.status != 'running':
+            return Response(
+                {'error': 'Site must be running before starting a tunnel'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if tunnel is already active
+        if site.tunnel_active:
+            return Response(
+                {'error': 'Tunnel is already active', 'tunnel_url': site.tunnel_url},
+                status=status.HTTP_409_CONFLICT
+            )
+        
+        # Check if cloudflared is installed
+        if not check_cloudflared_installed():
+            return Response(
+                {
+                    'error': 'cloudflared binary not found',
+                    'instructions': get_installation_instructions()
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # Start the tunnel
+        pid, tunnel_url, error = start_tunnel(site.port)
+        
+        if error:
+            return Response(
+                {'error': error},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # Update site record
+        site.tunnel_url = tunnel_url
+        site.tunnel_active = True
+        site.tunnel_process_id = pid
+        site.save()
+        
+        return Response({
+            'tunnel_url': tunnel_url,
+            'status': 'Tunnel started successfully'
+        })
+    
+    @action(detail=True, methods=['post'])
+    def stop_tunnel(self, request, pk=None):
+        """
+        Stop the active Cloudflare tunnel
+        Returns: { "status": "Tunnel stopped" }
+        """
+        site = self.get_object()
+        
+        # Import tunnel manager
+        from .tunnel_manager import stop_tunnel, is_tunnel_alive
+        
+        # Check if tunnel is active
+        if not site.tunnel_active:
+            return Response(
+                {'error': 'No active tunnel to stop'},
+                status=status.HTTP_409_CONFLICT
+            )
+        
+        # Stop the tunnel
+        success, error = stop_tunnel(site.tunnel_process_id)
+        
+        if not success and error:
+            return Response(
+                {'error': error},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        # Update site record
+        site.tunnel_url = None
+        site.tunnel_active = False
+        site.tunnel_process_id = None
+        site.save()
+        
+        return Response({
+            'status': 'Tunnel stopped successfully'
+        })
+
