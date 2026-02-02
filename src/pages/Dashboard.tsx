@@ -3,16 +3,52 @@ import { DomainCard } from '@/components/dashboard/DomainCard'
 import { EmailCard } from '@/components/dashboard/EmailCard'
 import { ResourceUsageCard } from '@/components/dashboard/ResourceUsageCard'
 import { QuickActions } from '@/components/dashboard/QuickActions'
-import { mockServices, mockResourceUsage } from '@/data/mockData'
+import { mockServices } from '@/data/mockData'
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
 import { useAuthStore } from '@/store/authStore'
 import { Server, Globe, Mail, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { wordpressAPI } from '@/lib/wordpressAPI'
 
 export function Dashboard() {
     const { user } = useAuthStore()
     const navigate = useNavigate()
+    const [resourceUsage, setResourceUsage] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 })
+    const [loading, setLoading] = useState(true)
+
+    // Fetch real resource usage data
+    useEffect(() => {
+        const fetchResourceUsage = async () => {
+            try {
+                const stats = await wordpressAPI.getAggregateStats()
+                // Convert RAM from MB to percentage (assuming 16GB total system RAM)
+                const totalSystemRamMB = 16 * 1024 // 16GB in MB
+                const ramPercent = (stats.ram / totalSystemRamMB) * 100
+
+                setResourceUsage({
+                    cpu: Math.round(stats.cpu),
+                    ram: Math.round(ramPercent),
+                    disk: 0, // Not tracked yet
+                    bandwidth: 0 // Not tracked yet
+                })
+            } catch (error) {
+                console.error('Failed to fetch resource usage:', error)
+                // Keep previous values on error
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        // Initial fetch
+        fetchResourceUsage()
+
+        // Poll every 3 seconds
+        const interval = setInterval(fetchResourceUsage, 3000)
+
+        return () => clearInterval(interval)
+    }, [])
 
     // Show demo data for all users but check role for visibility
     const isAdmin = user?.role === 'owner'
@@ -45,7 +81,7 @@ export function Dashboard() {
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Resource Usage - Only for admin */}
                             <div className="lg:col-span-2">
-                                <ResourceUsageCard usage={mockResourceUsage} />
+                                <ResourceUsageCard usage={resourceUsage} />
                             </div>
                             {/* Quick Actions */}
                             <div>

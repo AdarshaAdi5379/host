@@ -147,6 +147,30 @@ class WordPressAPI {
 
         return response.json();
     }
+
+    /**
+     * Get aggregated resource usage statistics from all sites
+     */
+    async getAggregateStats(): Promise<{
+        cpu: number;
+        ram: number;
+        total_sites: number;
+        running_sites: number;
+        sites_with_stats: number;
+    }> {
+        const response = await fetch(`${API_BASE_URL}/sites/aggregate_stats/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch aggregate stats');
+        }
+
+        return response.json();
+    }
 }
 
 export const wordpressAPI = new WordPressAPI();

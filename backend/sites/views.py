@@ -314,4 +314,43 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         return Response({
             'status': 'Tunnel stopped successfully'
         })
+    
+    @action(detail=False, methods=['get'])
+    def aggregate_stats(self, request):
+        """
+        Get aggregated resource usage statistics from all running sites
+        """
+        from .docker_utils import get_container_stats
+        
+        # Get all running sites
+        running_sites = WordPressSite.objects.filter(status='running')
+        
+        if not running_sites.exists():
+            return Response({
+                'cpu': 0,
+                'ram': 0,
+                'total_sites': 0,
+                'running_sites': 0
+            })
+        
+        total_cpu = 0
+        total_ram_mb = 0
+        sites_with_stats = 0
+        
+        for site in running_sites:
+            container_name = f"{site.name}_wp"
+            stats = get_container_stats(container_name)
+            
+            if stats and stats.get('status') != 'offline':
+                total_cpu += stats.get('cpu_percent', 0)
+                total_ram_mb += stats.get('memory_usage_mb', 0)
+                sites_with_stats += 1
+        
+        return Response({
+            'cpu': round(total_cpu, 2),
+            'ram': round(total_ram_mb, 2),
+            'total_sites': WordPressSite.objects.count(),
+            'running_sites': running_sites.count(),
+            'sites_with_stats': sites_with_stats
+        })
 
