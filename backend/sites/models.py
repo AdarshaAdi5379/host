@@ -33,6 +33,11 @@ class WordPressSite(models.Model):
     docker_compose_path = models.CharField(max_length=500)
     nginx_config_path = models.CharField(max_length=500, blank=True, null=True)
     
+    # Cloudflare Tunnel tracking
+    tunnel_url = models.URLField(blank=True, null=True)  # Public Cloudflare URL
+    tunnel_active = models.BooleanField(default=False)   # Tunnel status
+    tunnel_process_id = models.IntegerField(blank=True, null=True)  # PID for process management
+    
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'WordPress Site'
