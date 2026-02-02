@@ -3,11 +3,12 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Server, Plus, Play, Square, Trash2, ExternalLink, Loader2 } from 'lucide-react'
+import { Server, Plus, Play, Square, Trash2, ExternalLink, Loader2, Globe, Copy, Check } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
 import { ResourceMonitor } from '@/components/hosting/ResourceMonitor'
 import { useToast } from '@/components/ui/toast'
+import { copyToClipboard } from '@/lib/clipboardUtils'
 
 export function HostingManagement() {
     const navigate = useNavigate()
@@ -15,6 +16,8 @@ export function HostingManagement() {
     const [sites, setSites] = useState<WordPressSite[]>([])
     const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState<number | null>(null)
+    const [tunnelLoading, setTunnelLoading] = useState<number | null>(null)
+    const [copiedUrl, setCopiedUrl] = useState<number | null>(null)
 
     const loadSites = async () => {
         try {
@@ -102,6 +105,67 @@ export function HostingManagement() {
         }
     }
 
+    const handleGoLive = async (id: number) => {
+        setTunnelLoading(id)
+        try {
+            const { tunnel_url } = await wordpressAPI.startTunnel(id)
+            addToast({
+                title: 'Tunnel Started',
+                description: `Site is now live at ${tunnel_url}`,
+                variant: 'success',
+            })
+            await loadSites()
+        } catch (error) {
+            addToast({
+                title: 'Failed to start tunnel',
+                description: error instanceof Error ? error.message : 'Unknown error',
+                variant: 'error',
+            })
+        } finally {
+            setTunnelLoading(null)
+        }
+    }
+
+    const handleGoLocal = async (id: number) => {
+        setTunnelLoading(id)
+        try {
+            await wordpressAPI.stopTunnel(id)
+            addToast({
+                title: 'Tunnel Stopped',
+                description: 'Site is now local only',
+                variant: 'success',
+            })
+            await loadSites()
+        } catch (error) {
+            addToast({
+                title: 'Failed to stop tunnel',
+                description: error instanceof Error ? error.message : 'Unknown error',
+                variant: 'error',
+            })
+        } finally {
+            setTunnelLoading(null)
+        }
+    }
+
+    const handleCopyUrl = async (siteId: number, url: string) => {
+        const success = await copyToClipboard(url)
+        if (success) {
+            setCopiedUrl(siteId)
+            addToast({
+                title: 'Copied!',
+                description: 'Public URL copied to clipboard',
+                variant: 'success',
+            })
+            setTimeout(() => setCopiedUrl(null), 2000)
+        } else {
+            addToast({
+                title: 'Failed to copy',
+                description: 'Please copy the URL manually',
+                variant: 'error',
+            })
+        }
+    }
+
     const getStatusBadge = (status: WordPressSite['status']) => {
         const variants: Record<WordPressSite['status'], { variant: 'default' | 'success' | 'warning' | 'error'; label: string }> = {
             provisioning: { variant: 'warning', label: 'Provisioning' },
@@ -168,6 +232,86 @@ export function HostingManagement() {
                                 <div className="mb-4">
                                     <ResourceMonitor siteId={site.id} isRunning={site.status === 'running'} />
                                 </div>
+
+                                {/* Tunnel Status & Controls */}
+                                {site.tunnel_active && site.tunnel_url && (
+                                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center space-x-2">
+                                                <Globe className="w-4 h-4 text-green-600" />
+                                                <span className="text-sm font-semibold text-green-700">Public</span>
+                                            </div>
+                                            <Badge variant="success">Live</Badge>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <input
+                                                type="text"
+                                                value={site.tunnel_url}
+                                                readOnly
+                                                className="flex-1 text-xs font-mono bg-white border border-green-300 rounded px-2 py-1 text-gray-700"
+                                            />
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleCopyUrl(site.id, site.tunnel_url!)}
+                                                className="shrink-0"
+                                            >
+                                                {copiedUrl === site.id ? (
+                                                    <Check className="w-4 h-4 text-green-600" />
+                                                ) : (
+                                                    <Copy className="w-4 h-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Go Live Toggle */}
+                                {site.status === 'running' && (
+                                    <div className="mb-4">
+                                        {site.tunnel_active ? (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleGoLocal(site.id)}
+                                                disabled={tunnelLoading === site.id}
+                                                className="w-full"
+                                            >
+                                                {tunnelLoading === site.id ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Stopping Tunnel...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Square className="w-4 h-4 mr-2" />
+                                                        Go Local
+                                                    </>
+                                                )}
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="primary"
+                                                size="sm"
+                                                onClick={() => handleGoLive(site.id)}
+                                                disabled={tunnelLoading === site.id}
+                                                className="w-full"
+                                            >
+                                                {tunnelLoading === site.id ? (
+                                                    <>
+                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                        Starting Tunnel...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Globe className="w-4 h-4 mr-2" />
+                                                        Go Live
+                                                    </>
+                                                )}
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div className="flex items-center space-x-2">
                                     {site.status === 'stopped' || site.status === 'provisioning' ? (

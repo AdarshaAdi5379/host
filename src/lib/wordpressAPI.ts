@@ -13,6 +13,8 @@ export interface WordPressSite {
     created_at: string;
     updated_at: string;
     admin_username: string;
+    tunnel_url?: string;
+    tunnel_active: boolean;
 }
 
 export interface CreateSiteRequest {
@@ -106,6 +108,44 @@ class WordPressAPI {
         if (!response.ok) {
             throw new Error('Failed to delete site');
         }
+    }
+
+    /**
+     * Start a Cloudflare tunnel for a site
+     */
+    async startTunnel(id: number): Promise<{ tunnel_url: string; status: string }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${id}/start_tunnel/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to start tunnel');
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Stop a Cloudflare tunnel for a site
+     */
+    async stopTunnel(id: number): Promise<{ status: string }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${id}/stop_tunnel/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to stop tunnel');
+        }
+
+        return response.json();
     }
 }
 
