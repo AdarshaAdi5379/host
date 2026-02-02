@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  test18_db:
+    image: mysql:8.0
+    container_name: test18_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: aNYqZpl12fh0Suzb
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: aNYqZpl12fh0Suzb
+    volumes:
+    - test18_db_data:/var/lib/mysql
+    networks:
+    - test18_network
+  test18_wordpress:
+    depends_on:
+    - test18_db
+    image: wordpress:latest
+    container_name: test18_wp
+    restart: unless-stopped
+    ports:
+    - 9000:80
+    environment:
+      WORDPRESS_DB_HOST: test18_db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: aNYqZpl12fh0Suzb
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+    - test18_wp_data:/var/www/html
+    networks:
+    - test18_network
+volumes:
+  test18_db_data: {}
+  test18_wp_data: {}
+networks:
+  test18_network:
+    driver: bridge

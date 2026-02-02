@@ -8,22 +8,22 @@
 // ** Database settings ** //
 define( 'DB_NAME', 'wordpress' );
 define( 'DB_USER', 'wordpress' );
-define( 'DB_PASSWORD', '8BIWNKNASG9I1ybf' );
-define( 'DB_HOST', 'test7_db:3306' );
+define( 'DB_PASSWORD', '17uA5AZgForLYgfC' );
+define( 'DB_HOST', 'test17_db:3306' );
 define( 'DB_CHARSET', 'utf8mb4' );
 define( 'DB_COLLATE', '' );
 
 /**#@+
  * Authentication unique keys and salts.
  */
-define( 'AUTH_KEY',         'RZ$cSH_P{T<0yxexY}W>>HUv!)g^Y^V6_2$7wLX&UkhQnR&G1u921i(O4)$T{I^>' );
-define( 'SECURE_AUTH_KEY',  '3c)hX&F(UF!h(V>mO)PTz!m_O2b7voajV{R-*9]sxwqDV9b%PdPG*12QH(23$(ze' );
-define( 'LOGGED_IN_KEY',    'j&lledwFs7{&ZZWS5iL&06Dvp$8_Ku(N)>3RDeD!8tpkfDd[RC2bUoC{!nXXJvwg' );
-define( 'NONCE_KEY',        'B=Qm}hPgicH<Ba^#1FyQw7NXq0_xg[*}uS_PT7@Y}pys=xG9WAIF]fS<5P3juL_v' );
-define( 'AUTH_SALT',        '{Ke6G90W)Clp-NLCs!4H@JLaJc[]p10Kv%VpEk44(ngpvtAb=Z1gFEc5-m0e[xY>' );
-define( 'SECURE_AUTH_SALT', 'Fv<pV$iJz7)4*EWKogJL7}(<^M4xnj-=7XGWE!]yCov9p@o&LPK<yq1ipBg-Kl23' );
-define( 'LOGGED_IN_SALT',   '0&HcK[7#%xZQ&v_4QG4^T*FeC%Vfi]xmw6Z*[*r*>wTdn-A2&9!R%nCxR$XaJ<%k' );
-define( 'NONCE_SALT',       '>gv!onKuJ]&IfDArfxu2Wpx-S#$_1T&@g<Kd1EmT![vJY#TquMLsO&W!(_MGMKkX' );
+define( 'AUTH_KEY',         'qNy2B0}_I>T@FQShx$d}E2RnoZc6r15dIEeSrR($fx}GTK>SwN!G][}JIY(tLW%E' );
+define( 'SECURE_AUTH_KEY',  'x6tEMx^${NwFjmW5!J6Ut3t@6SHihp4Uar(uOnU2rEM)L{4#Fq{2v8IU_Kc6)w$0' );
+define( 'LOGGED_IN_KEY',    'QFiYJ71sNPd1Ex(eQ(^M)Pwt3dyIH%uCJ]Ff&k=Z3G#sYQ&#h>!C!iQ9SGusbsyc' );
+define( 'NONCE_KEY',        'tzUUz&YG702}Z3*rJdgIqAf2hYgBAkNaP1=7HXP}UJ*>xCD}e]*R4G{al}a{o89(' );
+define( 'AUTH_SALT',        '4&*m0UCGlSMIH-2$IFOt8lHwWu>ZggYOSu)Tut{@i4Ot8Lxj[N!)*0%]O<O%oFxL' );
+define( 'SECURE_AUTH_SALT', 'MSPG}}fo=[V0woubu28[vZ-Co9bH@gx2q>f#3JZS-CzAM6!HdFc%hc*Fz<c6f{$0' );
+define( 'LOGGED_IN_SALT',   '4MtWp[!NArM8LwXg<Dnu{H&z4pUMB6%ZpD8#9_VdK0yw<%yse_A>}bzZSPU(YMl[' );
+define( 'NONCE_SALT',       'B)Red_OTmIhhD8xql)$TY6(1_}sJo5cp)xyA@Ek>E(7>qg{[{IF@Y{n[k3v3rE_t' );
 
 /**#@-*/
 
@@ -36,10 +36,10 @@ $table_prefix = 'wp_';
  * For developers: WordPress debugging mode.
  */
 define( 'WP_DEBUG', false );
+
 // Fix for "Plain" Admin/Dashboard in Docker
 define('CONCATENATE_SCRIPTS', false);
 define('SCRIPT_DEBUG', true);
-
 
 // ** Dynamic Site URL Settings ** //
 // This allows the site to be accessed via localhost:PORT or custom domains
