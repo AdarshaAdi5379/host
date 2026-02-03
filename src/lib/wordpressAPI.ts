@@ -13,8 +13,9 @@ export interface WordPressSite {
     created_at: string;
     updated_at: string;
     admin_username: string;
-    tunnel_url?: string;
-    tunnel_active: boolean;
+    subdomain?: string;
+    public_url?: string;
+    public_access_enabled: boolean;
 }
 
 export interface CreateSiteRequest {
@@ -111,10 +112,10 @@ class WordPressAPI {
     }
 
     /**
-     * Start a Cloudflare tunnel for a site
+     * Enable public access for a site (Cloudflare Tunnel)
      */
-    async startTunnel(id: number): Promise<{ tunnel_url: string; status: string }> {
-        const response = await fetch(`${API_BASE_URL}/sites/${id}/start_tunnel/`, {
+    async enablePublicAccess(id: number): Promise<{ public_url: string; subdomain: string; status: string }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${id}/enable_public_access/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -123,17 +124,17 @@ class WordPressAPI {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Failed to start tunnel');
+            throw new Error(error.error || 'Failed to enable public access');
         }
 
         return response.json();
     }
 
     /**
-     * Stop a Cloudflare tunnel for a site
+     * Disable public access for a site
      */
-    async stopTunnel(id: number): Promise<{ status: string }> {
-        const response = await fetch(`${API_BASE_URL}/sites/${id}/stop_tunnel/`, {
+    async disablePublicAccess(id: number): Promise<{ status: string }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${id}/disable_public_access/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -142,7 +143,7 @@ class WordPressAPI {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Failed to stop tunnel');
+            throw new Error(error.error || 'Failed to disable public access');
         }
 
         return response.json();

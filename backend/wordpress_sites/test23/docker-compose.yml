@@ -1,0 +1,38 @@
+version: '3.8'
+services:
+  test23_db:
+    image: mysql:8.0
+    container_name: test23_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: Xvv1Gh4DsG9ct17O
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: Xvv1Gh4DsG9ct17O
+    volumes:
+    - test23_db_data:/var/lib/mysql
+    networks:
+    - test23_network
+  test23_wordpress:
+    depends_on:
+    - test23_db
+    image: wordpress:latest
+    container_name: test23_wp
+    restart: unless-stopped
+    ports:
+    - 9004:80
+    environment:
+      WORDPRESS_DB_HOST: test23_db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: Xvv1Gh4DsG9ct17O
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+    - test23_wp_data:/var/www/html
+    networks:
+    - test23_network
+volumes:
+  test23_db_data: {}
+  test23_wp_data: {}
+networks:
+  test23_network:
+    driver: bridge

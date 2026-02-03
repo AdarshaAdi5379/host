@@ -108,16 +108,16 @@ export function HostingManagement() {
     const handleGoLive = async (id: number) => {
         setTunnelLoading(id)
         try {
-            const { tunnel_url } = await wordpressAPI.startTunnel(id)
+            const { public_url } = await wordpressAPI.enablePublicAccess(id)
             addToast({
-                title: 'Tunnel Started',
-                description: `Site is now live at ${tunnel_url}`,
+                title: 'Public Access Enabled',
+                description: `Site is now live at ${public_url}`,
                 variant: 'success',
             })
             await loadSites()
         } catch (error) {
             addToast({
-                title: 'Failed to start tunnel',
+                title: 'Failed to enable public access',
                 description: error instanceof Error ? error.message : 'Unknown error',
                 variant: 'error',
             })
@@ -129,16 +129,16 @@ export function HostingManagement() {
     const handleGoLocal = async (id: number) => {
         setTunnelLoading(id)
         try {
-            await wordpressAPI.stopTunnel(id)
+            await wordpressAPI.disablePublicAccess(id)
             addToast({
-                title: 'Tunnel Stopped',
+                title: 'Public Access Disabled',
                 description: 'Site is now local only',
                 variant: 'success',
             })
             await loadSites()
         } catch (error) {
             addToast({
-                title: 'Failed to stop tunnel',
+                title: 'Failed to disable public access',
                 description: error instanceof Error ? error.message : 'Unknown error',
                 variant: 'error',
             })
@@ -233,8 +233,8 @@ export function HostingManagement() {
                                     <ResourceMonitor siteId={site.id} isRunning={site.status === 'running'} />
                                 </div>
 
-                                {/* Tunnel Status & Controls */}
-                                {site.tunnel_active && site.tunnel_url && (
+                                {/* Public Access Status & Controls */}
+                                {site.public_access_enabled && site.public_url && (
                                     <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex items-center space-x-2">
@@ -246,14 +246,14 @@ export function HostingManagement() {
                                         <div className="flex items-center space-x-2">
                                             <input
                                                 type="text"
-                                                value={site.tunnel_url}
+                                                value={site.public_url}
                                                 readOnly
                                                 className="flex-1 text-xs font-mono bg-white border border-green-300 rounded px-2 py-1 text-gray-700"
                                             />
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                onClick={() => handleCopyUrl(site.id, site.tunnel_url!)}
+                                                onClick={() => handleCopyUrl(site.id, site.public_url!)}
                                                 className="shrink-0"
                                             >
                                                 {copiedUrl === site.id ? (
@@ -269,7 +269,7 @@ export function HostingManagement() {
                                 {/* Go Live Toggle */}
                                 {site.status === 'running' && (
                                     <div className="mb-4">
-                                        {site.tunnel_active ? (
+                                        {site.public_access_enabled ? (
                                             <Button
                                                 variant="outline"
                                                 size="sm"
@@ -280,7 +280,7 @@ export function HostingManagement() {
                                                 {tunnelLoading === site.id ? (
                                                     <>
                                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        Stopping Tunnel...
+                                                        Disabling Public Access...
                                                     </>
                                                 ) : (
                                                     <>
@@ -300,7 +300,7 @@ export function HostingManagement() {
                                                 {tunnelLoading === site.id ? (
                                                     <>
                                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        Starting Tunnel...
+                                                        Enabling Public Access...
                                                     </>
                                                 ) : (
                                                     <>

@@ -10,7 +10,7 @@ class WordPressSiteSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'domain', 'port', 'status', 
             'created_at', 'updated_at', 'admin_username',
-            'tunnel_url', 'tunnel_active'
+            'subdomain', 'public_url', 'public_access_enabled'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'port', 'domain']
 
