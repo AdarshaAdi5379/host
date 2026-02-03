@@ -1,18 +1,51 @@
-# Logs
-logs
+# Python
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Django
 *.log
+db.sqlite3
+db.sqlite3-journal
+/media
+/staticfiles
+
+# Sensitive files
+backend/core/settings_local.py
+backend/.env
+.env
+*.env
+backend/cloudflared_config.yml
+backend/wordpress_sites/
+*.pem
+*.key
+*.crt
+
+# Cloudflare credentials
+.cloudflared/
+*.json
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea

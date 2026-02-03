@@ -148,33 +148,37 @@ class IngressManager:
     
     def _reload_tunnel(self) -> bool:
         """
-        Reload the tunnel configuration without downtime.
-        Sends SIGHUP to the cloudflared process.
+        Reload the tunnel configuration by restarting cloudflared.
+        Note: SIGHUP doesn't work reliably with cloudflared, so we restart the process.
         
         Returns:
             True if reload was successful, False otherwise
         """
         try:
-            # Find the cloudflared process
-            result = subprocess.run(
-                ['pgrep', '-f', f'cloudflared.*{self.tunnel_id}'],
-                capture_output=True,
-                text=True
+            # Kill ALL cloudflared processes (use -9 to force kill)
+            subprocess.run(['pkill', '-9', 'cloudflared'], check=False)
+            print("Stopped all cloudflared processes")
+            
+            # Wait for processes to fully terminate
+            import time
+            time.sleep(1)
+            
+            # Start cloudflared in the background
+            # Note: This starts the tunnel but doesn't keep it running if Django exits
+            # For production, cloudflared should be run as a system service
+            subprocess.Popen(
+                ['cloudflared', 'tunnel', '--config', self.config_path, 'run'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True  # Detach from parent process
             )
             
-            if result.returncode != 0:
-                print("Warning: cloudflared process not found. Configuration saved but not reloaded.")
-                return False
-            
-            pid = result.stdout.strip().split('\n')[0]
-            
-            # Send SIGHUP to reload
-            subprocess.run(['kill', '-HUP', pid], check=True)
-            print(f"Tunnel configuration reloaded (PID: {pid})")
+            print(f"Tunnel restarted with new configuration")
             return True
             
         except Exception as e:
             print(f"Warning: Failed to reload tunnel: {e}")
+            print("You may need to manually restart cloudflared for changes to take effect")
             return False
     
     def get_public_url(self, subdomain: str) -> str:

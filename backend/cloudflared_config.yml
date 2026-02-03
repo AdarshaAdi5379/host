@@ -9,4 +9,10 @@ ingress:
   service: http://localhost:9003
 - hostname: test24.edubricz.online
   service: http://localhost:9004
+- hostname: test25.edubricz.online
+  service: http://localhost:9005
+- hostname: test26.edubricz.online
+  service: http://localhost:9006
+- hostname: test27.edubricz.online
+  service: http://localhost:9007
 - service: http_status:404
