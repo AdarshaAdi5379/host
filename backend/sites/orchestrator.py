@@ -158,14 +158,22 @@ define('SCRIPT_DEBUG', true);
 
 // ** Dynamic Site URL Settings ** //
 // This allows the site to be accessed via localhost:PORT or custom domains
-if (isset($_SERVER['HTTP_HOST'])) {{
-    define('WP_HOME', 'http://' . $_SERVER['HTTP_HOST']);
-    define('WP_SITEURL', 'http://' . $_SERVER['HTTP_HOST']);
+$protocol = 'http';
+
+// Detect HTTPS from various sources (Cloudflare Tunnel, reverse proxy, etc.)
+if (
+    (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+    (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+    (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') ||
+    (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+) {{
+    $protocol = 'https';
+    $_SERVER['HTTPS'] = 'on';
 }}
 
-// If we're behind a proxy server and using HTTPS, we need to alert WordPress of that fact
-if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {{
-    $_SERVER['HTTPS'] = 'on';
+if (isset($_SERVER['HTTP_HOST'])) {{
+    define('WP_HOME', $protocol . '://' . $_SERVER['HTTP_HOST']);
+    define('WP_SITEURL', $protocol . '://' . $_SERVER['HTTP_HOST']);
 }}
 
 /** Absolute path to the WordPress directory. */

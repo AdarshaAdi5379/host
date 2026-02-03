@@ -8,7 +8,7 @@
 // ** Database settings ** //
 define( 'DB_NAME', 'wordpress' );
 define( 'DB_USER', 'wordpress' );
-define( 'DB_PASSWORD', 'Pi6sXiVbsEOiPhEv' );
+define( 'DB_PASSWORD', 'wordpress' );
 define( 'DB_HOST', 'test19_db:3306' );
 define( 'DB_CHARSET', 'utf8mb4' );
 define( 'DB_COLLATE', '' );
@@ -16,14 +16,14 @@ define( 'DB_COLLATE', '' );
 /**#@+
  * Authentication unique keys and salts.
  */
-define( 'AUTH_KEY',         '-L[h=#{R_j2*Zf@Z[wX_@J8Ff6tfFjZALp$9(*r2LjoigOb[I3=OChgfbN[rk)#u' );
-define( 'SECURE_AUTH_KEY',  '[qrsS]>gOZvNr4p<fjknutd})hwl[fZG9Ug>$I1z}CuIefjcZBArWOmUFp-i{D5E' );
-define( 'LOGGED_IN_KEY',    '2$=Gm]j&-h<SBthv%%c>kDy_OR1IbR0j}[!4cD_a*IIWumJaiZX]gO897{9PY<&J' );
-define( 'NONCE_KEY',        'B2}!v&jDGeXgxjqvwGZO}G(Qk^SpTB9z<my78!}!oQmcL0Y!WVw{DQkCh91fHXP^' );
-define( 'AUTH_SALT',        'H)de$-qddu_)<[jVOwka}7N=rOWVU6P2-5>%(]WV{MC0zfaA)lLXw5QkN2KQ>SRX' );
-define( 'SECURE_AUTH_SALT', 'K=x$nD(3uP8sS!$g5OaEGt4zePoP9JmS]>b4k0j(3&EX(W=TK3q4Q5wfTA3V32u$' );
-define( 'LOGGED_IN_SALT',   'aP]XdOYw}@YU4CutcR)hcuw%}PvLG%@6fRkouApRyq5zTODEjeo8E>*l482mGNA*' );
-define( 'NONCE_SALT',       'k*}a4^CJdfi(nK&G1FC]wziT9X]bqi*Eh18ij)-Y71@n46%Yr$5Kdf@Z}>eY-pVs' );
+define( 'AUTH_KEY',         '2HFmh#GL)IR9%oIiyU9XkXMO2eMMNoZy9!6j]Jv4FB9W3e=JPv5>@DV{vfV(O^Ii' );
+define( 'SECURE_AUTH_KEY',  'WMc9M98dsTH6D9*CO}ALPO&uyeDfEVL-L-&9<S0Nbg__3O6wS)VJfTWHm@f$hn]@' );
+define( 'LOGGED_IN_KEY',    '6%3$$zr89]I2@}_P(@6a9)O^f2ee{HHS[3}ZJAwzoAVMAhbQOXbI1VDsXB]EFga5' );
+define( 'NONCE_KEY',        'i!6sn6j7>=j49c%8o*SKMGqrlOx{1u{[(IxYJ$6^p-r!kF7nEG@)k08_Tl1kbE%o' );
+define( 'AUTH_SALT',        'CKh]0}9(1q@T^)OnzewG]hyXid%-$DJU2tZ[^o>YFEO9RPR3yN*bxzX9FwH9J>G*' );
+define( 'SECURE_AUTH_SALT', '}nBuXLAoUyu(@$%Povrf%lUtEs)>}]owEdWfIPQ1%TVe=djcmFJOiNa#u&iq&QvH' );
+define( 'LOGGED_IN_SALT',   'Pt=&gpPehR]TA&3eC(y]QDgufSYXH2fCl2GrV$anKzAsX1S&@Pcv#_-eJLnH_PL)' );
+define( 'NONCE_SALT',       'o![ayT>(7R3V4oTj_vDPUKZhc)b2CtdOAs6SUW(K)*Ju-)fT80WUtrg]Gg6Sv&qD' );
 
 /**#@-*/
 
@@ -43,14 +43,22 @@ define('SCRIPT_DEBUG', true);
 
 // ** Dynamic Site URL Settings ** //
 // This allows the site to be accessed via localhost:PORT or custom domains
-if (isset($_SERVER['HTTP_HOST'])) {
-    define('WP_HOME', 'http://' . $_SERVER['HTTP_HOST']);
-    define('WP_SITEURL', 'http://' . $_SERVER['HTTP_HOST']);
+$protocol = 'http';
+
+// Detect HTTPS from various sources (Cloudflare Tunnel, reverse proxy, etc.)
+if (
+    (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+    (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+    (!empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on') ||
+    (!empty($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+) {
+    $protocol = 'https';
+    $_SERVER['HTTPS'] = 'on';
 }
 
-// If we're behind a proxy server and using HTTPS, we need to alert WordPress of that fact
-if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strpos($_SERVER['HTTP_X_FORWARDED_PROTO'], 'https') !== false) {
-    $_SERVER['HTTPS'] = 'on';
+if (isset($_SERVER['HTTP_HOST'])) {
+    define('WP_HOME', $protocol . '://' . $_SERVER['HTTP_HOST']);
+    define('WP_SITEURL', $protocol . '://' . $_SERVER['HTTP_HOST']);
 }
 
 /** Absolute path to the WordPress directory. */
