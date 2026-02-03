@@ -3,7 +3,7 @@
 **Last Updated:** January 30, 2026
 
 ## 1. Project Overview
-"Project Host" is a local-first WordPress hosting platform designed to mimic professional hosting environments (like Kinsta or WP Engine) on a local Windows machine. It allows users to:
+"Project Host" is a local-first WordPress hosting platform designed for professional hosting environments on a local Windows machine. It allows users to:
 -   Provision isolated WordPress instances in seconds.
 -   Access sites via custom local domains (e.g., `mysite.local`) or direct ports (e.g., `localhost:9005`).
 -   Monitor real-time CPU and RAM usage for each site.
@@ -83,7 +83,8 @@ graph TD
 -   **Current State**: **Port-Only Access**.
     -   Removed local Nginx integration to reduce complexity/errors.
     -   Sites are accessed via `http://localhost:PORT`.
-    -   Future plan: Integrate Cloudflare Tunnels for public access.
+    -   Sites are accessed via `http://localhost:PORT`.
+    -   **Update (Phase 8)**:  Cloudflare Tunnels added for public access (see below).
 
 ### Phase 5: Resource Monitoring (Telemetry)
 -   **Action**: Added real-time CPU/RAM stats.
@@ -114,6 +115,15 @@ graph TD
     -   Ran a batch script to patch existing containers.
 -   **Outcome**: Admin dashboard works correctly with full styling.
 
+### Phase 8: Public Access via Cloudflare Tunnels
+-   **Action**: Integrated `cloudflared` for secure public tunneling.
+-   **Tech**: Python `subprocess` management of `cloudflared` binary.
+-   **Implementation**:
+    -   **Backend**: `TunnelManager` module (`tunnel_manager.py`) handles process lifecycle and URL parsing from stderr.
+    -   **Database**: Added `tunnel_url`, `tunnel_active`, and `tunnel_process_id` to `WordPressSite` model.
+    -   **API**: `start_tunnel` and `stop_tunnel` actions on the ViewSet.
+-   **Outcome**: One-click public URLs (e.g., `https://funny-name.trycloudflare.com`) for local sites, enabling external sharing without port forwarding.
+
 ---
 
 ## 5. How It Works (Under the Hood)
@@ -140,6 +150,7 @@ graph TD
 -   Nginx (Running on Windows)
 -   Python 3.12+
 -   Node.js 20+
+-   `cloudflared` binary (installed and in PATH)
 
 ### Starting the Project
 1.  **Backend (Administrator Terminal)**:
@@ -157,3 +168,4 @@ graph TD
 3.  **Access**:
     -   Dashboard: `http://localhost:5173`
     -   API: `http://localhost:8000`
+
