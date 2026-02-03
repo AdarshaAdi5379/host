@@ -224,96 +224,126 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             })
     
     @action(detail=True, methods=['post'])
-    def start_tunnel(self, request, pk=None):
+    def enable_public_access(self, request, pk=None):
         """
-        Start a Cloudflare tunnel for the site
-        Returns: { "tunnel_url": "https://xyz.trycloudflare.com" }
+        Enable public access for the site via Cloudflare Tunnel
+        Returns: { "public_url": "https://mysite.edubricz.online" }
         """
         site = self.get_object()
         
-        # Import tunnel manager
-        from .tunnel_manager import start_tunnel, check_cloudflared_installed, get_installation_instructions
+        # Import ingress manager
+        from .ingress_manager import IngressManager
         
         # Check if site is running
         if site.status != 'running':
             return Response(
-                {'error': 'Site must be running before starting a tunnel'},
+                {'error': 'Site must be running before enabling public access'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Check if tunnel is already active
-        if site.tunnel_active:
+        # Check if already enabled
+        if site.public_access_enabled:
             return Response(
-                {'error': 'Tunnel is already active', 'tunnel_url': site.tunnel_url},
+                {'error': 'Public access is already enabled', 'public_url': site.public_url},
                 status=status.HTTP_409_CONFLICT
             )
         
-        # Check if cloudflared is installed
-        if not check_cloudflared_installed():
+        try:
+            manager = IngressManager()
+            
+            # Generate subdomain from site name (lowercase, replace spaces with hyphens)
+            subdomain = site.name.lower().replace(' ', '-').replace('_', '-')
+            
+            # Validate subdomain
+            is_valid, error = manager.validate_subdomain(subdomain)
+            if not is_valid:
+                return Response(
+                    {'error': f'Invalid subdomain: {error}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Add route to tunnel
+            success, public_url, error = manager.add_route(subdomain, site.port)
+            
+            if not success:
+                return Response(
+                    {'error': error},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Update site record
+            site.subdomain = subdomain
+            site.public_url = public_url
+            site.public_access_enabled = True
+            site.save()
+            
+            return Response({
+                'public_url': public_url,
+                'subdomain': subdomain,
+                'status': 'Public access enabled successfully'
+            })
+            
+        except ValueError as e:
             return Response(
-                {
-                    'error': 'cloudflared binary not found',
-                    'instructions': get_installation_instructions()
-                },
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        # Start the tunnel
-        pid, tunnel_url, error = start_tunnel(site.port)
-        
-        if error:
+        except Exception as e:
             return Response(
-                {'error': error},
+                {'error': f'Failed to enable public access: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        # Update site record
-        site.tunnel_url = tunnel_url
-        site.tunnel_active = True
-        site.tunnel_process_id = pid
-        site.save()
-        
-        return Response({
-            'tunnel_url': tunnel_url,
-            'status': 'Tunnel started successfully'
-        })
     
     @action(detail=True, methods=['post'])
-    def stop_tunnel(self, request, pk=None):
+    def disable_public_access(self, request, pk=None):
         """
-        Stop the active Cloudflare tunnel
-        Returns: { "status": "Tunnel stopped" }
+        Disable public access for the site
+        Returns: { "status": "Public access disabled" }
         """
         site = self.get_object()
         
-        # Import tunnel manager
-        from .tunnel_manager import stop_tunnel, is_tunnel_alive
+        # Import ingress manager
+        from .ingress_manager import IngressManager
         
-        # Check if tunnel is active
-        if not site.tunnel_active:
+        # Check if public access is enabled
+        if not site.public_access_enabled:
             return Response(
-                {'error': 'No active tunnel to stop'},
+                {'error': 'Public access is not enabled'},
                 status=status.HTTP_409_CONFLICT
             )
         
-        # Stop the tunnel
-        success, error = stop_tunnel(site.tunnel_process_id)
-        
-        if not success and error:
+        try:
+            manager = IngressManager()
+            
+            # Remove route from tunnel
+            success, error = manager.remove_route(site.subdomain)
+            
+            if not success and error:
+                return Response(
+                    {'error': error},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Update site record
+            site.subdomain = None
+            site.public_url = None
+            site.public_access_enabled = False
+            site.save()
+            
+            return Response({
+                'status': 'Public access disabled successfully'
+            })
+            
+        except ValueError as e:
             return Response(
-                {'error': error},
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        # Update site record
-        site.tunnel_url = None
-        site.tunnel_active = False
-        site.tunnel_process_id = None
-        site.save()
-        
-        return Response({
-            'status': 'Tunnel stopped successfully'
-        })
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to disable public access: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=False, methods=['get'])
     def aggregate_stats(self, request):

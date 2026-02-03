@@ -172,3 +172,11 @@ REST_FRAMEWORK = {
 
 # WordPress Sites Storage Directory
 WORDPRESS_SITES_DIR = BASE_DIR / 'wordpress_sites'
+
+# Cloudflare Tunnel Configuration
+import os
+
+CLOUDFLARE_DOMAIN = 'edubricz.online'
+CLOUDFLARE_TUNNEL_ID = 'f7a24d5d-ea18-477f-bd26-6dfc0f3b2774'
+CLOUDFLARE_CREDENTIALS_FILE = os.path.expanduser('~/.cloudflared/f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.json')
+CLOUDFLARE_CONFIG_PATH = str(BASE_DIR / 'cloudflared_config.yml')

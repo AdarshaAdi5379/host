@@ -1,14 +1,10 @@
 tunnel: f7a24d5d-ea18-477f-bd26-6dfc0f3b2774
 credentials-file: /home/adarsha/.cloudflared/f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.json
-
 ingress:
-  # Project Host Dashboard
-  - hostname: dashboard.edubricz.online
-    service: http://localhost:5173
-
-  # Project Host API
-  - hostname: api.edubricz.online
-    service: http://localhost:8000
-
-  # Default rule (Required) matches any traffic not matched by previous rules
-  - service: http_status:404
+- hostname: dashboard.edubricz.online
+  service: http://localhost:5173
+- hostname: api.edubricz.online
+  service: http://localhost:8000
+- hostname: test20.edubricz.online
+  service: http://localhost:9002
+- service: http_status:404
