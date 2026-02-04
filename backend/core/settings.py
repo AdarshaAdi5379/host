@@ -217,8 +217,15 @@ CLOUDFLARE_CONFIG_PATH = str(BASE_DIR / 'cloudflared_config.yml')
 
 # Backup Configuration
 BACKUP_DIR = BASE_DIR / 'backups'
-BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', '7'))
+BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', 7))
 
 # Tenant Database Configuration
 TENANT_DB_IMAGE = os.getenv('TENANT_DB_IMAGE', 'mysql:8.0')
 TENANT_DB_NETWORK = os.getenv('TENANT_DB_NETWORK', 'tenant_isolated')
+
+# AWS S3 Backup Settings
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
+AWS_S3_REGION = os.getenv('AWS_S3_REGION', 'ap-south-1')
+S3_BACKUP_RETENTION_DAYS = int(os.getenv('S3_BACKUP_RETENTION_DAYS', 7))

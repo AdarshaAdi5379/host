@@ -34,42 +34,28 @@ def find_available_port(start_port=9000, end_port=9999):
     raise RuntimeError(f"No available ports in range {start_port}-{end_port}")
 
 
-def generate_docker_compose(site_name, db_password, port):
+def generate_docker_compose(site_name, db_config, port):
     """
     Generate docker-compose.yml configuration for a WordPress site
     
     Args:
         site_name: Name of the site (used for container names)
-        db_password: MySQL root password
+        db_config: Database configuration dict (host, password, network, etc.)
         port: Host port to map to WordPress container
     
     Returns:
         dict: Docker Compose configuration
     """
+    db_host = db_config.get('db_host')
+    db_password = db_config.get('db_password')
+    db_user = db_config.get('db_user', 'wordpress')
+    db_name = db_config.get('db_name', 'wordpress')
+    network_name = db_config.get('network', 'tenant_isolated')
+    
     compose_config = {
         'version': '3.8',
         'services': {
-            f'{site_name}_db': {
-                'image': 'mysql:8.0',
-                'container_name': f'{site_name}_mysql',
-                'restart': 'unless-stopped',
-                'environment': {
-                    'MYSQL_ROOT_PASSWORD': db_password,
-                    'MYSQL_DATABASE': 'wordpress',
-                    'MYSQL_USER': 'wordpress',
-                    'MYSQL_PASSWORD': db_password,
-                },
-                'volumes': [
-                    f'{site_name}_db_data:/var/lib/mysql'
-                ],
-                'networks': [
-                    f'{site_name}_network'
-                ]
-            },
             f'{site_name}_wordpress': {
-                'depends_on': [
-                    f'{site_name}_db'
-                ],
                 'image': 'wordpress:latest',
                 'container_name': f'{site_name}_wp',
                 'restart': 'unless-stopped',
@@ -77,26 +63,25 @@ def generate_docker_compose(site_name, db_password, port):
                     f'{port}:80'
                 ],
                 'environment': {
-                    'WORDPRESS_DB_HOST': f'{site_name}_db:3306',
-                    'WORDPRESS_DB_USER': 'wordpress',
+                    'WORDPRESS_DB_HOST': f'{db_host}:3306',
+                    'WORDPRESS_DB_USER': db_user,
                     'WORDPRESS_DB_PASSWORD': db_password,
-                    'WORDPRESS_DB_NAME': 'wordpress',
+                    'WORDPRESS_DB_NAME': db_name,
                 },
                 'volumes': [
                     f'{site_name}_wp_data:/var/www/html'
                 ],
                 'networks': [
-                    f'{site_name}_network'
+                    network_name
                 ]
             }
         },
         'volumes': {
-            f'{site_name}_db_data': {},
             f'{site_name}_wp_data': {}
         },
         'networks': {
-            f'{site_name}_network': {
-                'driver': 'bridge'
+            network_name: {
+                'external': True
             }
         }
     }
@@ -200,8 +185,18 @@ def write_docker_compose(site_directory, compose_config):
     """Write docker-compose.yml to the site directory"""
     compose_path = Path(site_directory) / 'docker-compose.yml'
     
+    # Custom YAML representer to quote all strings (prevents interpolation issues)
+    class QuotedDumper(yaml.SafeDumper):
+        pass
+    
+    def quoted_presenter(dumper, data):
+        """Force all strings to be quoted in YAML"""
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+    
+    QuotedDumper.add_representer(str, quoted_presenter)
+    
     with open(compose_path, 'w') as f:
-        yaml.dump(compose_config, f, default_flow_style=False, sort_keys=False)
+        yaml.dump(compose_config, f, Dumper=QuotedDumper, default_flow_style=False, sort_keys=False)
     
     return str(compose_path)
 

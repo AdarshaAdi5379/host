@@ -78,7 +78,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             write_wp_config(site_dir, wp_config_content)
             
             # Step 5: Generate and write docker-compose.yml
-            compose_config = generate_docker_compose(site_name, db_config['db_password'], port)
+            compose_config = generate_docker_compose(site_name, db_config, port)
             compose_path = write_docker_compose(site_dir, compose_config)
             
             # Step 6: Create database record with tenant DB credentials
@@ -127,6 +127,66 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
 
                 site.status = 'running'
                 site.save()
+                
+                # Step 7: Automatic S3 Backup (Non-blocking)
+                # Trigger backup after successful site creation
+                try:
+                    from core.s3_backup_manager import S3BackupManager
+                    import threading
+                    import gzip
+                    import os
+                    from .tenant_db_manager import TenantDatabaseManager
+                    
+                    def backup_new_site():
+                        """Background task to backup newly created site"""
+                        try:
+                            s3_manager = S3BackupManager()
+                            db_manager = TenantDatabaseManager()
+                            
+                            # Create database dump
+                            success, dump_path, error = db_manager.snapshot_tenant_database(
+                                site_name,
+                                db_config['root_password']
+                            )
+                            
+                            if success and dump_path:
+                                # Compress the dump
+                                gz_path = dump_path + '.gz'
+                                with open(dump_path, 'rb') as f_in:
+                                    with gzip.open(gz_path, 'wb', compresslevel=6) as f_out:
+                                        f_out.writelines(f_in)
+                                
+                                # Upload to S3
+                                upload_success, s3_key, upload_error = s3_manager.upload_backup(
+                                    gz_path,
+                                    site_name,
+                                    backup_type='tenant'
+                                )
+                                
+                                # Cleanup temporary files
+                                if os.path.exists(dump_path):
+                                    os.remove(dump_path)
+                                if os.path.exists(gz_path):
+                                    os.remove(gz_path)
+                                
+                                if upload_success:
+                                    print(f"✓ Auto-backup successful for {site_name}: {s3_key}")
+                                else:
+                                    print(f"✗ Auto-backup upload failed for {site_name}: {upload_error}")
+                            else:
+                                print(f"✗ Auto-backup dump failed for {site_name}: {error}")
+                                
+                        except Exception as e:
+                            print(f"✗ Auto-backup error for {site_name}: {str(e)}")
+                    
+                    # Run backup in background thread (non-blocking)
+                    backup_thread = threading.Thread(target=backup_new_site, daemon=True)
+                    backup_thread.start()
+                    
+                except Exception as e:
+                    # Don't fail site creation if backup fails
+                    print(f"Warning: Auto-backup initialization failed: {str(e)}")
+                
             else:
                 site.status = 'error'
                 site.save()
@@ -134,8 +194,6 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     {'error': f'Site created but failed to start containers: {output}'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-            
-
             
             # Return created site
             response_serializer = WordPressSiteSerializer(site)
@@ -204,10 +262,20 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         success, output = run_docker_compose_down_volumes(site.site_directory)
         
         if not success:
-            return Response(
-                {'error': f'Failed to remove containers: {output}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            # Fallback: Try to remove containers directly if docker-compose fails
+            # This handles cases where docker-compose.yml has syntax errors
+            import subprocess
+            try:
+                container_name = f"{site.name}_wp"
+                # Force remove the container
+                subprocess.run(['docker', 'rm', '-f', container_name], 
+                             capture_output=True, check=False)
+                # Remove the volume
+                volume_name = f"{site.name}_wp_data"
+                subprocess.run(['docker', 'volume', 'rm', '-f', volume_name], 
+                             capture_output=True, check=False)
+            except Exception as e:
+                print(f"Warning: Direct container removal failed: {str(e)}")
         
         # Step 2: Remove tenant MySQL database container
         if site.db_container_name:

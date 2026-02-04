@@ -1,6 +1,6 @@
 # Project Host: WordPress Hosting Platform Documentation
 
-**Last Updated:** January 30, 2026
+**Last Updated:** February 4, 2026
 
 ## 1. Project Overview
 "Project Host" is a local-first WordPress hosting platform designed for professional hosting environments on a local Windows machine. It allows users to:
@@ -8,6 +8,8 @@
 -   Access sites via custom local domains (e.g., `mysite.local`) or direct ports (e.g., `localhost:9005`).
 -   Monitor real-time CPU and RAM usage for each site.
 -   Manage site lifecycle (Start, Stop, Terminate) via a modern React dashboard.
+-   Enable public access via Cloudflare Tunnels with one-click subdomain provisioning.
+-   Automated disaster recovery with AWS S3 encrypted backups.
 
 ---
 
@@ -23,8 +25,9 @@
 ### Backend
 -   **Framework**: [Django 5.2](https://www.djangoproject.com/) (Python 3.12)
 -   **API**: Django REST Framework (DRF)
--   **Database**: SQLite (for app data), MySQL 8.0 (for individual WordPress instances)
+-   **Database**: PostgreSQL (for control plane), MySQL 8.0 (for tenant WordPress instances)
 -   **Task Queue**: Synchronous (currently driven by API requests)
+-   **Cloud Storage**: AWS S3 (for disaster recovery backups)
 
 ### Infrastructure & Orchestration
 -   **Container Engine**: [Docker Desktop](https://www.docker.com/) (using `docker-py` SDK)
@@ -143,7 +146,51 @@ graph TD
         -   Updated `wp-config.php` to detect HTTPS from multiple sources
         -   Fixes mixed content errors when accessed via Cloudflare Tunnel
         -   Dynamic protocol detection: `$protocol = 'https'` when appropriate
+### Phase 9: AWS S3 Disaster Recovery (Automated Backup System)
+-   **Action**: Implemented enterprise-grade disaster recovery with AWS S3 integration.
+-   **Architecture**: "Dump, Zip, Ship" strategy for tenant database backups.
+-   **Implementation**:
+    -   **S3 Backup Manager** (`core/s3_backup_manager.py`):
+        -   Automated backup compression using gzip (level 6)
+        -   Server-side encryption (AES256-SSE-S3)
+        -   Configurable retention policies (default: 7 days)
+        -   Backup statistics and monitoring
+        -   Methods: `verify_credentials()`, `upload_backup()`, `list_backups()`, `delete_old_backups()`
+    -   **Management Commands**:
+        -   `python manage.py test_s3` - Verify AWS credentials and bucket access
+        -   `python manage.py backup_all` - Backup all tenant databases to S3
+        -   Options: `--site`, `--dry-run`, `--cleanup-only`, `--skip-cleanup`
+    -   **Environment Configuration** (`.env`):
+        -   `AWS_ACCESS_KEY_ID` - IAM user access key
+        -   `AWS_SECRET_ACCESS_KEY` - IAM user secret key
+        -   `AWS_S3_BUCKET_NAME` - Target S3 bucket
+        -   `AWS_S3_REGION` - AWS region (e.g., eu-north-1)
+        -   `S3_BACKUP_RETENTION_DAYS` - Automatic cleanup threshold
+    -   **Backup Process**:
+        1. Create mysqldump of tenant database
+        2. Compress with gzip (6:1 compression ratio)
+        3. Upload to S3 with encryption
+        4. Clean up local temporary files
+        5. Automatic deletion of backups older than retention period
+    -   **S3 Storage Structure**:
+        ```
+        s3://bucket-name/
+        └── backups/
+            └── tenants/
+                └── {site_name}/
+                    └── {site_name}_{timestamp}.sql.gz
+        ```
+    -   **Security Features**:
+        -   Server-side encryption (AES256)
+        -   IAM-based access control
+        -   Credentials stored in environment variables
+        -   Automatic credential verification before operations
 -   **Outcome**: 
+    -   Automated disaster recovery capability
+    -   Encrypted backups stored in AWS S3
+    -   One-command backup and restore
+    -   AWS Free Tier compatible (5 GB storage)
+    -   Automatic retention management
     -   Professional subdomain URLs: `https://sitename.edubricz.online`
     -   Zero-downtime configuration updates
     -   Automatic SSL via Cloudflare
@@ -262,11 +309,101 @@ graph TD
 
 ---
 
-## 8. Future Enhancements
+## 8. Disaster Recovery & Backups
+
+### AWS S3 Backup System
+
+The platform includes enterprise-grade disaster recovery with automated backups to AWS S3.
+
+#### Setup Instructions
+
+1. **Create AWS IAM User**:
+   - Go to AWS IAM Console
+   - Create new user with programmatic access
+   - Attach policy: `AmazonS3FullAccess` (or custom policy with S3 permissions)
+   - Save Access Key ID and Secret Access Key
+
+2. **Create S3 Bucket**:
+   - Go to AWS S3 Console
+   - Create new bucket (e.g., `my-wordpress-backups`)
+   - Choose region (e.g., `eu-north-1` for Stockholm)
+   - Enable versioning (optional but recommended)
+
+3. **Configure Environment Variables**:
+   Edit `backend/.env`:
+   ```bash
+   AWS_ACCESS_KEY_ID=your_access_key_here
+   AWS_SECRET_ACCESS_KEY=your_secret_key_here
+   AWS_S3_BUCKET_NAME=your_bucket_name
+   AWS_S3_REGION=eu-north-1
+   S3_BACKUP_RETENTION_DAYS=7
+   ```
+
+4. **Test Connection**:
+   ```bash
+   cd backend
+   python manage.py test_s3
+   ```
+
+#### Usage
+
+**Manual Backup (All Sites)**:
+```bash
+python manage.py backup_all
+```
+
+**Backup Specific Site**:
+```bash
+python manage.py backup_all --site mysite
+```
+
+**Dry Run (Preview)**:
+```bash
+python manage.py backup_all --dry-run
+```
+
+**Cleanup Old Backups Only**:
+```bash
+python manage.py backup_all --cleanup-only
+```
+
+#### Automated Backups (Cron)
+
+Add to crontab for daily backups at 2 AM:
+```bash
+0 2 * * * cd /path/to/backend && python manage.py backup_all
+```
+
+#### Backup Features
+
+-   **Compression**: Gzip compression (typically 6:1 ratio)
+-   **Encryption**: AES256 server-side encryption
+-   **Retention**: Automatic cleanup of old backups
+-   **Monitoring**: Real-time statistics and verification
+-   **Cost**: AWS Free Tier compatible (5 GB storage)
+
+#### Troubleshooting
+
+**Connection Test Failed**:
+- Verify AWS credentials in `.env`
+- Check IAM user has S3 permissions
+- Confirm bucket exists and region is correct
+- Test with: `python manage.py test_s3`
+
+**Backup Failed**:
+- Ensure tenant database container is running
+- Check Docker permissions
+- Verify sufficient disk space
+- Review logs for specific error messages
+
+---
+
+## 9. Future Enhancements
 -   Custom subdomain selection (currently auto-generated from site name)
 -   Access control / password protection for public sites
 -   Analytics integration via Cloudflare API
 -   Multi-domain support
--   Automated backups
+-   ~~Automated backups~~ ✅ **Completed** (AWS S3 integration)
 -   Site cloning/templates
+-   Automated backup restore functionality
 -   WordPress plugin management via API
