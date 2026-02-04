@@ -1,0 +1,16 @@
+PostgreSQL Migration Report
+======================================================================
+
+Migration Date: 2026-02-04 10:49:10
+Backup File: /home/adarsha/Desktop/projects/HOST/host/backend/backups/system/sqlite_backup_20260204_104904.json
+Database: hostinger_platform
+Host: localhost
+
+Verification Results:
+7 objects imported automatically (use -v 2 for details).
+
+WordPress Sites: 8
+Users: 0
+
+
+Migration completed successfully!

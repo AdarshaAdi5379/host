@@ -115,14 +115,39 @@ graph TD
     -   Ran a batch script to patch existing containers.
 -   **Outcome**: Admin dashboard works correctly with full styling.
 
-### Phase 8: Public Access via Cloudflare Tunnels
--   **Action**: Integrated `cloudflared` for secure public tunneling.
--   **Tech**: Python `subprocess` management of `cloudflared` binary.
+### Phase 8: Public Access via Cloudflare Tunnels (Persistent Architecture)
+-   **Action**: Migrated from Quick Tunnels to a persistent, single-ingress tunnel architecture.
+-   **Architecture**: One persistent tunnel manages all sites via dynamic subdomain routing.
 -   **Implementation**:
-    -   **Backend**: `TunnelManager` module (`tunnel_manager.py`) handles process lifecycle and URL parsing from stderr.
-    -   **Database**: Added `tunnel_url`, `tunnel_active`, and `tunnel_process_id` to `WordPressSite` model.
-    -   **API**: `start_tunnel` and `stop_tunnel` actions on the ViewSet.
--   **Outcome**: One-click public URLs (e.g., `https://funny-name.trycloudflare.com`) for local sites, enabling external sharing without port forwarding.
+    -   **Tunnel Setup**:
+        -   Created persistent tunnel: `f7a24d5d-ea18-477f-bd26-6dfc0f3b2774`
+        -   Configured wildcard DNS: `*.edubricz.online` → Tunnel CNAME
+        -   Configuration file: `backend/cloudflared_config.yml`
+    -   **Backend Modules**:
+        -   `IngressManager` (`ingress_manager.py`): Manages dynamic route configuration
+        -   Methods: `add_route()`, `remove_route()`, `_reload_tunnel()`
+        -   Automatic tunnel restart on configuration changes
+    -   **Database Schema**:
+        -   Removed: `tunnel_url`, `tunnel_active`, `tunnel_process_id`
+        -   Added: `subdomain` (unique), `public_url`, `public_access_enabled`
+        -   Migration: `0003_rename_tunnel_active_wordpresssite_public_access_enabled_and_more.py`
+    -   **API Endpoints**:
+        -   `POST /api/sites/{id}/enable_public_access/` - Enable public access
+        -   `POST /api/sites/{id}/disable_public_access/` - Disable public access
+        -   Returns: `{"public_url": "https://sitename.edubricz.online", "subdomain": "sitename", "status": "..."}`
+    -   **Frontend Integration**:
+        -   Updated `wordpressAPI.ts` with new endpoints
+        -   Modified `HostingManagement.tsx` to display subdomain URLs
+        -   "Go Live" / "Go Local" buttons for one-click public access
+    -   **HTTPS Support**:
+        -   Updated `wp-config.php` to detect HTTPS from multiple sources
+        -   Fixes mixed content errors when accessed via Cloudflare Tunnel
+        -   Dynamic protocol detection: `$protocol = 'https'` when appropriate
+-   **Outcome**: 
+    -   Professional subdomain URLs: `https://sitename.edubricz.online`
+    -   Zero-downtime configuration updates
+    -   Automatic SSL via Cloudflare
+    -   One-click public access from dashboard
 
 ---
 
@@ -169,3 +194,79 @@ graph TD
     -   Dashboard: `http://localhost:5173`
     -   API: `http://localhost:8000`
 
+---
+
+## 6. Troubleshooting
+
+### Cloudflare Tunnel Issues
+
+**Problem**: Site returns 404 when accessing public URL
+-   **Cause**: Tunnel not reloaded after adding route
+-   **Solution**: Tunnel automatically restarts when enabling public access. If issues persist:
+    ```bash
+    pkill -9 cloudflared
+    cloudflared tunnel --config /path/to/cloudflared_config.yml run
+    ```
+
+**Problem**: Mixed content errors (HTTP resources on HTTPS page)
+-   **Cause**: WordPress not detecting HTTPS correctly
+-   **Solution**: Already fixed in `wp-config.php` with dynamic protocol detection. For existing sites, restart WordPress container:
+    ```bash
+    docker restart sitename_wp
+    ```
+
+**Problem**: Multiple cloudflared processes running
+-   **Cause**: Previous reload attempts created duplicates
+-   **Solution**: Kill all and restart:
+    ```bash
+    pkill -9 cloudflared
+    cloudflared tunnel --config /path/to/cloudflared_config.yml run
+    ```
+
+### WordPress Site Issues
+
+**Problem**: Admin dashboard appears "plain" (no CSS/JS)
+-   **Cause**: Script concatenation issue in Docker
+-   **Solution**: Already fixed in `wp-config.php` with `CONCATENATE_SCRIPTS = false`
+
+**Problem**: Site won't start after creation
+-   **Cause**: Port conflict or Docker issue
+-   **Solution**: Check logs:
+    ```bash
+    docker logs sitename_wp
+    docker logs sitename_mysql
+    ```
+
+---
+
+## 7. Security Considerations
+
+### Sensitive Files (DO NOT COMMIT)
+-   `backend/cloudflared_config.yml` - Contains tunnel ID and credentials path
+-   `backend/core/settings.py` - Contains Django SECRET_KEY
+-   `backend/wordpress_sites/` - Contains database passwords and security salts
+-   `backend/.env` - Environment variables (recommended approach)
+-   `.cloudflared/*.json` - Tunnel credentials
+
+### Best Practices
+1.   **Use Environment Variables**: Store secrets in `.env` file (already in `.gitignore`)
+2.   **Rotate Credentials**: If exposed to GitHub, immediately:
+     -   Delete and recreate Cloudflare tunnel
+     -   Regenerate Django SECRET_KEY
+     -   Update DNS records
+3.   **Review Before Commit**: Always run `git status` and `git diff` before committing
+4.   **Use .gitignore**: Comprehensive `.gitignore` now includes all sensitive patterns
+
+### Current Security Status
+⚠️ **WARNING**: Tunnel credentials were previously exposed in git history. See `SECURITY_BREACH_REPORT.md` for remediation steps.
+
+---
+
+## 8. Future Enhancements
+-   Custom subdomain selection (currently auto-generated from site name)
+-   Access control / password protection for public sites
+-   Analytics integration via Cloudflare API
+-   Multi-domain support
+-   Automated backups
+-   Site cloning/templates
+-   WordPress plugin management via API

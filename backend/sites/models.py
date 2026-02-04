@@ -38,6 +38,15 @@ class WordPressSite(models.Model):
     public_access_enabled = models.BooleanField(default=False)  # Whether site is publicly accessible
     public_url = models.URLField(blank=True, null=True)  # Full public URL (e.g., https://mysite.edubricz.online)
     
+    # Tenant Database (Isolated MySQL Container)
+    db_container_name = models.CharField(max_length=100, blank=True, null=True)  # MySQL container name
+    db_container_id = models.CharField(max_length=100, blank=True, null=True)  # Docker container ID
+    db_host = models.CharField(max_length=255, blank=True, null=True)  # Database hostname (container name)
+    db_name = models.CharField(max_length=100, default='wordpress')  # Database name
+    db_user = models.CharField(max_length=100, default='wordpress')  # Database user
+    db_password = models.CharField(max_length=255, blank=True, null=True)  # Database password (encrypted in production)
+    db_root_password = models.CharField(max_length=255, blank=True, null=True)  # Root password for backups
+    
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'WordPress Site'

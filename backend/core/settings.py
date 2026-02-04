@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-kejjynu*q6xfkajcx#i1xtwy+0!_9n4wu5_+szu@a+#7wx13ov'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-kejjynu*q6xfkajcx#i1xtwy+0!_9n4wu5_+szu@a+#7wx13ov')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -78,12 +83,40 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Two-Tier Database Architecture:
+# - Control Plane: PostgreSQL (Django app data - users, sites, billing)
+# - Data Plane: MySQL containers (WordPress tenant data - isolated per site)
+
+DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite3')
+
+if DB_ENGINE == 'postgresql':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'hostinger_platform'),
+            'USER': os.getenv('DB_USER', 'hostinger_admin'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 600,  # Connection pooling (10 minutes)
+            'OPTIONS': {
+                'connect_timeout': 10,
+                # Uncomment for SSL/TLS in production
+                # 'sslmode': os.getenv('DB_SSL_MODE', 'require'),
+                # 'sslcert': os.getenv('DB_SSL_CERT'),
+                # 'sslkey': os.getenv('DB_SSL_KEY'),
+                # 'sslrootcert': os.getenv('DB_SSL_ROOT_CERT'),
+            },
+        }
     }
-}
+else:
+    # Fallback to SQLite for development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -174,9 +207,18 @@ REST_FRAMEWORK = {
 WORDPRESS_SITES_DIR = BASE_DIR / 'wordpress_sites'
 
 # Cloudflare Tunnel Configuration
-import os
-
-CLOUDFLARE_DOMAIN = 'edubricz.online'
-CLOUDFLARE_TUNNEL_ID = 'f7a24d5d-ea18-477f-bd26-6dfc0f3b2774'
-CLOUDFLARE_CREDENTIALS_FILE = os.path.expanduser('~/.cloudflared/f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.json')
+CLOUDFLARE_DOMAIN = os.getenv('CLOUDFLARE_DOMAIN', 'edubricz.online')
+CLOUDFLARE_TUNNEL_ID = os.getenv('CLOUDFLARE_TUNNEL_ID', 'f7a24d5d-ea18-477f-bd26-6dfc0f3b2774')
+CLOUDFLARE_CREDENTIALS_FILE = os.getenv(
+    'CLOUDFLARE_CREDENTIALS_FILE',
+    os.path.expanduser('~/.cloudflared/f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.json')
+)
 CLOUDFLARE_CONFIG_PATH = str(BASE_DIR / 'cloudflared_config.yml')
+
+# Backup Configuration
+BACKUP_DIR = BASE_DIR / 'backups'
+BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', '7'))
+
+# Tenant Database Configuration
+TENANT_DB_IMAGE = os.getenv('TENANT_DB_IMAGE', 'mysql:8.0')
+TENANT_DB_NETWORK = os.getenv('TENANT_DB_NETWORK', 'tenant_isolated')

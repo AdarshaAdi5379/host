@@ -1,0 +1,97 @@
+version: '3.8'
+
+# Load environment variables from backend/.env
+
+
+services:
+  # Control Plane: PostgreSQL System Database
+  db_system:
+    image: postgres:16-alpine
+    container_name: hostinger_core_db
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      - POSTGRES_DB=${DB_NAME:-hostinger_platform}
+      - POSTGRES_USER=${DB_USER:-hostinger_admin}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/backups/system:/backups
+    networks:
+      - hostinger_internal
+    ports:
+      # Only expose for development - remove in production
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-hostinger_admin} -d ${DB_NAME:-hostinger_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "work_mem=1310kB"
+      - "-c"
+      - "min_wal_size=1GB"
+      - "-c"
+      - "max_wal_size=4GB"
+
+  # Django Backend (optional - for full containerization)
+  # Uncomment when ready to containerize the backend
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: hostinger_backend
+  #   restart: unless-stopped
+  #   environment:
+  #     - DB_ENGINE=postgresql
+  #     - DB_NAME=${DB_NAME:-hostinger_platform}
+  #     - DB_USER=${DB_USER:-hostinger_admin}
+  #     - DB_PASSWORD=${DB_PASSWORD}
+  #     - DB_HOST=db_system
+  #     - DB_PORT=5432
+  #     - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+  #     - DEBUG=${DEBUG:-False}
+  #   volumes:
+  #     - ./backend:/app
+  #     - ./backend/wordpress_sites:/app/wordpress_sites
+  #   networks:
+  #     - hostinger_internal
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     db_system:
+  #       condition: service_healthy
+  #   command: python manage.py runserver 0.0.0.0:8000
+
+networks:
+  # Internal network for database isolation
+  # WordPress tenant containers will NOT have access to this network
+  hostinger_internal:
+    driver: bridge
+    internal: false  # Set to true in production to block external access
+
+volumes:
+  postgres_data:
+    driver: local

@@ -49,30 +49,39 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         admin_password = serializer.validated_data['admin_password']
         
         try:
-            # Generate configuration
+            # Step 1: Provision isolated MySQL database container
+            from .tenant_db_manager import TenantDatabaseManager
+            
+            db_manager = TenantDatabaseManager()
+            db_success, db_config, db_error = db_manager.create_tenant_database(site_name)
+            
+            if not db_success:
+                return Response(
+                    {'error': f'Failed to create tenant database: {db_error}'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Step 2: Generate configuration
             port = find_available_port()
             domain = f"{site_name}.local"
             
-            # Generate secure DB password
-            db_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-            
-            # Create site directory
+            # Step 3: Create site directory
             site_dir = create_site_directory(site_name)
             
-            # Generate and write wp-config.php
+            # Step 4: Generate and write wp-config.php with tenant DB credentials
             wp_config_content = generate_wp_config_content(
-                db_host=f"{site_name}_db:3306",
-                db_name='wordpress',
-                db_user='wordpress',
-                db_password=db_password
+                db_host=f"{db_config['db_host']}:3306",
+                db_name=db_config['db_name'],
+                db_user=db_config['db_user'],
+                db_password=db_config['db_password']
             )
             write_wp_config(site_dir, wp_config_content)
             
-            # Generate and write docker-compose.yml
-            compose_config = generate_docker_compose(site_name, db_password, port)
+            # Step 5: Generate and write docker-compose.yml
+            compose_config = generate_docker_compose(site_name, db_config['db_password'], port)
             compose_path = write_docker_compose(site_dir, compose_config)
             
-            # Create database record
+            # Step 6: Create database record with tenant DB credentials
             site = WordPressSite.objects.create(
                 name=site_name,
                 domain=domain,
@@ -81,7 +90,15 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 admin_password=admin_password,  # In production, hash this
                 site_directory=site_dir,
                 docker_compose_path=compose_path,
-                status='provisioning'
+                status='provisioning',
+                # Tenant database credentials
+                db_container_name=db_config['container_name'],
+                db_container_id=db_config['container_id'],
+                db_host=db_config['db_host'],
+                db_name=db_config['db_name'],
+                db_user=db_config['db_user'],
+                db_password=db_config['db_password'],
+                db_root_password=db_config['root_password']
             )
             
             # Start Docker containers
@@ -183,9 +200,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         """Terminate and delete a WordPress site"""
         site = self.get_object()
         
-
-        
-        # Stop and remove containers and volumes
+        # Step 1: Stop and remove WordPress containers and volumes
         success, output = run_docker_compose_down_volumes(site.site_directory)
         
         if not success:
@@ -194,7 +209,17 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        # Delete site record
+        # Step 2: Remove tenant MySQL database container
+        if site.db_container_name:
+            from .tenant_db_manager import TenantDatabaseManager
+            db_manager = TenantDatabaseManager()
+            db_success, db_error = db_manager.remove_tenant_database(site.name, remove_volumes=True)
+            
+            if not db_success:
+                # Log error but don't fail the entire operation
+                print(f"Warning: Failed to remove tenant database: {db_error}")
+        
+        # Step 3: Delete site record
         site.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -383,4 +408,56 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             'running_sites': running_sites.count(),
             'sites_with_stats': sites_with_stats
         })
+    
+    @action(detail=True, methods=['post'])
+    def snapshot(self, request, pk=None):
+        """
+        Create a database backup snapshot for a specific site
+        Returns: { "backup_file": "/path/to/backup.sql", "size_mb": 1.23 }
+        """
+        site = self.get_object()
+        
+        if not site.db_container_name:
+            return Response(
+                {'error': 'Site does not have a tenant database'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not site.db_root_password:
+            return Response(
+                {'error': 'Database root password not available'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from .tenant_db_manager import TenantDatabaseManager
+            db_manager = TenantDatabaseManager()
+            
+            success, backup_path, error = db_manager.snapshot_tenant_database(
+                site.name,
+                site.db_root_password
+            )
+            
+            if not success:
+                return Response(
+                    {'error': error},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Get backup file size
+            from pathlib import Path
+            backup_file = Path(backup_path)
+            size_mb = round(backup_file.stat().st_size / (1024 * 1024), 2)
+            
+            return Response({
+                'backup_file': backup_path,
+                'size_mb': size_mb,
+                'status': 'Backup created successfully'
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to create backup: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
