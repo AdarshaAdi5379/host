@@ -2,8 +2,13 @@ import { Button } from '@/components/ui/button'
 
 export function SocialLogin() {
     const handleGoogleLogin = () => {
-        // In production, this would redirect to Google OAuth
-        console.log('Google OAuth login')
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+        const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || 'http://localhost:5173/auth/google/callback'
+        const scope = 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile'
+        const responseType = 'code'
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}&access_type=online&prompt=select_account`
+
+        window.location.href = authUrl
     }
 
     const handleGithubLogin = () => {
