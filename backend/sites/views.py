@@ -528,4 +528,29 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 {'error': f'Failed to create backup: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+    
+    @action(detail=True, methods=['get'])
+    def database(self, request, pk=None):
+        """
+        Get database credentials for a specific site
+        Returns: Database connection details for use with Adminer
+        """
+        site = self.get_object()
+        
+        # Verify site has database credentials
+        if not site.db_host or not site.db_password:
+            return Response(
+                {'error': 'Database credentials not available for this site'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Return database credentials
+        return Response({
+            'host': site.db_host,
+            'database': site.db_name,
+            'username': site.db_user,
+            'password': site.db_password,
+            'port': 3306,
+            'adminer_url': 'https://db.edubricz.online',
+            'container_name': site.db_container_name
+        })

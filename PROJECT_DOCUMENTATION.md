@@ -410,7 +410,40 @@ Add to crontab for daily backups at 2 AM:
 
 ---
 
-## 9. Future Enhancements
+## 9. Database Management module
+
+The platform includes a built-in Database Manager that provides a GUI for managing WordPress MySQL databases.
+
+### Architecture
+
+The system uses **Adminer**, a lightweight database management tool, running in a single Docker container that services all tenants.
+
+-   **Service**: Adminer (Official Image)
+-   **Network**: `tenant_isolated` (Access to all user databases)
+-   **URL**: `https://db.edubricz.online`
+-   **Security**:
+    -   **Network Isolation**: Adminer cannot be accessed directly via IP (no port binding).
+    -   **Tunnel Access**: Only accessible via Cloudflare Tunnel (HTTPS).
+    -   **Credential Isolation**: Each tenant DB has a unique, random password.
+
+### Usage
+
+1.  Navigate to **Quick Actions** -> **Databases** (or `/hosting/databases`).
+2.  Select a site from the sidebar.
+3.  Copy the **Server**, **Username**, and **Password**.
+4.  Click **Open Database Manager**.
+5.  Paste the credentials into the Adminer login screen (System: MySQL).
+
+### Capabilities
+-   View/Edit WordPress tables (`wp_posts`, `wp_users`, etc.).
+-   Run custom SQL queries.
+-   Export database dumps (.sql).
+-   Import data.
+-   Diagnose database issues.
+
+---
+
+## 10. Future Enhancements
 -   Custom subdomain selection (currently auto-generated from site name)
 -   Access control / password protection for public sites
 -   Analytics integration via Cloudflare API
@@ -445,3 +478,27 @@ Add to crontab for daily backups at 2 AM:
     -   Seamless login experience with Google or Email.
     -   Secure, persistent sessions with automatic expiration.
     -   Protected dashboard accessible only to authenticated users.
+
+### Phase 11: Database Management Module
+-   **Action**: Implemented a secure Database Manager using Adminer.
+-   **Tech**: Adminer (Docker), Cloudflare Tunnel, React.
+-   **Implementation**:
+    -   **Infrastructure**:
+        -   Deployed single **Adminer** container on `tenant_isolated` network.
+        -   Configured to resolve tenant database hostnames via Docker DNS.
+        -   Isolated from external internet, accessible only via Tunnel.
+    -   **Access Control**:
+        -   **Cloudflare Tunnel**: Routes `https://db.edubricz.online` to Adminer container.
+        -   **Security**: No host port binding. Credentials encrypted in DB.
+    -   **API**:
+        -   `GET /api/sites/{id}/database/` - Returns connection credentials (Host, User, Pass).
+        -   Protected by Knox Token and object ownership permissions.
+    -   **Frontend**:
+        -   **Database Manager** page (`/hosting/databases`): Site selection list.
+        -   **DatabaseTab** component: Displays credentials, copy-to-clipboard, "Show Password".
+        -   Direct link to Adminer interface.
+-   **Outcome**:
+    -   One-click access to WordPress MySQL databases.
+    -   Secure, authenticated credential retrieval.
+    -   No manual port forwarding or command-line required.
+

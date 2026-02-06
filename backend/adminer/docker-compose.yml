@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  adminer:
+    image: adminer:latest
+    container_name: host_adminer
+    restart: unless-stopped
+    environment:
+      # Adminer configuration
+      ADMINER_DEFAULT_SERVER: ""
+      ADMINER_DESIGN: pepa-linha-dark
+      # Security: Disable plugins that could be risky
+      ADMINER_PLUGINS: ""
+    networks:
+      - tenant_isolated
+    # Internal port only - no host binding for security
+    expose:
+      - "8080"
+    labels:
+      - "com.host.service=database-manager"
+      - "com.host.description=Global Adminer instance for tenant database access"
+
+networks:
+  tenant_isolated:
+    external: true
