@@ -28,7 +28,7 @@ export function Navbar() {
         navigate('/login')
     }
 
-    const fallbackAvatar = user ? generateInitialsAvatar(user.name) : null
+    const fallbackAvatar = user ? generateInitialsAvatar(user.name || user.email) : null
 
     return (
         <div className="h-16 bg-white border-b border-border flex items-center justify-between px-6">

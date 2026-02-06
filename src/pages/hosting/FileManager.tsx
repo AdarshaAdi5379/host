@@ -12,11 +12,10 @@ import {
 } from '@/components/ui/table'
 import { FolderOpen, File, Download, Trash2, Upload, Plus } from 'lucide-react'
 import type { FileItem } from '@/data/mockData'
-import { mockFiles } from '@/data/mockData'
 import { formatBytes, formatDateTime } from '@/lib/utils'
 
 export function FileManager() {
-    const [files, setFiles] = useState<FileItem[]>(mockFiles)
+    const [files, setFiles] = useState<FileItem[]>([])
     const [currentPath, setCurrentPath] = useState('/public_html')
 
     const currentFiles = files.filter(f =>

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sites', '0003_rename_tunnel_active_wordpresssite_public_access_enabled_and_more'),
+        ('wordpress_sites', '0003_rename_tunnel_active_wordpresssite_public_access_enabled_and_more'),
     ]
 
     operations = [

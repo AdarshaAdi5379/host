@@ -6,6 +6,7 @@
 "Project Host" is a local-first WordPress hosting platform designed for professional hosting environments on a local Windows machine. It allows users to:
 -   Provision isolated WordPress instances in seconds.
 -   Access sites via custom local domains (e.g., `mysite.local`) or direct ports (e.g., `localhost:9005`).
+-   **Secure User Authentication**: Email/Password and Google OAuth2 login.
 -   Monitor real-time CPU and RAM usage for each site.
 -   Manage site lifecycle (Start, Stop, Terminate) via a modern React dashboard.
 -   Enable public access via Cloudflare Tunnels with one-click subdomain provisioning.
@@ -25,7 +26,8 @@
 ### Backend
 -   **Framework**: [Django 5.2](https://www.djangoproject.com/) (Python 3.12)
 -   **API**: Django REST Framework (DRF)
--   **Database**: PostgreSQL (for control plane), MySQL 8.0 (for tenant WordPress instances)
+-   **Authentication**: Token-based (django-rest-knox) + OAuth2 (django-allauth)
+-   **Database**: SQLite (Development) / PostgreSQL (Production Control Plane)
 -   **Task Queue**: Synchronous (currently driven by API requests)
 -   **Cloud Storage**: AWS S3 (for disaster recovery backups)
 
@@ -212,6 +214,16 @@ graph TD
     -   Container restarts to apply config.
 5.  **Ready**: API returns success, dashboard updates.
     -   User accesses site at `http://localhost:9005`.
+
+### Authentication Flow (Google OAuth & Email)
+1.  **Frontend**: User clicks "Sign in with Google" or submits Login form.
+2.  **Redirect (OAuth)**: User is redirected to Google's OAuth consent screen.
+3.  **Callback (OAuth)**: Google redirects back to `/auth/google/callback` with an authorization `code`.
+4.  **Exchange/Verification**: Backend verifies credentials (password or OAuth code).
+5.  **Token Generation**: Backend generates a **Knox Token** (encrypted, persisted in DB).
+6.  **Response**: Backend returns token and user profile to Frontend.
+7.  **Persistence**: Frontend stores token in `localStorage` securely via Zustand store.
+8.  **Session**: Token is attached to `Authorization` header for all subsequent API calls.
 
 ---
 
@@ -407,3 +419,29 @@ Add to crontab for daily backups at 2 AM:
 -   Site cloning/templates
 -   Automated backup restore functionality
 -   WordPress plugin management via API
+
+### Phase 10: Authentication System Overhaul
+-   **Action**: Implemented a robust, dual-channel authentication system.
+-   **Tech**: `django-allauth`, `dj-rest-auth`, `django-rest-knox`, Google OAuth2.
+-   **Implementation**:
+    -   **Token Management**:
+        -   Replaced JWT with **Knox Token Authentication** for better security and token revocation.
+        -   Tokens have a 10-hour TTL (Time To Live) with auto-refresh on activity.
+        -   Tokens are persisted in `localStorage` securely via Zustand store.
+    -   **Authentication Methods**:
+        -   **Email/Password**: Standard secure registration and login.
+        -   **Google OAuth2**: One-click login/signup using Google accounts.
+    -   **Frontend Integration**:
+        -   Centralized `AuthStore` (Zustand) manages user state and token lifecycle.
+        -   `ProtectedRoute` component guards sensitive routes (Dashboard, Site Management).
+        -   Auto-logout mechanism when tokens expire.
+    -   **API Endpoints**:
+        -   `/api/auth/register/` - New user registration
+        -   `/api/auth/login/` - Password login
+        -   `/api/auth/google/` - Google OAuth2 login (Code exchange)
+        -   `/api/auth/logout/` - Server-side token invalidation
+        -   `/api/auth/user/` - Fetch authenticated user profile
+-   **Outcome**:
+    -   Seamless login experience with Google or Email.
+    -   Secure, persistent sessions with automatic expiration.
+    -   Protected dashboard accessible only to authenticated users.

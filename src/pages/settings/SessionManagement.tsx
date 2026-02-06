@@ -5,40 +5,6 @@ import { useToast } from '@/components/ui/toast'
 import { Monitor, Chrome, Smartphone, MapPin, Clock } from 'lucide-react'
 import type { Session } from '@/types/auth'
 
-// Mock session data
-const mockSessions: Session[] = [
-    {
-        id: '1',
-        deviceName: 'Chrome on Windows',
-        browser: 'Chrome 120',
-        os: 'Windows 11',
-        location: 'Bangalore, India',
-        ipAddress: '103.21.244.0',
-        lastActive: new Date().toISOString(),
-        isCurrent: true,
-    },
-    {
-        id: '2',
-        deviceName: 'Safari on iPhone',
-        browser: 'Safari 17',
-        os: 'iOS 17',
-        location: 'Mumbai, India',
-        ipAddress: '103.21.245.12',
-        lastActive: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        isCurrent: false,
-    },
-    {
-        id: '3',
-        deviceName: 'Firefox on macOS',
-        browser: 'Firefox 121',
-        os: 'macOS 14',
-        location: 'Delhi, India',
-        ipAddress: '103.21.246.24',
-        lastActive: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        isCurrent: false,
-    },
-]
-
 export function SessionManagement() {
     const { addToast } = useToast()
 
@@ -91,7 +57,8 @@ export function SessionManagement() {
 
             {/* Sessions List */}
             <div className="space-y-4">
-                {mockSessions.map((session) => (
+                {/* Only show real data from database */}
+                {([] as Session[]).map((session) => (
                     <Card key={session.id}>
                         <CardContent className="p-6">
                             <div className="flex items-start justify-between">

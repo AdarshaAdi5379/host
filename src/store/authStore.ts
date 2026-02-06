@@ -1,69 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { AuthState, User, LoginCredentials, RegisterData } from '@/types/auth'
+import { authAPI } from '@/lib/api/auth'
 
-// Mock API calls - replace with real API
-const mockLogin = async (credentials: LoginCredentials): Promise<{ user: User; token: string }> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // Admin user
-    if (credentials.email === 'demo@example.com' && credentials.password === 'Demo@123') {
-        return {
-            user: {
-                id: '1',
-                email: credentials.email,
-                name: 'Demo User',
-                role: 'owner',
-                avatar: undefined,
-                emailVerified: true,
-                mfaEnabled: false,
-                createdAt: new Date().toISOString(),
-                lastLoginAt: new Date().toISOString(),
-                lastLoginLocation: 'Bangalore, India',
-            },
-            token: 'mock-jwt-token-' + Date.now(),
-        }
-    }
-
-    // Regular user (non-admin)
-    if (credentials.email === 'user@example.com' && credentials.password === 'User@123') {
-        return {
-            user: {
-                id: '2',
-                email: credentials.email,
-                name: 'Sarah Johnson',
-                role: 'user',
-                avatar: undefined,
-                emailVerified: true,
-                mfaEnabled: false,
-                createdAt: '2025-12-15T10:30:00Z',
-                lastLoginAt: new Date().toISOString(),
-                lastLoginLocation: 'Mumbai, India',
-            },
-            token: 'mock-jwt-token-user-' + Date.now(),
-        }
-    }
-
-    throw new Error('Invalid credentials')
-}
-
-const mockRegister = async (data: RegisterData): Promise<{ user: User; token: string }> => {
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    return {
-        user: {
-            id: Date.now().toString(),
-            email: data.email,
-            name: data.name,
-            role: 'owner',
-            emailVerified: false,
-            mfaEnabled: false,
-            createdAt: new Date().toISOString(),
-        },
-        token: 'mock-jwt-token-' + Date.now(),
-    }
-}
 
 export const useAuthStore = create<AuthState>()(
     persist(
@@ -77,10 +16,12 @@ export const useAuthStore = create<AuthState>()(
             login: async (credentials: LoginCredentials) => {
                 set({ isLoading: true, error: null })
                 try {
-                    const { user, token } = await mockLogin(credentials)
+                    const response = await authAPI.login(credentials.email, credentials.password)
+                    // Fetch user profile with the token
+                    const userProfile = await authAPI.getUser(response.key)
                     set({
-                        user,
-                        token,
+                        user: userProfile,
+                        token: response.key,
                         isAuthenticated: true,
                         isLoading: false,
                         error: null,
@@ -97,10 +38,16 @@ export const useAuthStore = create<AuthState>()(
             register: async (data: RegisterData) => {
                 set({ isLoading: true, error: null })
                 try {
-                    const { user, token } = await mockRegister(data)
+                    const response = await authAPI.register(
+                        data.email,
+                        data.password,  // password1
+                        data.confirmPassword  // password2
+                    )
+                    // Fetch user profile with the token
+                    const userProfile = await authAPI.getUser(response.key)
                     set({
-                        user,
-                        token,
+                        user: userProfile,
+                        token: response.key,
                         isAuthenticated: true,
                         isLoading: false,
                         error: null,
@@ -114,7 +61,15 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
 
-            logout: () => {
+            logout: async () => {
+                const { token } = get()
+                if (token) {
+                    try {
+                        await authAPI.logout(token)
+                    } catch (error) {
+                        console.error('Logout error:', error)
+                    }
+                }
                 set({
                     user: null,
                     token: null,
@@ -124,9 +79,8 @@ export const useAuthStore = create<AuthState>()(
             },
 
             logoutEverywhere: async () => {
-                // In a real app, this would call an API to invalidate all tokens
-                await new Promise((resolve) => setTimeout(resolve, 500))
-                get().logout()
+                // Knox automatically handles token invalidation on logout
+                await get().logout()
             },
 
             refreshToken: async () => {
@@ -134,12 +88,10 @@ export const useAuthStore = create<AuthState>()(
                 if (!token) return
 
                 try {
-                    // Mock token refresh - replace with real API call
-                    await new Promise((resolve) => setTimeout(resolve, 500))
-                    const newToken = 'refreshed-token-' + Date.now()
-                    set({ token: newToken })
+                    // Knox tokens auto-refresh on use, so we just verify the token is still valid
+                    await authAPI.getUser(token)
                 } catch (error) {
-                    // If refresh fails, logout
+                    // If token is invalid, logout
                     get().logout()
                 }
             },
@@ -166,7 +118,7 @@ export const useAuthStore = create<AuthState>()(
 )
 
 // Token refresh interval (5 minutes before expiry)
-let refreshInterval: NodeJS.Timeout | null = null
+let refreshInterval: number | null = null
 
 export function startTokenRefresh() {
     if (refreshInterval) return

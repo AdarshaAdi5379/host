@@ -5,10 +5,9 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Search, Download, Star } from 'lucide-react'
 import type { App } from '@/data/mockData'
-import { mockApps } from '@/data/mockData'
 
 export function AppInstaller() {
-    const [apps] = useState<App[]>(mockApps)
+    const [apps] = useState<App[]>([])
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState<string>('all')
 

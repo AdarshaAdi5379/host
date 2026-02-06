@@ -1,17 +1,13 @@
-import { useAuthStore } from '@/store/authStore'
-import { mockServices } from '@/data/mockData'
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
 import { Mail, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
 
 export function EmailManagement() {
-    const { user } = useAuthStore()
     const navigate = useNavigate()
 
-    // Show demo data only for admin
-    const isAdmin = user?.role === 'owner'
-    const emailServices = isAdmin ? mockServices.filter(s => s.type === 'email') : []
+    // Only show real data from database
+    const emailServices: any[] = []
 
     return (
         <div className="space-y-6">

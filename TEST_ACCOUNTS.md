@@ -1,12 +1,12 @@
 ## 🔐 Test Accounts
 
-We've created two dummy accounts for testing different user experiences:
+We've created dummy accounts for testing different user experiences:
 
 ### 👑 Admin Account (Full Access)
 ```
 Email: demo@example.com
-Password: Demo@123
-Role: Owner
+Password: DemoPass123!
+Role: Owner/Admin
 ```
 **Features:**
 - Full administrative access
@@ -20,7 +20,7 @@ Role: Owner
 ### 👤 Regular User Account (Limited Access)
 ```
 Email: user@example.com
-Password: User@123
+Password: UserPass123!
 Role: User
 ```
 **Features:**
@@ -33,18 +33,16 @@ Role: User
 
 ---
 
-### 🎯 Testing Different Views
+### 🌐 Google OAuth Configuration
 
-**To test the admin experience:**
-1. Login with `demo@example.com`
-2. You'll see full dashboard with all management options
-3. Access to billing, team, and advanced settings
+To configure Google Login, update your Google Cloud Console with these URIs:
 
-**To test the regular user experience:**
-1. Logout if currently logged in
-2. Login with `user@example.com`
-3. You'll see a simplified dashboard
-4. Limited navigation options
-5. No administrative features
+**Authorized JavaScript origins:**
+```
+http://localhost:5173
+```
 
-This allows you to see how the platform adapts based on user roles and permissions!
+**Authorized redirect URIs:**
+```
+http://localhost:5173/auth/google/callback
+```

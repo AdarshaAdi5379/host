@@ -12,11 +12,10 @@ import {
 } from '@/components/ui/table'
 import { Plus, ExternalLink, Trash2 } from 'lucide-react'
 import type { Database } from '@/data/mockData'
-import { mockDatabases } from '@/data/mockData'
 import { formatBytes } from '@/lib/utils'
 
 export function DatabaseManager() {
-    const [databases, setDatabases] = useState<Database[]>(mockDatabases)
+    const [databases, setDatabases] = useState<Database[]>([])
 
     const handleDelete = (id: string) => {
         setDatabases(databases.filter(db => db.id !== id))

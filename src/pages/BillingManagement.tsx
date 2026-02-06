@@ -6,70 +6,16 @@ import { BillingAlerts } from '@/components/billing/BillingAlerts'
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
 import { Button } from '@/components/ui/button'
 import { Plus, CreditCard, FileText, Receipt } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
 import type { PaymentMethod } from '@/store/billingStore'
 
 type Tab = 'subscriptions' | 'payment-methods' | 'invoices'
 
-// Mock data
-const mockSubscriptions = [
-    {
-        id: '1',
-        serviceName: 'Premium Hosting',
-        serviceType: 'hosting' as const,
-        plan: 'Business Plan',
-        price: 99.99,
-        currency: 'USD' as const,
-        renewalDate: '2026-02-15',
-        daysUntilRenewal: 18,
-        autoRenew: true,
-        status: 'active' as const,
-    },
-    {
-        id: '2',
-        serviceName: 'example.com',
-        serviceType: 'domain' as const,
-        plan: 'Domain Registration',
-        price: 14.99,
-        currency: 'USD' as const,
-        renewalDate: '2026-02-20',
-        daysUntilRenewal: 23,
-        autoRenew: false,
-        status: 'active' as const,
-    },
-]
-
-const mockPaymentMethods: PaymentMethod[] = [
-    {
-        id: '1',
-        type: 'card',
-        last4: '1234',
-        brand: 'Visa',
-        expiryMonth: 12,
-        expiryYear: 2026,
-        isPrimary: true,
-        holderName: 'John Doe',
-    },
-    {
-        id: '2',
-        type: 'card',
-        last4: '5678',
-        brand: 'Mastercard',
-        expiryMonth: 3,
-        expiryYear: 2025,
-        isPrimary: false,
-        holderName: 'John Doe',
-    },
-]
-
 export function BillingManagement() {
-    const { user } = useAuthStore()
     const [activeTab, setActiveTab] = useState<Tab>('subscriptions')
 
-    // Show demo data only for admin
-    const isAdmin = user?.role === 'owner'
-    const [subscriptions, setSubscriptions] = useState(isAdmin ? mockSubscriptions : [])
-    const [paymentMethods, setPaymentMethods] = useState(isAdmin ? mockPaymentMethods : [])
+    // Only show real data from database
+    const [subscriptions, setSubscriptions] = useState<any[]>([])
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
 
     const tabs: { id: Tab; label: string }[] = [
         { id: 'subscriptions', label: 'Subscriptions' },
@@ -131,8 +77,8 @@ export function BillingManagement() {
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                                            ? 'border-brand-purple text-brand-purple'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        ? 'border-brand-purple text-brand-purple'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                         }`}
                                 >
                                     {tab.label}

@@ -1,7 +1,6 @@
 import { AlertTriangle, XCircle, CreditCard } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { useAuthStore } from '@/store/authStore'
 
 interface Alert {
     id: string
@@ -14,35 +13,9 @@ interface Alert {
     }
 }
 
-const mockAlerts: Alert[] = [
-    {
-        id: '1',
-        type: 'failed',
-        title: 'Payment Failed',
-        description: 'Your recent payment of $99.99 was declined. Please update your payment method.',
-        action: {
-            label: 'Update Payment',
-            onClick: () => console.log('Navigate to payment methods'),
-        },
-    },
-    {
-        id: '2',
-        type: 'expiring',
-        title: 'Card Expiring Soon',
-        description: 'Your primary card ending in 1234 expires in 15 days.',
-        action: {
-            label: 'Update Card',
-            onClick: () => console.log('Navigate to payment methods'),
-        },
-    },
-]
-
 export function BillingAlerts() {
-    const { user } = useAuthStore()
-
-    // Only show alerts for admin users
-    const isAdmin = user?.role === 'owner'
-    const alerts = isAdmin ? mockAlerts : []
+    // Only show real data from database
+    const alerts: Alert[] = []
 
     if (alerts.length === 0) return null
 

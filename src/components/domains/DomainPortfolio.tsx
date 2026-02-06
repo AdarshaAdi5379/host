@@ -22,15 +22,8 @@ interface Domain {
     status: 'active' | 'expiring' | 'expired'
 }
 
-const mockDomains: Domain[] = [
-    { id: '1', name: 'example.com', expiresIn: 45, autoRenew: true, status: 'active' },
-    { id: '2', name: 'mysite.net', expiresIn: 15, autoRenew: false, status: 'expiring' },
-    { id: '3', name: 'portfolio.io', expiresIn: 120, autoRenew: true, status: 'active' },
-    { id: '4', name: 'shop.store', expiresIn: 5, autoRenew: false, status: 'expiring' },
-]
-
 export function DomainPortfolio() {
-    const [domains, setDomains] = useState<Domain[]>(mockDomains)
+    const [domains, setDomains] = useState<Domain[]>([])
     const [searchQuery, setSearchQuery] = useState('')
     const { addToast } = useToast()
 

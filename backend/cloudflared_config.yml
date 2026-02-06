@@ -21,4 +21,6 @@ ingress:
   service: http://localhost:9009
 - hostname: test30.edubricz.online
   service: http://localhost:9010
+- hostname: test31.edubricz.online
+  service: http://localhost:9011
 - service: http_status:404

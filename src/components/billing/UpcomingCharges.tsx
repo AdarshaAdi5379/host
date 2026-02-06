@@ -2,7 +2,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils'
 import { Calendar, TrendingUp } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
 
 interface UpcomingCharge {
     id: string
@@ -13,31 +12,9 @@ interface UpcomingCharge {
     daysUntilDue: number
 }
 
-const mockCharges: UpcomingCharge[] = [
-    {
-        id: '1',
-        serviceName: 'Premium Hosting - example.com',
-        amount: 99.99,
-        currency: 'USD',
-        dueDate: '2026-02-15',
-        daysUntilDue: 18,
-    },
-    {
-        id: '2',
-        serviceName: 'Domain Renewal - mysite.net',
-        amount: 14.99,
-        currency: 'USD',
-        dueDate: '2026-02-20',
-        daysUntilDue: 23,
-    },
-]
-
 export function UpcomingCharges() {
-    const { user } = useAuthStore()
-
-    // Only show charges for admin users
-    const isAdmin = user?.role === 'owner'
-    const charges = isAdmin ? mockCharges : []
+    // Only show real data from database
+    const charges: UpcomingCharge[] = []
 
     // Don't render anything if no charges
     if (charges.length === 0) return null

@@ -3,7 +3,6 @@ import { DomainCard } from '@/components/dashboard/DomainCard'
 import { EmailCard } from '@/components/dashboard/EmailCard'
 import { ResourceUsageCard } from '@/components/dashboard/ResourceUsageCard'
 import { QuickActions } from '@/components/dashboard/QuickActions'
-import { mockServices } from '@/data/mockData'
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
 import { useAuthStore } from '@/store/authStore'
 import { Server, Globe, Mail, Plus } from 'lucide-react'
@@ -16,7 +15,6 @@ export function Dashboard() {
     const { user } = useAuthStore()
     const navigate = useNavigate()
     const [resourceUsage, setResourceUsage] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 })
-    const [loading, setLoading] = useState(true)
 
     // Fetch real resource usage data
     useEffect(() => {
@@ -36,8 +34,6 @@ export function Dashboard() {
             } catch (error) {
                 console.error('Failed to fetch resource usage:', error)
                 // Keep previous values on error
-            } finally {
-                setLoading(false)
             }
         }
 
@@ -50,11 +46,11 @@ export function Dashboard() {
         return () => clearInterval(interval)
     }, [])
 
-    // Show demo data for all users but check role for visibility
+    // Only show real data from database
     const isAdmin = user?.role === 'owner'
-    const hostingServices = mockServices.filter(s => s.type === 'hosting')
-    const domainServices = mockServices.filter(s => s.type === 'domain')
-    const emailServices = mockServices.filter(s => s.type === 'email')
+    const hostingServices: any[] = []
+    const domainServices: any[] = []
+    const emailServices: any[] = []
 
     const hasAnyServices = hostingServices.length > 0 || domainServices.length > 0 || emailServices.length > 0
 

@@ -13,10 +13,9 @@ import {
 } from '@/components/ui/table'
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import type { DNSRecord } from '@/data/mockData'
-import { mockDNSRecords } from '@/data/mockData'
 
 export function DNSEditor() {
-    const [records, setRecords] = useState<DNSRecord[]>(mockDNSRecords)
+    const [records, setRecords] = useState<DNSRecord[]>([])
     const [editingId, setEditingId] = useState<string | null>(null)
 
     const getRecordTypeBadgeColor = (type: DNSRecord['type']) => {

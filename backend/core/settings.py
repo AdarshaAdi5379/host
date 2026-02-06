@@ -42,11 +42,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',  # Required by allauth
     # Third-party apps
     'rest_framework',
     'corsheaders',
+    # Authentication apps
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
+    'knox',
     # Local apps
-    'sites',
+    'sites.apps.SitesConfig',  # Use full path to avoid conflict with django.contrib.sites
+    'authentication',
 ]
 
 MIDDLEWARE = [
@@ -56,6 +66,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',  # Required by allauth
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -195,6 +206,9 @@ CORS_ALLOW_HEADERS = [
 
 # REST Framework Settings
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'knox.auth.TokenAuthentication',
+    ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
@@ -202,6 +216,65 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.JSONParser',
     ],
 }
+
+# Authentication Backends
+AUTHENTICATION_BACKENDS = [
+    # Needed to login by username in Django admin, regardless of `allauth`
+    'django.contrib.auth.backends.ModelBackend',
+
+    # `allauth` specific authentication methods, such as login by e-mail
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+# Authentication Settings
+SITE_ID = 1  # Required by allauth
+
+# Knox Settings
+from datetime import timedelta
+REST_KNOX = {
+    'TOKEN_TTL': timedelta(hours=10),  # 10-hour rolling window
+    'AUTO_REFRESH': True,
+    'MIN_REFRESH_INTERVAL': 60,  # Refresh if older than 1 minute
+}
+
+# Allauth Settings
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # MVP: optional, Production: 'mandatory'
+ACCOUNT_UNIQUE_EMAIL = True
+
+# Social Account Settings
+SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-create account on Google login
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'  # Skip email verification for social accounts
+
+# Google OAuth2 Settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'APP': {
+            'client_id': os.getenv('GOOGLE_CLIENT_ID', ''),
+            'secret': os.getenv('GOOGLE_CLIENT_SECRET', ''),
+            'key': ''
+        }
+    }
+}
+
+# REST Auth Settings
+REST_AUTH = {
+    'USE_JWT': False,  # Use Knox instead
+    'SESSION_LOGIN': False,
+    'TOKEN_MODEL': 'knox.models.AuthToken',
+    'TOKEN_CREATOR': 'authentication.views.create_knox_token',
+    'TOKEN_SERIALIZER': 'authentication.serializers.KnoxTokenSerializer',
+}
+
 
 # WordPress Sites Storage Directory
 WORDPRESS_SITES_DIR = BASE_DIR / 'wordpress_sites'

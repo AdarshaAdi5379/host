@@ -16,6 +16,7 @@ import { Login } from '@/pages/auth/Login'
 import { Signup } from '@/pages/auth/Signup'
 import { ForgotPassword } from '@/pages/auth/ForgotPassword'
 import { ResetPassword } from '@/pages/auth/ResetPassword'
+import { GoogleCallback } from '@/pages/auth/GoogleCallback'
 import { SettingsLayout } from '@/pages/settings/SettingsLayout'
 import { GeneralSettings } from '@/pages/settings/GeneralSettings'
 import { SecuritySettings } from '@/pages/settings/SecuritySettings'
@@ -44,6 +45,7 @@ function App() {
         />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
+        <Route path="/auth/google/callback" element={<GoogleCallback />} />
 
         {/* Protected Dashboard Routes */}
         <Route

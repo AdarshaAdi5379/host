@@ -22,32 +22,8 @@ interface EmailAccount {
     created: string
 }
 
-const mockAccounts: EmailAccount[] = [
-    {
-        id: '1',
-        address: 'admin@example.com',
-        quota: 2048,
-        used: 1024,
-        created: '2026-01-15',
-    },
-    {
-        id: '2',
-        address: 'support@example.com',
-        quota: 1024,
-        used: 256,
-        created: '2026-01-20',
-    },
-    {
-        id: '3',
-        address: 'info@example.com',
-        quota: 512,
-        used: 128,
-        created: '2026-01-25',
-    },
-]
-
 export function EmailAccountList() {
-    const [accounts, setAccounts] = useState<EmailAccount[]>(mockAccounts)
+    const [accounts, setAccounts] = useState<EmailAccount[]>([])
     const { addToast } = useToast()
 
     const handleDelete = (id: string) => {

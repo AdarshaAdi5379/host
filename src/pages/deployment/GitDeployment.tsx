@@ -26,42 +26,12 @@ interface Deployment {
     type: 'git' | 'manual'
 }
 
-const mockDeployments: Deployment[] = [
-    {
-        id: '1',
-        branch: 'main',
-        commit: 'a3f2c1d',
-        status: 'success',
-        timestamp: '2026-01-28 14:30',
-        duration: '2m 15s',
-        type: 'git',
-    },
-    {
-        id: '2',
-        branch: 'develop',
-        commit: 'b7e8f9a',
-        status: 'failed',
-        timestamp: '2026-01-28 12:15',
-        duration: '1m 45s',
-        type: 'git',
-    },
-    {
-        id: '3',
-        branch: 'main',
-        commit: 'c9d1e2f',
-        status: 'success',
-        timestamp: '2026-01-27 18:20',
-        duration: '2m 30s',
-        type: 'git',
-    },
-]
-
 type Tab = 'git' | 'manual'
 
 export function GitDeployment() {
     const { addToast } = useToast()
     const [activeTab, setActiveTab] = useState<Tab>('git')
-    const [deployments, setDeployments] = useState<Deployment[]>(mockDeployments)
+    const [deployments, setDeployments] = useState<Deployment[]>([])
     const [isDeploying, setIsDeploying] = useState(false)
     const [showLogs, setShowLogs] = useState(false)
     const [activeDeployment, setActiveDeployment] = useState<Deployment | null>(null)
@@ -153,8 +123,8 @@ export function GitDeployment() {
                     <button
                         onClick={() => setActiveTab('git')}
                         className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center transition-colors ${activeTab === 'git'
-                                ? 'border-brand-purple text-brand-purple'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ? 'border-brand-purple text-brand-purple'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                         disabled={showLogs}
                     >
@@ -164,8 +134,8 @@ export function GitDeployment() {
                     <button
                         onClick={() => setActiveTab('manual')}
                         className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center transition-colors ${activeTab === 'manual'
-                                ? 'border-brand-purple text-brand-purple'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ? 'border-brand-purple text-brand-purple'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
                         disabled={showLogs}
                     >

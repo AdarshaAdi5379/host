@@ -1,0 +1,4164 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta name="robots" content="NONE,NOARCHIVE">
+  <title>ImproperlyConfigured
+          at /api/auth/login/</title>
+  <style>
+    html * { padding:0; margin:0; }
+    body * { padding:10px 20px; }
+    body * * { padding:0; }
+    body { font-family: sans-serif; background-color:#fff; color:#000; }
+    body > :where(header, main, footer) { border-bottom:1px solid #ddd; }
+    h1 { font-weight:normal; }
+    h2 { margin-bottom:.8em; }
+    h3 { margin:1em 0 .5em 0; }
+    h4 { margin:0 0 .5em 0; font-weight: normal; }
+    code, pre { font-size: 100%; white-space: pre-wrap; word-break: break-word; }
+    summary { cursor: pointer; }
+    table { border:1px solid #ccc; border-collapse: collapse; width:100%; background:white; }
+    tbody td, tbody th { vertical-align:top; padding:2px 3px; }
+    thead th {
+      padding:1px 6px 1px 3px; background:#fefefe; text-align:left;
+      font-weight:normal; font-size: 0.6875rem; border:1px solid #ddd;
+    }
+    tbody th { width:12em; text-align:right; color:#666; padding-right:.5em; }
+    table.vars { margin:5px 10px 2px 40px; width: auto; }
+    table.vars td, table.req td { font-family:monospace; }
+    table td.code { width:100%; }
+    table td.code pre { overflow:hidden; }
+    table.source th { color:#666; }
+    table.source td { font-family:monospace; white-space:pre; border-bottom:1px solid #eee; }
+    ul.traceback { list-style-type:none; color: #222; }
+    ul.traceback li.cause { word-break: break-word; }
+    ul.traceback li.frame { padding-bottom:1em; color:#4f4f4f; }
+    ul.traceback li.user { background-color:#e0e0e0; color:#000 }
+    div.context { padding:10px 0; overflow:hidden; }
+    div.context ol { padding-left:30px; margin:0 10px; list-style-position: inside; }
+    div.context ol li { font-family:monospace; white-space:pre; color:#777; cursor:pointer; padding-left: 2px; }
+    div.context ol li pre { display:inline; }
+    div.context ol.context-line li { color:#464646; background-color:#dfdfdf; padding: 3px 2px; }
+    div.context ol.context-line li span { position:absolute; right:32px; }
+    .user div.context ol.context-line li { background-color:#bbb; color:#000; }
+    .user div.context ol li { color:#666; }
+    div.commands, summary.commands { margin-left: 40px; }
+    div.commands a, summary.commands { color:#555; text-decoration:none; }
+    .user div.commands a { color: black; }
+    #summary { background: #ffc; }
+    #summary h2 { font-weight: normal; color: #666; }
+    #info { padding: 0; }
+    #info > * { padding:10px 20px; }
+    #explanation { background:#eee; }
+    #template, #template-not-exist { background:#f6f6f6; }
+    #template-not-exist ul { margin: 0 0 10px 20px; }
+    #template-not-exist .postmortem-section { margin-bottom: 3px; }
+    #unicode-hint { background:#eee; }
+    #traceback { background:#eee; }
+    #requestinfo { background:#f6f6f6; padding-left:120px; }
+    #summary table { border:none; background:transparent; }
+    #requestinfo h2, #requestinfo h3 { position:relative; margin-left:-100px; }
+    #requestinfo h3 { margin-bottom:-1em; }
+    .error { background: #ffc; }
+    .specific { color:#cc3300; font-weight:bold; }
+    h2 span.commands { font-size: 0.7rem; font-weight:normal; }
+    span.commands a:link {color:#5E5694;}
+    pre.exception_value { font-family: sans-serif; color: #575757; font-size: 1.5rem; margin: 10px 0 10px 0; }
+    .append-bottom { margin-bottom: 10px; }
+    .fname { user-select: all; }
+  </style>
+  
+  <script>
+    function hideAll(elems) {
+      for (var e = 0; e < elems.length; e++) {
+        elems[e].style.display = 'none';
+      }
+    }
+    window.onload = function() {
+      hideAll(document.querySelectorAll('ol.pre-context'));
+      hideAll(document.querySelectorAll('ol.post-context'));
+      hideAll(document.querySelectorAll('div.pastebin'));
+    }
+    function toggle() {
+      for (var i = 0; i < arguments.length; i++) {
+        var e = document.getElementById(arguments[i]);
+        if (e) {
+          e.style.display = e.style.display == 'none' ? 'block': 'none';
+        }
+      }
+      return false;
+    }
+    function switchPastebinFriendly(link) {
+      s1 = "Switch to copy-and-paste view";
+      s2 = "Switch back to interactive view";
+      link.textContent = link.textContent.trim() == s1 ? s2: s1;
+      toggle('browserTraceback', 'pastebinTraceback');
+      return false;
+    }
+  </script>
+  
+</head>
+<body>
+<header id="summary">
+  <h1>ImproperlyConfigured
+       at /api/auth/login/</h1>
+  <pre class="exception_value">Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre>
+  <table class="meta">
+
+    <tr>
+      <th scope="row">Request Method:</th>
+      <td>POST</td>
+    </tr>
+    <tr>
+      <th scope="row">Request URL:</th>
+      <td>http://localhost:8000/api/auth/login/</td>
+    </tr>
+
+    <tr>
+      <th scope="row">Django Version:</th>
+      <td>5.2.10</td>
+    </tr>
+
+    <tr>
+      <th scope="row">Exception Type:</th>
+      <td>ImproperlyConfigured</td>
+    </tr>
+
+
+    <tr>
+      <th scope="row">Exception Value:</th>
+      <td><pre>Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+    </tr>
+
+
+    <tr>
+      <th scope="row">Exception Location:</th>
+      <td><span class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py</span>, line 1367, in build_unknown_field</td>
+    </tr>
+
+
+    <tr>
+      <th scope="row">Raised during:</th>
+      <td>dj_rest_auth.views.LoginView</td>
+    </tr>
+
+    <tr>
+      <th scope="row">Python Executable:</th>
+      <td>/home/adarsha/.pyenv/versions/3.14.2/bin/python</td>
+    </tr>
+    <tr>
+      <th scope="row">Python Version:</th>
+      <td>3.14.2</td>
+    </tr>
+    <tr>
+      <th scope="row">Python Path:</th>
+      <td><pre><code>[&#x27;/home/adarsha/Desktop/projects/HOST/host/backend&#x27;,
+ &#x27;/home/adarsha/.pyenv/versions/3.14.2/lib/python314.zip&#x27;,
+ &#x27;/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14&#x27;,
+ &#x27;/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/lib-dynload&#x27;,
+ &#x27;/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages&#x27;]</code></pre></td>
+    </tr>
+    <tr>
+      <th scope="row">Server time:</th>
+      <td>Fri, 06 Feb 2026 05:04:21 +0000</td>
+    </tr>
+  </table>
+</header>
+
+<main id="info">
+
+
+
+
+<div id="traceback">
+  <h2>Traceback <span class="commands"><a href="#" role="button" onclick="return switchPastebinFriendly(this);">
+    Switch to copy-and-paste view</a></span>
+  </h2>
+  <div id="browserTraceback">
+    <ul class="traceback">
+      
+        
+        <li class="frame django">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/core/handlers/exception.py</code>, line 55, in inner
+          
+
+          
+            <div class="context" id="c140101446203712">
+              
+                <ol start="48" class="pre-context" id="pre140101446203712">
+                
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>        return inner</pre></li>
+                
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>    else:</pre></li>
+                
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>        @wraps(get_response)</pre></li>
+                
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>        def inner(request):</pre></li>
+                
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>            try:</pre></li>
+                
+                </ol>
+              
+              <ol start="55" class="context-line">
+                <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>                response = get_response(request)
+                               ^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='56' class="post-context" id="post140101446203712">
+                  
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>            except Exception as exc:</pre></li>
+                  
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>                response = response_for_exception(request, exc)</pre></li>
+                  
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>            return response</pre></li>
+                  
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre>        return inner</pre></li>
+                  
+                  <li onclick="toggle('pre140101446203712', 'post140101446203712')"><pre></pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101446203712">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>exc</td>
+                    <td class="code"><pre>ImproperlyConfigured(&#x27;Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.&#x27;)</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>get_response</td>
+                    <td class="code"><pre>&lt;bound method BaseHandler._get_response of &lt;django.core.handlers.wsgi.WSGIHandler object at 0x7f6bed4f8050&gt;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>request</td>
+                    <td class="code"><pre>&lt;WSGIRequest: POST &#x27;/api/auth/login/&#x27;&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame django">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/core/handlers/base.py</code>, line 197, in _get_response
+          
+
+          
+            <div class="context" id="c140101446202240">
+              
+                <ol start="190" class="pre-context" id="pre140101446202240">
+                
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>        if response is None:</pre></li>
+                
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>            wrapped_callback = self.make_view_atomic(callback)</pre></li>
+                
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>            # If it is an asynchronous view, run it in a subthread.</pre></li>
+                
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>            if iscoroutinefunction(wrapped_callback):</pre></li>
+                
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>                wrapped_callback = async_to_sync(wrapped_callback)</pre></li>
+                
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>            try:</pre></li>
+                
+                </ol>
+              
+              <ol start="197" class="context-line">
+                <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>                response = wrapped_callback(request, *callback_args, **callback_kwargs)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='198' class="post-context" id="post140101446202240">
+                  
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>            except Exception as e:</pre></li>
+                  
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>                response = self.process_exception_by_middleware(e, request)</pre></li>
+                  
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>                if response is None:</pre></li>
+                  
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>                    raise</pre></li>
+                  
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101446202240', 'post140101446202240')"><pre>        # Complain if the view returned None (a common error).</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101446202240">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>callback</td>
+                    <td class="code"><pre>&lt;function View.as_view.&lt;locals&gt;.view at 0x7f6be93bbe20&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>callback_args</td>
+                    <td class="code"><pre>()</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>callback_kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>middleware_method</td>
+                    <td class="code"><pre>&lt;bound method CsrfViewMiddleware.process_view of &lt;CsrfViewMiddleware get_response=convert_exception_to_response.&lt;locals&gt;.inner&gt;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>request</td>
+                    <td class="code"><pre>&lt;WSGIRequest: POST &#x27;/api/auth/login/&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>response</td>
+                    <td class="code"><pre>None</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;django.core.handlers.wsgi.WSGIHandler object at 0x7f6bed4f8050&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>wrapped_callback</td>
+                    <td class="code"><pre>&lt;function View.as_view.&lt;locals&gt;.view at 0x7f6be93bbe20&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame django">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/views/decorators/csrf.py</code>, line 65, in _view_wrapper
+          
+
+          
+            <div class="context" id="c140101446201920">
+              
+                <ol start="58" class="pre-context" id="pre140101446201920">
+                
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre>        async def _view_wrapper(request, *args, **kwargs):</pre></li>
+                
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre>            return await view_func(request, *args, **kwargs)</pre></li>
+                
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre>    else:</pre></li>
+                
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre>        def _view_wrapper(request, *args, **kwargs):</pre></li>
+                
+                </ol>
+              
+              <ol start="65" class="context-line">
+                <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre>            return view_func(request, *args, **kwargs)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='66' class="post-context" id="post140101446201920">
+                  
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre>    _view_wrapper.csrf_exempt = True</pre></li>
+                  
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101446201920', 'post140101446201920')"><pre>    return wraps(view_func)(_view_wrapper)</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101446201920">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>args</td>
+                    <td class="code"><pre>()</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>request</td>
+                    <td class="code"><pre>&lt;WSGIRequest: POST &#x27;/api/auth/login/&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>view_func</td>
+                    <td class="code"><pre>&lt;function View.as_view.&lt;locals&gt;.view at 0x7f6be93bbd70&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame django">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/views/generic/base.py</code>, line 105, in view
+          
+
+          
+            <div class="context" id="c140101446203136">
+              
+                <ol start="98" class="pre-context" id="pre140101446203136">
+                
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>            self = cls(**initkwargs)</pre></li>
+                
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>            self.setup(request, *args, **kwargs)</pre></li>
+                
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>            if not hasattr(self, &quot;request&quot;):</pre></li>
+                
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>                raise AttributeError(</pre></li>
+                
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>                    &quot;%s instance has no &#x27;request&#x27; attribute. Did you override &quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>                    &quot;setup() and forget to call super()?&quot; % cls.__name__</pre></li>
+                
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>                )</pre></li>
+                
+                </ol>
+              
+              <ol start="105" class="context-line">
+                <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>            return self.dispatch(request, *args, **kwargs)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='106' class="post-context" id="post140101446203136">
+                  
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>        view.view_class = cls</pre></li>
+                  
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>        view.view_initkwargs = initkwargs</pre></li>
+                  
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>        # __name__ and __qualname__ are intentionally left unchanged as</pre></li>
+                  
+                  <li onclick="toggle('pre140101446203136', 'post140101446203136')"><pre>        # view_class should be used to robustly determine the name of the view</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101446203136">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>args</td>
+                    <td class="code"><pre>()</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>cls</td>
+                    <td class="code"><pre>&lt;class &#x27;dj_rest_auth.views.LoginView&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>initkwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>request</td>
+                    <td class="code"><pre>&lt;WSGIRequest: POST &#x27;/api/auth/login/&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame django">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/utils/decorators.py</code>, line 48, in _wrapper
+          
+
+          
+            <div class="context" id="c140101446205248">
+              
+                <ol start="41" class="pre-context" id="pre140101446205248">
+                
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>        # bound_method has the signature that &#x27;decorator&#x27; expects i.e. no</pre></li>
+                
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>        # &#x27;self&#x27; argument, but it&#x27;s a closure over self so it can call</pre></li>
+                
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>        # &#x27;func&#x27;. Also, wrap method.__get__() in a function because new</pre></li>
+                
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>        # attributes can&#x27;t be set on bound method objects, only on functions.</pre></li>
+                
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>        bound_method = wraps(method)(partial(method.__get__(self, type(self))))</pre></li>
+                
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>        for dec in decorators:</pre></li>
+                
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>            bound_method = dec(bound_method)</pre></li>
+                
+                </ol>
+              
+              <ol start="48" class="context-line">
+                <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>        return bound_method(*args, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='49' class="post-context" id="post140101446205248">
+                  
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>    # Copy any attributes that a decorator adds to the function it decorates.</pre></li>
+                  
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>    for dec in decorators:</pre></li>
+                  
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>        _update_method_wrapper(_wrapper, dec)</pre></li>
+                  
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>    # Preserve any existing attributes of &#x27;method&#x27;, including the name.</pre></li>
+                  
+                  <li onclick="toggle('pre140101446205248', 'post140101446205248')"><pre>    update_wrapper(_wrapper, method)</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101446205248">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>args</td>
+                    <td class="code"><pre>(&lt;WSGIRequest: POST &#x27;/api/auth/login/&#x27;&gt;,)</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>bound_method</td>
+                    <td class="code"><pre>&lt;function LoginView.dispatch at 0x7f6be8ff4a90&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>dec</td>
+                    <td class="code"><pre>&lt;function sensitive_post_parameters.&lt;locals&gt;.decorator at 0x7f6be93b85c0&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>decorators</td>
+                    <td class="code"><pre>[&lt;function sensitive_post_parameters.&lt;locals&gt;.decorator at 0x7f6be93b85c0&gt;]</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>method</td>
+                    <td class="code"><pre>&lt;function LoginView.dispatch at 0x7f6be93b87d0&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame django">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/views/decorators/debug.py</code>, line 143, in sensitive_post_parameters_wrapper
+          
+
+          
+            <div class="context" id="c140101436211456">
+              
+                <ol start="136" class="pre-context" id="pre140101436211456">
+                
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>                        &quot;object. If you are decorating a classmethod, make sure to use &quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>                        &quot;@method_decorator.&quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>                    )</pre></li>
+                
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>                if parameters:</pre></li>
+                
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>                    request.sensitive_post_parameters = parameters</pre></li>
+                
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>                else:</pre></li>
+                
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>                    request.sensitive_post_parameters = &quot;__ALL__&quot;</pre></li>
+                
+                </ol>
+              
+              <ol start="143" class="context-line">
+                <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>                return view(request, *args, **kwargs)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='144' class="post-context" id="post140101436211456">
+                  
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>        return sensitive_post_parameters_wrapper</pre></li>
+                  
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436211456', 'post140101436211456')"><pre>    return decorator</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436211456">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>args</td>
+                    <td class="code"><pre>()</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>parameters</td>
+                    <td class="code"><pre>(&#x27;password&#x27;, &#x27;old_password&#x27;, &#x27;new_password1&#x27;, &#x27;new_password2&#x27;)</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>request</td>
+                    <td class="code"><pre>&lt;WSGIRequest: POST &#x27;/api/auth/login/&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>view</td>
+                    <td class="code"><pre>functools.partial(&lt;bound method LoginView.dispatch of &lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;&gt;)</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/dj_rest_auth/views.py</code>, line 48, in dispatch
+          
+
+          
+            <div class="context" id="c140101436219584">
+              
+                <ol start="41" class="pre-context" id="pre140101436219584">
+                
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>    user = None</pre></li>
+                
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>    access_token = None</pre></li>
+                
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>    token = None</pre></li>
+                
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>    @sensitive_post_parameters_m</pre></li>
+                
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>    def dispatch(self, *args, **kwargs):</pre></li>
+                
+                </ol>
+              
+              <ol start="48" class="context-line">
+                <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>        return super().dispatch(*args, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='49' class="post-context" id="post140101436219584">
+                  
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>    def process_login(self):</pre></li>
+                  
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>        django_login(self.request, self.user)</pre></li>
+                  
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>    def get_response_serializer(self):</pre></li>
+                  
+                  <li onclick="toggle('pre140101436219584', 'post140101436219584')"><pre>        if api_settings.USE_JWT:</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436219584">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>__class__</td>
+                    <td class="code"><pre>&lt;class &#x27;dj_rest_auth.views.LoginView&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>args</td>
+                    <td class="code"><pre>(&lt;WSGIRequest: POST &#x27;/api/auth/login/&#x27;&gt;,)</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/views.py</code>, line 509, in dispatch
+          
+
+          
+            <div class="context" id="c140101436213504">
+              
+                <ol start="502" class="pre-context" id="pre140101436213504">
+                
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>                                  self.http_method_not_allowed)</pre></li>
+                
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>            else:</pre></li>
+                
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>                handler = self.http_method_not_allowed</pre></li>
+                
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>            response = handler(request, *args, **kwargs)</pre></li>
+                
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>        except Exception as exc:</pre></li>
+                
+                </ol>
+              
+              <ol start="509" class="context-line">
+                <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>            response = self.handle_exception(exc)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='510' class="post-context" id="post140101436213504">
+                  
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>        self.response = self.finalize_response(request, response, *args, **kwargs)</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>        return self.response</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>    def options(self, request, *args, **kwargs):</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213504', 'post140101436213504')"><pre>        &quot;&quot;&quot;</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436213504">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>args</td>
+                    <td class="code"><pre>()</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>handler</td>
+                    <td class="code"><pre>&lt;bound method LoginView.post of &lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>request</td>
+                    <td class="code"><pre>&lt;rest_framework.request.Request: POST &#x27;/api/auth/login/&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/views.py</code>, line 469, in handle_exception
+          
+
+          
+            <div class="context" id="c140101436211712">
+              
+                <ol start="462" class="pre-context" id="pre140101436211712">
+                
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre>        exception_handler = self.get_exception_handler()</pre></li>
+                
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre>        context = self.get_exception_handler_context()</pre></li>
+                
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre>        response = exception_handler(exc, context)</pre></li>
+                
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre>        if response is None:</pre></li>
+                
+                </ol>
+              
+              <ol start="469" class="context-line">
+                <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre>            self.raise_uncaught_exception(exc)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='470' class="post-context" id="post140101436211712">
+                  
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre>        response.exception = True</pre></li>
+                  
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre>        return response</pre></li>
+                  
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre>    def raise_uncaught_exception(self, exc):</pre></li>
+                  
+                  <li onclick="toggle('pre140101436211712', 'post140101436211712')"><pre>        if settings.DEBUG:</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436211712">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>context</td>
+                    <td class="code"><pre>{&#x27;args&#x27;: (),
+ &#x27;kwargs&#x27;: {},
+ &#x27;request&#x27;: &lt;rest_framework.request.Request: POST &#x27;/api/auth/login/&#x27;&gt;,
+ &#x27;view&#x27;: &lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>exc</td>
+                    <td class="code"><pre>ImproperlyConfigured(&#x27;Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.&#x27;)</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>exception_handler</td>
+                    <td class="code"><pre>&lt;function exception_handler at 0x7f6bea71dfe0&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>response</td>
+                    <td class="code"><pre>None</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/views.py</code>, line 480, in raise_uncaught_exception
+          
+
+          
+            <div class="context" id="c140101436213440">
+              
+                <ol start="473" class="pre-context" id="pre140101436213440">
+                
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>    def raise_uncaught_exception(self, exc):</pre></li>
+                
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>        if settings.DEBUG:</pre></li>
+                
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>            request = self.request</pre></li>
+                
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>            renderer_format = getattr(request.accepted_renderer, &#x27;format&#x27;)</pre></li>
+                
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>            use_plaintext_traceback = renderer_format not in (&#x27;html&#x27;, &#x27;api&#x27;, &#x27;admin&#x27;)</pre></li>
+                
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>            request.force_plaintext_errors(use_plaintext_traceback)</pre></li>
+                
+                </ol>
+              
+              <ol start="480" class="context-line">
+                <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>        raise exc
+             ^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='481' class="post-context" id="post140101436213440">
+                  
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>    # Note: Views are made CSRF exempt from within `as_view` as to prevent</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>    # accidental removal of this exemption in cases where `dispatch` needs to</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>    # be overridden.</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>    def dispatch(self, request, *args, **kwargs):</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213440', 'post140101436213440')"><pre>        &quot;&quot;&quot;</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436213440">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>exc</td>
+                    <td class="code"><pre>ImproperlyConfigured(&#x27;Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.&#x27;)</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>renderer_format</td>
+                    <td class="code"><pre>&#x27;json&#x27;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>request</td>
+                    <td class="code"><pre>&lt;rest_framework.request.Request: POST &#x27;/api/auth/login/&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>use_plaintext_traceback</td>
+                    <td class="code"><pre>True</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/views.py</code>, line 506, in dispatch
+          
+
+          
+            <div class="context" id="c140101436213056">
+              
+                <ol start="499" class="pre-context" id="pre140101436213056">
+                
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>            # Get the appropriate handler method</pre></li>
+                
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>            if request.method.lower() in self.http_method_names:</pre></li>
+                
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>                handler = getattr(self, request.method.lower(),</pre></li>
+                
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>                                  self.http_method_not_allowed)</pre></li>
+                
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>            else:</pre></li>
+                
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>                handler = self.http_method_not_allowed</pre></li>
+                
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre></pre></li>
+                
+                </ol>
+              
+              <ol start="506" class="context-line">
+                <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>            response = handler(request, *args, **kwargs)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='507' class="post-context" id="post140101436213056">
+                  
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>        except Exception as exc:</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>            response = self.handle_exception(exc)</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>        self.response = self.finalize_response(request, response, *args, **kwargs)</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213056', 'post140101436213056')"><pre>        return self.response</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436213056">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>args</td>
+                    <td class="code"><pre>()</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>handler</td>
+                    <td class="code"><pre>&lt;bound method LoginView.post of &lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>request</td>
+                    <td class="code"><pre>&lt;rest_framework.request.Request: POST &#x27;/api/auth/login/&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/dj_rest_auth/views.py</code>, line 128, in post
+          
+
+          
+            <div class="context" id="c140101436213952">
+              
+                <ol start="121" class="pre-context" id="pre140101436213952">
+                
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>    def post(self, request, *args, **kwargs):</pre></li>
+                
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>        self.request = request</pre></li>
+                
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>        self.serializer = self.get_serializer(data=self.request.data)</pre></li>
+                
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>        self.serializer.is_valid(raise_exception=True)</pre></li>
+                
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>        self.login()</pre></li>
+                
+                </ol>
+              
+              <ol start="128" class="context-line">
+                <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>        return self.get_response()
+                    ^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='129' class="post-context" id="post140101436213952">
+                  
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>class LogoutView(APIView):</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>    &quot;&quot;&quot;</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>    Calls Django logout method and delete the Token object</pre></li>
+                  
+                  <li onclick="toggle('pre140101436213952', 'post140101436213952')"><pre>    assigned to the current User object.</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436213952">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>args</td>
+                    <td class="code"><pre>()</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>request</td>
+                    <td class="code"><pre>&lt;rest_framework.request.Request: POST &#x27;/api/auth/login/&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/dj_rest_auth/views.py</code>, line 116, in get_response
+          
+
+          
+            <div class="context" id="c140101436214144">
+              
+                <ol start="109" class="pre-context" id="pre140101436214144">
+                
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>            serializer = serializer_class(</pre></li>
+                
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>                instance=self.token,</pre></li>
+                
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>                context=self.get_serializer_context(),</pre></li>
+                
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>            )</pre></li>
+                
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>        else:</pre></li>
+                
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>            return Response(status=status.HTTP_204_NO_CONTENT)</pre></li>
+                
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre></pre></li>
+                
+                </ol>
+              
+              <ol start="116" class="context-line">
+                <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>        response = Response(serializer.data, status=status.HTTP_200_OK)
+                                 ^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='117' class="post-context" id="post140101436214144">
+                  
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>        if api_settings.USE_JWT:</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>            from .jwt_auth import set_jwt_cookies</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>            set_jwt_cookies(response, self.access_token, self.refresh_token)</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>        return response</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436214144', 'post140101436214144')"><pre>    def post(self, request, *args, **kwargs):</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436214144">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;dj_rest_auth.views.LoginView object at 0x7f6be915fc50&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>serializer</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>serializer_class</td>
+                    <td class="code"><pre>&lt;class &#x27;dj_rest_auth.serializers.TokenSerializer&#x27;&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py</code>, line 571, in data
+          
+
+          
+            <div class="context" id="c140101436212096">
+              
+                <ol start="564" class="pre-context" id="pre140101436212096">
+                
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>        return BoundField(field, value, error)</pre></li>
+                
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>    # Include a backlink to the serializer class on return objects.</pre></li>
+                
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>    # Allows renderers such as HTMLFormRenderer to get the full field info.</pre></li>
+                
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>    @property</pre></li>
+                
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>    def data(self):</pre></li>
+                
+                </ol>
+              
+              <ol start="571" class="context-line">
+                <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>        ret = super().data
+                   ^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='572' class="post-context" id="post140101436212096">
+                  
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>        return ReturnDict(ret, serializer=self)</pre></li>
+                  
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>    @property</pre></li>
+                  
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>    def errors(self):</pre></li>
+                  
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>        ret = super().errors</pre></li>
+                  
+                  <li onclick="toggle('pre140101436212096', 'post140101436212096')"><pre>        if isinstance(ret, list) and len(ret) == 1 and getattr(ret[0], &#x27;code&#x27;, None) == &#x27;null&#x27;:</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436212096">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>__class__</td>
+                    <td class="code"><pre>&lt;class &#x27;rest_framework.serializers.Serializer&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py</code>, line 249, in data
+          
+
+          
+            <div class="context" id="c140101436214784">
+              
+                <ol start="242" class="pre-context" id="pre140101436214784">
+                
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>                &#x27;You should either call `.is_valid()` first, &#x27;</pre></li>
+                
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>                &#x27;or access `.initial_data` instead.&#x27;</pre></li>
+                
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>            )</pre></li>
+                
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>            raise AssertionError(msg)</pre></li>
+                
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>        if not hasattr(self, &#x27;_data&#x27;):</pre></li>
+                
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>            if self.instance is not None and not getattr(self, &#x27;_errors&#x27;, None):</pre></li>
+                
+                </ol>
+              
+              <ol start="249" class="context-line">
+                <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>                self._data = self.to_representation(self.instance)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='250' class="post-context" id="post140101436214784">
+                  
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>            elif hasattr(self, &#x27;_validated_data&#x27;) and not getattr(self, &#x27;_errors&#x27;, None):</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>                self._data = self.to_representation(self.validated_data)</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>            else:</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>                self._data = self.get_initial()</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre>        return self._data</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214784', 'post140101436214784')"><pre></pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436214784">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py</code>, line 523, in to_representation
+          
+
+          
+            <div class="context" id="c140101436212160">
+              
+                <ol start="516" class="pre-context" id="pre140101436212160">
+                
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>    def to_representation(self, instance):</pre></li>
+                
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>        &quot;&quot;&quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>        Object instance -&gt; Dict of primitive datatypes.</pre></li>
+                
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>        &quot;&quot;&quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>        ret = {}</pre></li>
+                
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>        fields = self._readable_fields</pre></li>
+                
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre></pre></li>
+                
+                </ol>
+              
+              <ol start="523" class="context-line">
+                <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>        for field in fields:
+                          ^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='524' class="post-context" id="post140101436212160">
+                  
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>            try:</pre></li>
+                  
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>                attribute = field.get_attribute(instance)</pre></li>
+                  
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>            except SkipField:</pre></li>
+                  
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>                continue</pre></li>
+                  
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436212160', 'post140101436212160')"><pre>            # We skip `to_representation` for `None` values so that fields do</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436212160">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>fields</td>
+                    <td class="code"><pre>&lt;generator object Serializer._readable_fields at 0x7f6be914eb50&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>instance</td>
+                    <td class="code"><pre>&lt;AuthToken: 7f2bc6ec17a70074db9ede682fe1a0d21cc78a9af82541b04e84760186eecbe13048fd4aa7807481c973a1476b1fb5d57cb7eb8091976671373e0adca7dc3c48 : demo&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>ret</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py</code>, line 384, in _readable_fields
+          
+
+          
+            <div class="context" id="c140101436214848">
+              
+                <ol start="377" class="pre-context" id="pre140101436214848">
+                
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>    def _writable_fields(self):</pre></li>
+                
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>        for field in self.fields.values():</pre></li>
+                
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>            if not field.read_only:</pre></li>
+                
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>                yield field</pre></li>
+                
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>    @property</pre></li>
+                
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>    def _readable_fields(self):</pre></li>
+                
+                </ol>
+              
+              <ol start="384" class="context-line">
+                <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>        for field in self.fields.values():
+                          ^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='385' class="post-context" id="post140101436214848">
+                  
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>            if not field.write_only:</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>                yield field</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>    def get_fields(self):</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>        &quot;&quot;&quot;</pre></li>
+                  
+                  <li onclick="toggle('pre140101436214848', 'post140101436214848')"><pre>        Returns a dictionary of {field_name: field_instance}.</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436214848">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame django">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/utils/functional.py</code>, line 47, in __get__
+          
+
+          
+            <div class="context" id="c140101436211584">
+              
+                <ol start="40" class="pre-context" id="pre140101436211584">
+                
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>        &quot;&quot;&quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>        Call the function and put the return value in instance.__dict__ so that</pre></li>
+                
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>        subsequent attribute access on the instance returns the cached value</pre></li>
+                
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>        instead of calling cached_property.__get__().</pre></li>
+                
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>        &quot;&quot;&quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>        if instance is None:</pre></li>
+                
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>            return self</pre></li>
+                
+                </ol>
+              
+              <ol start="47" class="context-line">
+                <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>        res = instance.__dict__[self.name] = self.func(instance)
+                                                 ^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='48' class="post-context" id="post140101436211584">
+                  
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>        return res</pre></li>
+                  
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>class classproperty:</pre></li>
+                  
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>    &quot;&quot;&quot;</pre></li>
+                  
+                  <li onclick="toggle('pre140101436211584', 'post140101436211584')"><pre>    Decorator that converts a method with a single cls argument into a property</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101436211584">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>cls</td>
+                    <td class="code"><pre>&lt;class &#x27;dj_rest_auth.serializers.TokenSerializer&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>instance</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>&lt;django.utils.functional.cached_property object at 0x7f6beab5a040&gt;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py</code>, line 372, in fields
+          
+
+          
+            <div class="context" id="c140101447264832">
+              
+                <ol start="365" class="pre-context" id="pre140101447264832">
+                
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        &quot;&quot;&quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        A dictionary of {field_name: field_instance}.</pre></li>
+                
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        &quot;&quot;&quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        # `fields` is evaluated lazily. We do this to ensure that we don&#x27;t</pre></li>
+                
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        # have issues importing modules that use ModelSerializers as fields,</pre></li>
+                
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        # even if Django&#x27;s app-loading stage has not yet run.</pre></li>
+                
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        fields = BindingDict(self)</pre></li>
+                
+                </ol>
+              
+              <ol start="372" class="context-line">
+                <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        for key, value in self.get_fields().items():
+                               ^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='373' class="post-context" id="post140101447264832">
+                  
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>            fields[key] = value</pre></li>
+                  
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        return fields</pre></li>
+                  
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>    @property</pre></li>
+                  
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>    def _writable_fields(self):</pre></li>
+                  
+                  <li onclick="toggle('pre140101447264832', 'post140101447264832')"><pre>        for field in self.fields.values():</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101447264832">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>fields</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py</code>, line 1103, in get_fields
+          
+
+          
+            <div class="context" id="c140101435815616">
+              
+                <ol start="1096" class="pre-context" id="pre140101435815616">
+                
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>            extra_field_kwargs = extra_kwargs.get(field_name, {})</pre></li>
+                
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>            source = extra_field_kwargs.get(&#x27;source&#x27;, &#x27;*&#x27;)</pre></li>
+                
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>            if source == &#x27;*&#x27;:</pre></li>
+                
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>                source = field_name</pre></li>
+                
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>            # Determine the serializer field class and keyword arguments.</pre></li>
+                
+                </ol>
+              
+              <ol start="1103" class="context-line">
+                <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>            field_class, field_kwargs = self.build_field(
+                                              </pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='1104' class="post-context" id="post140101435815616">
+                  
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>                source, info, model, depth</pre></li>
+                  
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>            )</pre></li>
+                  
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>            # Include any kwargs defined in `Meta.extra_kwargs`</pre></li>
+                  
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>            field_kwargs = self.include_extra_kwargs(</pre></li>
+                  
+                  <li onclick="toggle('pre140101435815616', 'post140101435815616')"><pre>                field_kwargs, extra_field_kwargs</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101435815616">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>declared_fields</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>depth</td>
+                    <td class="code"><pre>0</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>extra_field_kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>extra_kwargs</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>field_name</td>
+                    <td class="code"><pre>&#x27;key&#x27;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>field_names</td>
+                    <td class="code"><pre>(&#x27;key&#x27;,)</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>fields</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>hidden_fields</td>
+                    <td class="code"><pre>{}</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>info</td>
+                    <td class="code"><pre>FieldInfo(pk=&lt;django.db.models.fields.CharField: digest&gt;, fields={&#x27;token_key&#x27;: &lt;django.db.models.fields.CharField: token_key&gt;, &#x27;created&#x27;: &lt;django.db.models.fields.DateTimeField: created&gt;, &#x27;expiry&#x27;: &lt;django.db.models.fields.DateTimeField: expiry&gt;}, forward_relations={&#x27;user&#x27;: RelationInfo(model_field=&lt;django.db.models.fields.related.ForeignKey: user&gt;, related_model=&lt;class &#x27;django.contrib.auth.models.User&#x27;&gt;, to_many=False, to_field=None, has_through_model=False, reverse=False)}, reverse_relations={}, fields_and_pk={&#x27;pk&#x27;: &lt;django.db.models.fields.CharField: digest&gt;, &#x27;digest&#x27;: &lt;django.db.models.fields.CharField: digest&gt;, &#x27;token_key&#x27;: &lt;django.db.models.fields.CharField: token_key&gt;, &#x27;created&#x27;: &lt;django.db.models.fields.DateTimeField: created&gt;, &#x27;expiry&#x27;: &lt;django.db.models.fields.DateTimeField: expiry&gt;}, relations={&#x27;user&#x27;: RelationInfo(model_field=&lt;django.db.models.fields.related.ForeignKey: user&gt;, related_model=&lt;class &#x27;django.contrib.auth.models.User&#x27;&gt;, to_many=False, to_field=None, has_through_model=False, reverse=False)})</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>model</td>
+                    <td class="code"><pre>&lt;class &#x27;knox.models.AuthToken&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>source</td>
+                    <td class="code"><pre>&#x27;key&#x27;</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py</code>, line 1249, in build_field
+          
+
+          
+            <div class="context" id="c140101435812096">
+              
+                <ol start="1242" class="pre-context" id="pre140101435812096">
+                
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>        elif hasattr(model_class, field_name):</pre></li>
+                
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>            return self.build_property_field(field_name, model_class)</pre></li>
+                
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>        elif field_name == self.url_field_name:</pre></li>
+                
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>            return self.build_url_field(field_name, model_class)</pre></li>
+                
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre></pre></li>
+                
+                </ol>
+              
+              <ol start="1249" class="context-line">
+                <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>        return self.build_unknown_field(field_name, model_class)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='1250' class="post-context" id="post140101435812096">
+                  
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>    def build_standard_field(self, field_name, model_field):</pre></li>
+                  
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>        &quot;&quot;&quot;</pre></li>
+                  
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>        Create regular model fields.</pre></li>
+                  
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>        &quot;&quot;&quot;</pre></li>
+                  
+                  <li onclick="toggle('pre140101435812096', 'post140101435812096')"><pre>        field_mapping = ClassLookupDict(self.serializer_field_mapping)</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101435812096">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>field_name</td>
+                    <td class="code"><pre>&#x27;key&#x27;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>info</td>
+                    <td class="code"><pre>FieldInfo(pk=&lt;django.db.models.fields.CharField: digest&gt;, fields={&#x27;token_key&#x27;: &lt;django.db.models.fields.CharField: token_key&gt;, &#x27;created&#x27;: &lt;django.db.models.fields.DateTimeField: created&gt;, &#x27;expiry&#x27;: &lt;django.db.models.fields.DateTimeField: expiry&gt;}, forward_relations={&#x27;user&#x27;: RelationInfo(model_field=&lt;django.db.models.fields.related.ForeignKey: user&gt;, related_model=&lt;class &#x27;django.contrib.auth.models.User&#x27;&gt;, to_many=False, to_field=None, has_through_model=False, reverse=False)}, reverse_relations={}, fields_and_pk={&#x27;pk&#x27;: &lt;django.db.models.fields.CharField: digest&gt;, &#x27;digest&#x27;: &lt;django.db.models.fields.CharField: digest&gt;, &#x27;token_key&#x27;: &lt;django.db.models.fields.CharField: token_key&gt;, &#x27;created&#x27;: &lt;django.db.models.fields.DateTimeField: created&gt;, &#x27;expiry&#x27;: &lt;django.db.models.fields.DateTimeField: expiry&gt;}, relations={&#x27;user&#x27;: RelationInfo(model_field=&lt;django.db.models.fields.related.ForeignKey: user&gt;, related_model=&lt;class &#x27;django.contrib.auth.models.User&#x27;&gt;, to_many=False, to_field=None, has_through_model=False, reverse=False)})</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>model_class</td>
+                    <td class="code"><pre>&lt;class &#x27;knox.models.AuthToken&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>nested_depth</td>
+                    <td class="code"><pre>0</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+        
+        <li class="frame user">
+          
+            <code class="fname">/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py</code>, line 1367, in build_unknown_field
+          
+
+          
+            <div class="context" id="c140101435817344">
+              
+                <ol start="1360" class="pre-context" id="pre140101435817344">
+                
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>        return field_class, field_kwargs</pre></li>
+                
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre></pre></li>
+                
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>    def build_unknown_field(self, field_name, model_class):</pre></li>
+                
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>        &quot;&quot;&quot;</pre></li>
+                
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>        Raise an error on any unknown fields.</pre></li>
+                
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>        &quot;&quot;&quot;</pre></li>
+                
+                </ol>
+              
+              <ol start="1367" class="context-line">
+                <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>        raise ImproperlyConfigured(
+              ^</pre> <span>…</span></li>
+              </ol>
+              
+                <ol start='1368' class="post-context" id="post140101435817344">
+                  
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>            &#x27;Field name `%s` is not valid for model `%s` in `%s.%s`.&#x27; %</pre></li>
+                  
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>            (field_name, model_class.__name__, self.__class__.__module__, self.__class__.__name__)</pre></li>
+                  
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>        )</pre></li>
+                  
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre></pre></li>
+                  
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>    def include_extra_kwargs(self, kwargs, extra_kwargs):</pre></li>
+                  
+                  <li onclick="toggle('pre140101435817344', 'post140101435817344')"><pre>        &quot;&quot;&quot;</pre></li>
+                  
+              </ol>
+              
+            </div>
+          
+
+          
+            
+              <details>
+                <summary class="commands">Local vars</summary>
+            
+            <table class="vars" id="v140101435817344">
+              <thead>
+                <tr>
+                  <th scope="col">Variable</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                
+                  <tr>
+                    <td>field_name</td>
+                    <td class="code"><pre>&#x27;key&#x27;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>model_class</td>
+                    <td class="code"><pre>&lt;class &#x27;knox.models.AuthToken&#x27;&gt;</pre></td>
+                  </tr>
+                
+                  <tr>
+                    <td>self</td>
+                    <td class="code"><pre>Error in formatting: ImproperlyConfigured: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.</pre></td>
+                  </tr>
+                
+              </tbody>
+            </table>
+            </details>
+          
+        </li>
+      
+    </ul>
+  </div>
+
+  <form action="https://dpaste.com/" name="pasteform" id="pasteform" method="post">
+  <div id="pastebinTraceback" class="pastebin">
+    <input type="hidden" name="language" value="PythonConsole">
+    <input type="hidden" name="title"
+      value="ImproperlyConfigured at /api/auth/login/">
+    <input type="hidden" name="source" value="Django Dpaste Agent">
+    <input type="hidden" name="poster" value="Django">
+    <textarea name="content" id="traceback_area" cols="140" rows="25">
+Environment:
+
+
+Request Method: POST
+Request URL: http://localhost:8000/api/auth/login/
+
+Django Version: 5.2.10
+Python Version: 3.14.2
+Installed Applications:
+[&#x27;django.contrib.admin&#x27;,
+ &#x27;django.contrib.auth&#x27;,
+ &#x27;django.contrib.contenttypes&#x27;,
+ &#x27;django.contrib.sessions&#x27;,
+ &#x27;django.contrib.messages&#x27;,
+ &#x27;django.contrib.staticfiles&#x27;,
+ &#x27;django.contrib.sites&#x27;,
+ &#x27;rest_framework&#x27;,
+ &#x27;corsheaders&#x27;,
+ &#x27;allauth&#x27;,
+ &#x27;allauth.account&#x27;,
+ &#x27;allauth.socialaccount&#x27;,
+ &#x27;allauth.socialaccount.providers.google&#x27;,
+ &#x27;dj_rest_auth&#x27;,
+ &#x27;dj_rest_auth.registration&#x27;,
+ &#x27;knox&#x27;,
+ &#x27;sites.apps.SitesConfig&#x27;,
+ &#x27;authentication&#x27;]
+Installed Middleware:
+[&#x27;django.middleware.security.SecurityMiddleware&#x27;,
+ &#x27;django.contrib.sessions.middleware.SessionMiddleware&#x27;,
+ &#x27;corsheaders.middleware.CorsMiddleware&#x27;,
+ &#x27;django.middleware.common.CommonMiddleware&#x27;,
+ &#x27;django.middleware.csrf.CsrfViewMiddleware&#x27;,
+ &#x27;django.contrib.auth.middleware.AuthenticationMiddleware&#x27;,
+ &#x27;allauth.account.middleware.AccountMiddleware&#x27;,
+ &#x27;django.contrib.messages.middleware.MessageMiddleware&#x27;,
+ &#x27;django.middleware.clickjacking.XFrameOptionsMiddleware&#x27;]
+
+
+
+Traceback (most recent call last):
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/views/decorators/csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/views/generic/base.py", line 105, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/utils/decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/views/decorators/debug.py", line 143, in sensitive_post_parameters_wrapper
+    return view(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/dj_rest_auth/views.py", line 48, in dispatch
+    return super().dispatch(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/views.py", line 480, in raise_uncaught_exception
+    raise exc
+    ^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/dj_rest_auth/views.py", line 128, in post
+    return self.get_response()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/dj_rest_auth/views.py", line 116, in get_response
+    response = Response(serializer.data, status=status.HTTP_200_OK)
+                        ^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py", line 571, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py", line 249, in data
+    self._data = self.to_representation(self.instance)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py", line 523, in to_representation
+    for field in fields:
+                 ^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py", line 384, in _readable_fields
+    for field in self.fields.values():
+                 ^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/django/utils/functional.py", line 47, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+                                         ^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py", line 372, in fields
+    for key, value in self.get_fields().items():
+                      ^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py", line 1103, in get_fields
+    field_class, field_kwargs = self.build_field(
+                                
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py", line 1249, in build_field
+    return self.build_unknown_field(field_name, model_class)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/adarsha/.pyenv/versions/3.14.2/lib/python3.14/site-packages/rest_framework/serializers.py", line 1367, in build_unknown_field
+    raise ImproperlyConfigured(
+    ^
+
+Exception Type: ImproperlyConfigured at /api/auth/login/
+Exception Value: Field name `key` is not valid for model `AuthToken` in `dj_rest_auth.serializers.TokenSerializer`.
+</textarea>
+  <br><br>
+  <input type="submit" value="Share this traceback on a public website">
+  </div>
+</form>
+
+</div>
+
+
+<div id="requestinfo">
+  <h2>Request information</h2>
+
+
+  
+    <h3 id="user-info">USER</h3>
+    <p>AnonymousUser</p>
+  
+
+  <h3 id="get-info">GET</h3>
+  
+    <p>No GET data</p>
+  
+
+  <h3 id="post-info">POST</h3>
+  
+    <p>No POST data</p>
+  
+
+  <h3 id="files-info">FILES</h3>
+  
+    <p>No FILES data</p>
+  
+
+  <h3 id="cookie-info">COOKIES</h3>
+  
+    <p>No cookie data</p>
+  
+
+  <h3 id="meta-info">META</h3>
+  <table class="req">
+    <thead>
+      <tr>
+        <th scope="col">Variable</th>
+        <th scope="col">Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+        <tr>
+          <td>ALLOWED_HOSTS</td>
+          <td class="code"><pre>&#x27;localhost,127.0.0.1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ANTIGRAVITY_CLI_ALIAS</td>
+          <td class="code"><pre>&#x27;agy&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AWS_ACCESS_KEY_ID</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AWS_S3_BUCKET_NAME</td>
+          <td class="code"><pre>&#x27;internal-server-adarsha&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AWS_S3_REGION</td>
+          <td class="code"><pre>&#x27;eu-north-1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AWS_SECRET_ACCESS_KEY</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>BACKUP_RETENTION_DAYS</td>
+          <td class="code"><pre>&#x27;7&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>BACKUP_SCHEDULE</td>
+          <td class="code"><pre>&#x27;0 2 * * *&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>BUNDLED_DEBUGPY_PATH</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.antigravity/extensions/ms-python.debugpy-2025.18.0-linux-x64/bundled/libs/debugpy&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CHROME_DESKTOP</td>
+          <td class="code"><pre>&#x27;antigravity.desktop&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CLOUDFLARE_CREDENTIALS_FILE</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.cloudflared/f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.json&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CLOUDFLARE_DOMAIN</td>
+          <td class="code"><pre>&#x27;edubricz.online&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CLOUDFLARE_TUNNEL_ID</td>
+          <td class="code"><pre>&#x27;f7a24d5d-ea18-477f-bd26-6dfc0f3b2774&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CLUTTER_DISABLE_MIPMAPPED_TEXT</td>
+          <td class="code"><pre>&#x27;1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>COLORTERM</td>
+          <td class="code"><pre>&#x27;truecolor&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CONTENT_LENGTH</td>
+          <td class="code"><pre>&#x27;57&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CONTENT_TYPE</td>
+          <td class="code"><pre>&#x27;application/json&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DBUS_SESSION_BUS_ADDRESS</td>
+          <td class="code"><pre>&#x27;unix:path=/run/user/1000/bus&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DB_ENGINE</td>
+          <td class="code"><pre>&#x27;postgresql&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DB_HOST</td>
+          <td class="code"><pre>&#x27;localhost&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DB_NAME</td>
+          <td class="code"><pre>&#x27;hostinger_platform&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DB_PASSWORD</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DB_PORT</td>
+          <td class="code"><pre>&#x27;5432&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DB_USER</td>
+          <td class="code"><pre>&#x27;hostinger_admin&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEBUG</td>
+          <td class="code"><pre>&#x27;True&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEBUGINFOD_URLS</td>
+          <td class="code"><pre>&#x27;https://debuginfod.ubuntu.com &#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DESKTOP_SESSION</td>
+          <td class="code"><pre>&#x27;ubuntu&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DISPLAY</td>
+          <td class="code"><pre>&#x27;:0&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DJANGO_SECRET_KEY</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DJANGO_SETTINGS_MODULE</td>
+          <td class="code"><pre>&#x27;core.settings&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GATEWAY_INTERFACE</td>
+          <td class="code"><pre>&#x27;CGI/1.1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GDK_BACKEND</td>
+          <td class="code"><pre>&#x27;x11&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GDMSESSION</td>
+          <td class="code"><pre>&#x27;ubuntu&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GIO_LAUNCHED_DESKTOP_FILE</td>
+          <td class="code"><pre>&#x27;/usr/share/applications/antigravity.desktop&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GIO_LAUNCHED_DESKTOP_FILE_PID</td>
+          <td class="code"><pre>&#x27;7498&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GIT_ASKPASS</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GJS_DEBUG_OUTPUT</td>
+          <td class="code"><pre>&#x27;stderr&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GJS_DEBUG_TOPICS</td>
+          <td class="code"><pre>&#x27;JS ERROR;JS LOG&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GNOME_DESKTOP_SESSION_ID</td>
+          <td class="code"><pre>&#x27;this-is-deprecated&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GNOME_SETUP_DISPLAY</td>
+          <td class="code"><pre>&#x27;:1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GNOME_SHELL_SESSION_MODE</td>
+          <td class="code"><pre>&#x27;ubuntu&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GOOGLE_CLIENT_ID</td>
+          <td class="code"><pre>&#x27;546509345769-j3513d0vqg4asubrsi92mdcc9qls8evh.apps.googleusercontent.com&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GOOGLE_CLIENT_SECRET</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GSM_SKIP_SSH_AGENT_WORKAROUND</td>
+          <td class="code"><pre>&#x27;true&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>GTK_MODULES</td>
+          <td class="code"><pre>&#x27;gail:atk-bridge&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>HOME</td>
+          <td class="code"><pre>&#x27;/home/adarsha&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>HTTP_ACCEPT</td>
+          <td class="code"><pre>&#x27;*/*&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>HTTP_HOST</td>
+          <td class="code"><pre>&#x27;localhost:8000&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>HTTP_USER_AGENT</td>
+          <td class="code"><pre>&#x27;curl/8.5.0&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>IM_CONFIG_CHECK_ENV</td>
+          <td class="code"><pre>&#x27;1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>IM_CONFIG_PHASE</td>
+          <td class="code"><pre>&#x27;1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>INVOCATION_ID</td>
+          <td class="code"><pre>&#x27;18b43b1e22744bb79ca3909cdd226a0d&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>JOURNAL_STREAM</td>
+          <td class="code"><pre>&#x27;9:23487&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANG</td>
+          <td class="code"><pre>&#x27;en_US.UTF-8&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LESSCLOSE</td>
+          <td class="code"><pre>&#x27;/usr/bin/lesspipe %s %s&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LESSOPEN</td>
+          <td class="code"><pre>&#x27;| /usr/bin/lesspipe %s&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LOGNAME</td>
+          <td class="code"><pre>&#x27;adarsha&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LS_COLORS</td>
+          <td class="code"><pre>&#x27;rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=00:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.avif=01;35:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:*~=00;90:*#=00;90:*.bak=00;90:*.crdownload=00;90:*.dpkg-dist=00;90:*.dpkg-new=00;90:*.dpkg-old=00;90:*.dpkg-tmp=00;90:*.old=00;90:*.orig=00;90:*.part=00;90:*.rej=00;90:*.rpmnew=00;90:*.rpmorig=00;90:*.rpmsave=00;90:*.swp=00;90:*.tmp=00;90:*.ucf-dist=00;90:*.ucf-new=00;90:*.ucf-old=00;90:&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MANAGERPID</td>
+          <td class="code"><pre>&#x27;6168&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MEMORY_PRESSURE_WATCH</td>
+          <td class="code"><pre>&#x27;/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@wayland.service/memory.pressure&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MEMORY_PRESSURE_WRITE</td>
+          <td class="code"><pre>&#x27;c29tZSAyMDAwMDAgMjAwMDAwMAA=&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>NVM_BIN</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.nvm/versions/node/v24.13.0/bin&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>NVM_CD_FLAGS</td>
+          <td class="code"><pre>&#x27;&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>NVM_DIR</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.nvm&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>NVM_INC</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.nvm/versions/node/v24.13.0/include/node&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>OLDPWD</td>
+          <td class="code"><pre>&#x27;/home/adarsha/Desktop/projects/HOST/host&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ORIGINAL_XDG_CURRENT_DESKTOP</td>
+          <td class="code"><pre>&#x27;ubuntu:GNOME&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PATH</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.pyenv/versions/3.14.2/bin:/home/adarsha/.pyenv/libexec:/home/adarsha/.pyenv/plugins/python-build/bin:/home/adarsha/.pyenv/plugins/pyenv-virtualenv/bin:/home/adarsha/.pyenv/plugins/pyenv-update/bin:/home/adarsha/.pyenv/plugins/pyenv-doctor/bin:/home/adarsha/.opencode/bin:/home/adarsha/.pyenv/shims:/home/adarsha/.pyenv/bin:/home/adarsha/.opencode/bin:/home/adarsha/.pyenv/bin:/home/adarsha/.nvm/versions/node/v24.13.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/adarsha/.antigravity/extensions/ms-python.debugpy-2025.18.0-linux-x64/bundled/scripts/noConfigScripts&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PATH_INFO</td>
+          <td class="code"><pre>&#x27;/api/auth/login/&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PWD</td>
+          <td class="code"><pre>&#x27;/home/adarsha/Desktop/projects/HOST/host/backend&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PYDEVD_DISABLE_FILE_VALIDATION</td>
+          <td class="code"><pre>&#x27;1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PYENV_DIR</td>
+          <td class="code"><pre>&#x27;/home/adarsha/Desktop/projects/HOST/host/backend&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PYENV_HOOK_PATH</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.pyenv/pyenv.d:/usr/etc/pyenv.d:/usr/local/etc/pyenv.d:/etc/pyenv.d:/usr/lib/pyenv/hooks:/home/adarsha/.pyenv/plugins/pyenv-virtualenv/etc/pyenv.d&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PYENV_ROOT</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.pyenv&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PYENV_SHELL</td>
+          <td class="code"><pre>&#x27;bash&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PYENV_VERSION</td>
+          <td class="code"><pre>&#x27;3.14.2&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PYTHONSTARTUP</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.config/Antigravity/User/workspaceStorage/791eab2897e565b67d953529db8f9025/ms-python.python/pythonrc.py&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PYTHON_BASIC_REPL</td>
+          <td class="code"><pre>&#x27;1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>QT_ACCESSIBILITY</td>
+          <td class="code"><pre>&#x27;1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>QT_IM_MODULE</td>
+          <td class="code"><pre>&#x27;ibus&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>QUERY_STRING</td>
+          <td class="code"><pre>&#x27;&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>REMOTE_ADDR</td>
+          <td class="code"><pre>&#x27;127.0.0.1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>REMOTE_HOST</td>
+          <td class="code"><pre>&#x27;&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>REQUEST_METHOD</td>
+          <td class="code"><pre>&#x27;POST&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>RUN_MAIN</td>
+          <td class="code"><pre>&#x27;true&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>S3_BACKUP_RETENTION_DAYS</td>
+          <td class="code"><pre>&#x27;7&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SBX_CHROME_API_RQ</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SCRIPT_NAME</td>
+          <td class="code"><pre>&#x27;&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SERVER_NAME</td>
+          <td class="code"><pre>&#x27;localhost&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SERVER_PORT</td>
+          <td class="code"><pre>&#x27;8000&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SERVER_PROTOCOL</td>
+          <td class="code"><pre>&#x27;HTTP/1.1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SERVER_SOFTWARE</td>
+          <td class="code"><pre>&#x27;WSGIServer/0.2&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_MANAGER</td>
+          <td class="code"><pre>&#x27;local/adarsha-IdeaPad-Slim-3-15IAH8:@/tmp/.ICE-unix/6390,unix/adarsha-IdeaPad-Slim-3-15IAH8:/tmp/.ICE-unix/6390&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SHELL</td>
+          <td class="code"><pre>&#x27;/bin/bash&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SHLVL</td>
+          <td class="code"><pre>&#x27;1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SSH_AUTH_SOCK</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SYSTEMD_EXEC_PID</td>
+          <td class="code"><pre>&#x27;6424&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TENANT_DB_IMAGE</td>
+          <td class="code"><pre>&#x27;mysql:8.0&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TENANT_DB_NETWORK</td>
+          <td class="code"><pre>&#x27;tenant_isolated&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TENANT_DB_ROOT_PASSWORD</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TERM</td>
+          <td class="code"><pre>&#x27;xterm-256color&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TERM_PROGRAM</td>
+          <td class="code"><pre>&#x27;vscode&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TERM_PROGRAM_VERSION</td>
+          <td class="code"><pre>&#x27;1.104.0&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TZ</td>
+          <td class="code"><pre>&#x27;UTC&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>USER</td>
+          <td class="code"><pre>&#x27;adarsha&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>USERNAME</td>
+          <td class="code"><pre>&#x27;adarsha&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>VSCODE_DEBUGPY_ADAPTER_ENDPOINTS</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.antigravity/extensions/ms-python.debugpy-2025.18.0-linux-x64/.noConfigDebugAdapterEndpoints/endpoint-dd47c7a5c723e610.txt&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>VSCODE_GIT_ASKPASS_EXTRA_ARGS</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>VSCODE_GIT_ASKPASS_MAIN</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>VSCODE_GIT_ASKPASS_NODE</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>VSCODE_GIT_IPC_HANDLE</td>
+          <td class="code"><pre>&#x27;/run/user/1000/vscode-git-e49ff6987e.sock&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>VSCODE_PYTHON_AUTOACTIVATE_GUARD</td>
+          <td class="code"><pre>&#x27;1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>WAYLAND_DISPLAY</td>
+          <td class="code"><pre>&#x27;wayland-0&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XAUTHORITY</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XDG_CONFIG_DIRS</td>
+          <td class="code"><pre>&#x27;/etc/xdg/xdg-ubuntu:/etc/xdg&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XDG_CURRENT_DESKTOP</td>
+          <td class="code"><pre>&#x27;Unity&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XDG_DATA_DIRS</td>
+          <td class="code"><pre>&#x27;/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XDG_MENU_PREFIX</td>
+          <td class="code"><pre>&#x27;gnome-&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XDG_RUNTIME_DIR</td>
+          <td class="code"><pre>&#x27;/run/user/1000&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XDG_SESSION_CLASS</td>
+          <td class="code"><pre>&#x27;user&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XDG_SESSION_DESKTOP</td>
+          <td class="code"><pre>&#x27;ubuntu&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XDG_SESSION_TYPE</td>
+          <td class="code"><pre>&#x27;wayland&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>XMODIFIERS</td>
+          <td class="code"><pre>&#x27;@im=ibus&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>_PYENV_INSTALL_PREFIX</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.pyenv&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>wsgi.errors</td>
+          <td class="code"><pre>&lt;_io.TextIOWrapper name=&#x27;&lt;stderr&gt;&#x27; mode=&#x27;w&#x27; encoding=&#x27;utf-8&#x27;&gt;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>wsgi.file_wrapper</td>
+          <td class="code"><pre>&lt;class &#x27;wsgiref.util.FileWrapper&#x27;&gt;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>wsgi.input</td>
+          <td class="code"><pre>&lt;django.core.handlers.wsgi.LimitedStream object at 0x7f6be8e8a6e0&gt;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>wsgi.multiprocess</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>wsgi.multithread</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>wsgi.run_once</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>wsgi.url_scheme</td>
+          <td class="code"><pre>&#x27;http&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>wsgi.version</td>
+          <td class="code"><pre>(1, 0)</pre></td>
+        </tr>
+      
+    </tbody>
+  </table>
+
+
+  <h3 id="settings-info">Settings</h3>
+  <h4>Using settings module <code>core.settings</code></h4>
+  <table class="req">
+    <thead>
+      <tr>
+        <th scope="col">Setting</th>
+        <th scope="col">Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+        <tr>
+          <td>ABSOLUTE_URL_OVERRIDES</td>
+          <td class="code"><pre>{}</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ACCOUNT_AUTHENTICATION_METHOD</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ACCOUNT_EMAIL_REQUIRED</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ACCOUNT_EMAIL_VERIFICATION</td>
+          <td class="code"><pre>&#x27;optional&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ACCOUNT_UNIQUE_EMAIL</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ACCOUNT_USERNAME_REQUIRED</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ADMINS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ALLOWED_HOSTS</td>
+          <td class="code"><pre>[&#x27;localhost&#x27;, &#x27;127.0.0.1&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>APPEND_SLASH</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AUTHENTICATION_BACKENDS</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AUTH_PASSWORD_VALIDATORS</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AUTH_USER_MODEL</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AWS_ACCESS_KEY_ID</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AWS_S3_BUCKET_NAME</td>
+          <td class="code"><pre>&#x27;internal-server-adarsha&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AWS_S3_REGION</td>
+          <td class="code"><pre>&#x27;eu-north-1&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>AWS_SECRET_ACCESS_KEY</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>BACKUP_DIR</td>
+          <td class="code"><pre>PosixPath(&#x27;/home/adarsha/Desktop/projects/HOST/host/backend/backups&#x27;)</pre></td>
+        </tr>
+      
+        <tr>
+          <td>BACKUP_RETENTION_DAYS</td>
+          <td class="code"><pre>7</pre></td>
+        </tr>
+      
+        <tr>
+          <td>BASE_DIR</td>
+          <td class="code"><pre>PosixPath(&#x27;/home/adarsha/Desktop/projects/HOST/host/backend&#x27;)</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CACHES</td>
+          <td class="code"><pre>{&#x27;default&#x27;: {&#x27;BACKEND&#x27;: &#x27;django.core.cache.backends.locmem.LocMemCache&#x27;}}</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CACHE_MIDDLEWARE_ALIAS</td>
+          <td class="code"><pre>&#x27;default&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CACHE_MIDDLEWARE_KEY_PREFIX</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CACHE_MIDDLEWARE_SECONDS</td>
+          <td class="code"><pre>600</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CLOUDFLARE_CONFIG_PATH</td>
+          <td class="code"><pre>&#x27;/home/adarsha/Desktop/projects/HOST/host/backend/cloudflared_config.yml&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CLOUDFLARE_CREDENTIALS_FILE</td>
+          <td class="code"><pre>&#x27;/home/adarsha/.cloudflared/f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.json&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CLOUDFLARE_DOMAIN</td>
+          <td class="code"><pre>&#x27;edubricz.online&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CLOUDFLARE_TUNNEL_ID</td>
+          <td class="code"><pre>&#x27;f7a24d5d-ea18-477f-bd26-6dfc0f3b2774&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CORS_ALLOWED_ORIGINS</td>
+          <td class="code"><pre>[&#x27;http://localhost:5173&#x27;,
+ &#x27;http://127.0.0.1:5173&#x27;,
+ &#x27;http://localhost:5175&#x27;,
+ &#x27;http://127.0.0.1:5175&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CORS_ALLOW_CREDENTIALS</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CORS_ALLOW_HEADERS</td>
+          <td class="code"><pre>[&#x27;accept&#x27;,
+ &#x27;accept-encoding&#x27;,
+ &#x27;authorization&#x27;,
+ &#x27;content-type&#x27;,
+ &#x27;dnt&#x27;,
+ &#x27;origin&#x27;,
+ &#x27;user-agent&#x27;,
+ &#x27;x-csrftoken&#x27;,
+ &#x27;x-requested-with&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CORS_ALLOW_METHODS</td>
+          <td class="code"><pre>[&#x27;DELETE&#x27;, &#x27;GET&#x27;, &#x27;OPTIONS&#x27;, &#x27;PATCH&#x27;, &#x27;POST&#x27;, &#x27;PUT&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_COOKIE_AGE</td>
+          <td class="code"><pre>31449600</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_COOKIE_DOMAIN</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_COOKIE_HTTPONLY</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_COOKIE_NAME</td>
+          <td class="code"><pre>&#x27;csrftoken&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_COOKIE_PATH</td>
+          <td class="code"><pre>&#x27;/&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_COOKIE_SAMESITE</td>
+          <td class="code"><pre>&#x27;Lax&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_COOKIE_SECURE</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_FAILURE_VIEW</td>
+          <td class="code"><pre>&#x27;django.views.csrf.csrf_failure&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_HEADER_NAME</td>
+          <td class="code"><pre>&#x27;HTTP_X_CSRFTOKEN&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_TRUSTED_ORIGINS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>CSRF_USE_SESSIONS</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DATABASES</td>
+          <td class="code"><pre>{&#x27;default&#x27;: {&#x27;ATOMIC_REQUESTS&#x27;: False,
+             &#x27;AUTOCOMMIT&#x27;: True,
+             &#x27;CONN_HEALTH_CHECKS&#x27;: False,
+             &#x27;CONN_MAX_AGE&#x27;: 600,
+             &#x27;ENGINE&#x27;: &#x27;django.db.backends.postgresql&#x27;,
+             &#x27;HOST&#x27;: &#x27;localhost&#x27;,
+             &#x27;NAME&#x27;: &#x27;hostinger_platform&#x27;,
+             &#x27;OPTIONS&#x27;: {&#x27;connect_timeout&#x27;: 10},
+             &#x27;PASSWORD&#x27;: &#x27;********************&#x27;,
+             &#x27;PORT&#x27;: &#x27;5432&#x27;,
+             &#x27;TEST&#x27;: {&#x27;CHARSET&#x27;: None,
+                      &#x27;COLLATION&#x27;: None,
+                      &#x27;MIGRATE&#x27;: True,
+                      &#x27;MIRROR&#x27;: None,
+                      &#x27;NAME&#x27;: None},
+             &#x27;TIME_ZONE&#x27;: None,
+             &#x27;USER&#x27;: &#x27;hostinger_admin&#x27;}}</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DATABASE_ROUTERS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DATA_UPLOAD_MAX_MEMORY_SIZE</td>
+          <td class="code"><pre>2621440</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DATA_UPLOAD_MAX_NUMBER_FIELDS</td>
+          <td class="code"><pre>1000</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DATA_UPLOAD_MAX_NUMBER_FILES</td>
+          <td class="code"><pre>100</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DATETIME_FORMAT</td>
+          <td class="code"><pre>&#x27;N j, Y, P&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DATETIME_INPUT_FORMATS</td>
+          <td class="code"><pre>[&#x27;%Y-%m-%d %H:%M:%S&#x27;,
+ &#x27;%Y-%m-%d %H:%M:%S.%f&#x27;,
+ &#x27;%Y-%m-%d %H:%M&#x27;,
+ &#x27;%m/%d/%Y %H:%M:%S&#x27;,
+ &#x27;%m/%d/%Y %H:%M:%S.%f&#x27;,
+ &#x27;%m/%d/%Y %H:%M&#x27;,
+ &#x27;%m/%d/%y %H:%M:%S&#x27;,
+ &#x27;%m/%d/%y %H:%M:%S.%f&#x27;,
+ &#x27;%m/%d/%y %H:%M&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DATE_FORMAT</td>
+          <td class="code"><pre>&#x27;N j, Y&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DATE_INPUT_FORMATS</td>
+          <td class="code"><pre>[&#x27;%Y-%m-%d&#x27;,
+ &#x27;%m/%d/%Y&#x27;,
+ &#x27;%m/%d/%y&#x27;,
+ &#x27;%b %d %Y&#x27;,
+ &#x27;%b %d, %Y&#x27;,
+ &#x27;%d %b %Y&#x27;,
+ &#x27;%d %b, %Y&#x27;,
+ &#x27;%B %d %Y&#x27;,
+ &#x27;%B %d, %Y&#x27;,
+ &#x27;%d %B %Y&#x27;,
+ &#x27;%d %B, %Y&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DB_ENGINE</td>
+          <td class="code"><pre>&#x27;postgresql&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEBUG</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEBUG_PROPAGATE_EXCEPTIONS</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DECIMAL_SEPARATOR</td>
+          <td class="code"><pre>&#x27;.&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEFAULT_AUTO_FIELD</td>
+          <td class="code"><pre>&#x27;django.db.models.BigAutoField&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEFAULT_CHARSET</td>
+          <td class="code"><pre>&#x27;utf-8&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEFAULT_EXCEPTION_REPORTER</td>
+          <td class="code"><pre>&#x27;django.views.debug.ExceptionReporter&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEFAULT_EXCEPTION_REPORTER_FILTER</td>
+          <td class="code"><pre>&#x27;django.views.debug.SafeExceptionReporterFilter&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEFAULT_FROM_EMAIL</td>
+          <td class="code"><pre>&#x27;webmaster@localhost&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEFAULT_INDEX_TABLESPACE</td>
+          <td class="code"><pre>&#x27;&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DEFAULT_TABLESPACE</td>
+          <td class="code"><pre>&#x27;&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>DISALLOWED_USER_AGENTS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_BACKEND</td>
+          <td class="code"><pre>&#x27;django.core.mail.backends.smtp.EmailBackend&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_HOST</td>
+          <td class="code"><pre>&#x27;localhost&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_HOST_PASSWORD</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_HOST_USER</td>
+          <td class="code"><pre>&#x27;&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_PORT</td>
+          <td class="code"><pre>25</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_SSL_CERTFILE</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_SSL_KEYFILE</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_SUBJECT_PREFIX</td>
+          <td class="code"><pre>&#x27;[Django] &#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_TIMEOUT</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_USE_LOCALTIME</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_USE_SSL</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>EMAIL_USE_TLS</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FILE_UPLOAD_DIRECTORY_PERMISSIONS</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FILE_UPLOAD_HANDLERS</td>
+          <td class="code"><pre>[&#x27;django.core.files.uploadhandler.MemoryFileUploadHandler&#x27;,
+ &#x27;django.core.files.uploadhandler.TemporaryFileUploadHandler&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FILE_UPLOAD_MAX_MEMORY_SIZE</td>
+          <td class="code"><pre>2621440</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FILE_UPLOAD_PERMISSIONS</td>
+          <td class="code"><pre>420</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FILE_UPLOAD_TEMP_DIR</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FIRST_DAY_OF_WEEK</td>
+          <td class="code"><pre>0</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FIXTURE_DIRS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FORCE_SCRIPT_NAME</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FORMAT_MODULE_PATH</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FORMS_URLFIELD_ASSUME_HTTPS</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>FORM_RENDERER</td>
+          <td class="code"><pre>&#x27;django.forms.renderers.DjangoTemplates&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>IGNORABLE_404_URLS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>INSTALLED_APPS</td>
+          <td class="code"><pre>[&#x27;django.contrib.admin&#x27;,
+ &#x27;django.contrib.auth&#x27;,
+ &#x27;django.contrib.contenttypes&#x27;,
+ &#x27;django.contrib.sessions&#x27;,
+ &#x27;django.contrib.messages&#x27;,
+ &#x27;django.contrib.staticfiles&#x27;,
+ &#x27;django.contrib.sites&#x27;,
+ &#x27;rest_framework&#x27;,
+ &#x27;corsheaders&#x27;,
+ &#x27;allauth&#x27;,
+ &#x27;allauth.account&#x27;,
+ &#x27;allauth.socialaccount&#x27;,
+ &#x27;allauth.socialaccount.providers.google&#x27;,
+ &#x27;dj_rest_auth&#x27;,
+ &#x27;dj_rest_auth.registration&#x27;,
+ &#x27;knox&#x27;,
+ &#x27;sites.apps.SitesConfig&#x27;,
+ &#x27;authentication&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>INTERNAL_IPS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGES</td>
+          <td class="code"><pre>[(&#x27;af&#x27;, &#x27;Afrikaans&#x27;),
+ (&#x27;ar&#x27;, &#x27;Arabic&#x27;),
+ (&#x27;ar-dz&#x27;, &#x27;Algerian Arabic&#x27;),
+ (&#x27;ast&#x27;, &#x27;Asturian&#x27;),
+ (&#x27;az&#x27;, &#x27;Azerbaijani&#x27;),
+ (&#x27;bg&#x27;, &#x27;Bulgarian&#x27;),
+ (&#x27;be&#x27;, &#x27;Belarusian&#x27;),
+ (&#x27;bn&#x27;, &#x27;Bengali&#x27;),
+ (&#x27;br&#x27;, &#x27;Breton&#x27;),
+ (&#x27;bs&#x27;, &#x27;Bosnian&#x27;),
+ (&#x27;ca&#x27;, &#x27;Catalan&#x27;),
+ (&#x27;ckb&#x27;, &#x27;Central Kurdish (Sorani)&#x27;),
+ (&#x27;cs&#x27;, &#x27;Czech&#x27;),
+ (&#x27;cy&#x27;, &#x27;Welsh&#x27;),
+ (&#x27;da&#x27;, &#x27;Danish&#x27;),
+ (&#x27;de&#x27;, &#x27;German&#x27;),
+ (&#x27;dsb&#x27;, &#x27;Lower Sorbian&#x27;),
+ (&#x27;el&#x27;, &#x27;Greek&#x27;),
+ (&#x27;en&#x27;, &#x27;English&#x27;),
+ (&#x27;en-au&#x27;, &#x27;Australian English&#x27;),
+ (&#x27;en-gb&#x27;, &#x27;British English&#x27;),
+ (&#x27;eo&#x27;, &#x27;Esperanto&#x27;),
+ (&#x27;es&#x27;, &#x27;Spanish&#x27;),
+ (&#x27;es-ar&#x27;, &#x27;Argentinian Spanish&#x27;),
+ (&#x27;es-co&#x27;, &#x27;Colombian Spanish&#x27;),
+ (&#x27;es-mx&#x27;, &#x27;Mexican Spanish&#x27;),
+ (&#x27;es-ni&#x27;, &#x27;Nicaraguan Spanish&#x27;),
+ (&#x27;es-ve&#x27;, &#x27;Venezuelan Spanish&#x27;),
+ (&#x27;et&#x27;, &#x27;Estonian&#x27;),
+ (&#x27;eu&#x27;, &#x27;Basque&#x27;),
+ (&#x27;fa&#x27;, &#x27;Persian&#x27;),
+ (&#x27;fi&#x27;, &#x27;Finnish&#x27;),
+ (&#x27;fr&#x27;, &#x27;French&#x27;),
+ (&#x27;fy&#x27;, &#x27;Frisian&#x27;),
+ (&#x27;ga&#x27;, &#x27;Irish&#x27;),
+ (&#x27;gd&#x27;, &#x27;Scottish Gaelic&#x27;),
+ (&#x27;gl&#x27;, &#x27;Galician&#x27;),
+ (&#x27;he&#x27;, &#x27;Hebrew&#x27;),
+ (&#x27;hi&#x27;, &#x27;Hindi&#x27;),
+ (&#x27;hr&#x27;, &#x27;Croatian&#x27;),
+ (&#x27;hsb&#x27;, &#x27;Upper Sorbian&#x27;),
+ (&#x27;hu&#x27;, &#x27;Hungarian&#x27;),
+ (&#x27;hy&#x27;, &#x27;Armenian&#x27;),
+ (&#x27;ia&#x27;, &#x27;Interlingua&#x27;),
+ (&#x27;id&#x27;, &#x27;Indonesian&#x27;),
+ (&#x27;ig&#x27;, &#x27;Igbo&#x27;),
+ (&#x27;io&#x27;, &#x27;Ido&#x27;),
+ (&#x27;is&#x27;, &#x27;Icelandic&#x27;),
+ (&#x27;it&#x27;, &#x27;Italian&#x27;),
+ (&#x27;ja&#x27;, &#x27;Japanese&#x27;),
+ (&#x27;ka&#x27;, &#x27;Georgian&#x27;),
+ (&#x27;kab&#x27;, &#x27;Kabyle&#x27;),
+ (&#x27;kk&#x27;, &#x27;Kazakh&#x27;),
+ (&#x27;km&#x27;, &#x27;Khmer&#x27;),
+ (&#x27;kn&#x27;, &#x27;Kannada&#x27;),
+ (&#x27;ko&#x27;, &#x27;Korean&#x27;),
+ (&#x27;ky&#x27;, &#x27;Kyrgyz&#x27;),
+ (&#x27;lb&#x27;, &#x27;Luxembourgish&#x27;),
+ (&#x27;lt&#x27;, &#x27;Lithuanian&#x27;),
+ (&#x27;lv&#x27;, &#x27;Latvian&#x27;),
+ (&#x27;mk&#x27;, &#x27;Macedonian&#x27;),
+ (&#x27;ml&#x27;, &#x27;Malayalam&#x27;),
+ (&#x27;mn&#x27;, &#x27;Mongolian&#x27;),
+ (&#x27;mr&#x27;, &#x27;Marathi&#x27;),
+ (&#x27;ms&#x27;, &#x27;Malay&#x27;),
+ (&#x27;my&#x27;, &#x27;Burmese&#x27;),
+ (&#x27;nb&#x27;, &#x27;Norwegian Bokmål&#x27;),
+ (&#x27;ne&#x27;, &#x27;Nepali&#x27;),
+ (&#x27;nl&#x27;, &#x27;Dutch&#x27;),
+ (&#x27;nn&#x27;, &#x27;Norwegian Nynorsk&#x27;),
+ (&#x27;os&#x27;, &#x27;Ossetic&#x27;),
+ (&#x27;pa&#x27;, &#x27;Punjabi&#x27;),
+ (&#x27;pl&#x27;, &#x27;Polish&#x27;),
+ (&#x27;pt&#x27;, &#x27;Portuguese&#x27;),
+ (&#x27;pt-br&#x27;, &#x27;Brazilian Portuguese&#x27;),
+ (&#x27;ro&#x27;, &#x27;Romanian&#x27;),
+ (&#x27;ru&#x27;, &#x27;Russian&#x27;),
+ (&#x27;sk&#x27;, &#x27;Slovak&#x27;),
+ (&#x27;sl&#x27;, &#x27;Slovenian&#x27;),
+ (&#x27;sq&#x27;, &#x27;Albanian&#x27;),
+ (&#x27;sr&#x27;, &#x27;Serbian&#x27;),
+ (&#x27;sr-latn&#x27;, &#x27;Serbian Latin&#x27;),
+ (&#x27;sv&#x27;, &#x27;Swedish&#x27;),
+ (&#x27;sw&#x27;, &#x27;Swahili&#x27;),
+ (&#x27;ta&#x27;, &#x27;Tamil&#x27;),
+ (&#x27;te&#x27;, &#x27;Telugu&#x27;),
+ (&#x27;tg&#x27;, &#x27;Tajik&#x27;),
+ (&#x27;th&#x27;, &#x27;Thai&#x27;),
+ (&#x27;tk&#x27;, &#x27;Turkmen&#x27;),
+ (&#x27;tr&#x27;, &#x27;Turkish&#x27;),
+ (&#x27;tt&#x27;, &#x27;Tatar&#x27;),
+ (&#x27;udm&#x27;, &#x27;Udmurt&#x27;),
+ (&#x27;ug&#x27;, &#x27;Uyghur&#x27;),
+ (&#x27;uk&#x27;, &#x27;Ukrainian&#x27;),
+ (&#x27;ur&#x27;, &#x27;Urdu&#x27;),
+ (&#x27;uz&#x27;, &#x27;Uzbek&#x27;),
+ (&#x27;vi&#x27;, &#x27;Vietnamese&#x27;),
+ (&#x27;zh-hans&#x27;, &#x27;Simplified Chinese&#x27;),
+ (&#x27;zh-hant&#x27;, &#x27;Traditional Chinese&#x27;)]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGES_BIDI</td>
+          <td class="code"><pre>[&#x27;he&#x27;, &#x27;ar&#x27;, &#x27;ar-dz&#x27;, &#x27;ckb&#x27;, &#x27;fa&#x27;, &#x27;ug&#x27;, &#x27;ur&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGE_CODE</td>
+          <td class="code"><pre>&#x27;en-us&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGE_COOKIE_AGE</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGE_COOKIE_DOMAIN</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGE_COOKIE_HTTPONLY</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGE_COOKIE_NAME</td>
+          <td class="code"><pre>&#x27;django_language&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGE_COOKIE_PATH</td>
+          <td class="code"><pre>&#x27;/&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGE_COOKIE_SAMESITE</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LANGUAGE_COOKIE_SECURE</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LOCALE_PATHS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LOGGING</td>
+          <td class="code"><pre>{}</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LOGGING_CONFIG</td>
+          <td class="code"><pre>&#x27;logging.config.dictConfig&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LOGIN_REDIRECT_URL</td>
+          <td class="code"><pre>&#x27;/accounts/profile/&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LOGIN_URL</td>
+          <td class="code"><pre>&#x27;/accounts/login/&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>LOGOUT_REDIRECT_URL</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MANAGERS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MEDIA_ROOT</td>
+          <td class="code"><pre>&#x27;&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MEDIA_URL</td>
+          <td class="code"><pre>&#x27;/&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MESSAGE_STORAGE</td>
+          <td class="code"><pre>&#x27;django.contrib.messages.storage.fallback.FallbackStorage&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MIDDLEWARE</td>
+          <td class="code"><pre>[&#x27;django.middleware.security.SecurityMiddleware&#x27;,
+ &#x27;django.contrib.sessions.middleware.SessionMiddleware&#x27;,
+ &#x27;corsheaders.middleware.CorsMiddleware&#x27;,
+ &#x27;django.middleware.common.CommonMiddleware&#x27;,
+ &#x27;django.middleware.csrf.CsrfViewMiddleware&#x27;,
+ &#x27;django.contrib.auth.middleware.AuthenticationMiddleware&#x27;,
+ &#x27;allauth.account.middleware.AccountMiddleware&#x27;,
+ &#x27;django.contrib.messages.middleware.MessageMiddleware&#x27;,
+ &#x27;django.middleware.clickjacking.XFrameOptionsMiddleware&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MIGRATION_MODULES</td>
+          <td class="code"><pre>{}</pre></td>
+        </tr>
+      
+        <tr>
+          <td>MONTH_DAY_FORMAT</td>
+          <td class="code"><pre>&#x27;F j&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>NUMBER_GROUPING</td>
+          <td class="code"><pre>0</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PASSWORD_HASHERS</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PASSWORD_RESET_TIMEOUT</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>PREPEND_WWW</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>REST_AUTH</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>REST_FRAMEWORK</td>
+          <td class="code"><pre>{&#x27;DEFAULT_AUTHENTICATION_CLASSES&#x27;: &#x27;********************&#x27;,
+ &#x27;DEFAULT_PARSER_CLASSES&#x27;: [&#x27;rest_framework.parsers.JSONParser&#x27;],
+ &#x27;DEFAULT_RENDERER_CLASSES&#x27;: [&#x27;rest_framework.renderers.JSONRenderer&#x27;]}</pre></td>
+        </tr>
+      
+        <tr>
+          <td>REST_KNOX</td>
+          <td class="code"><pre>{&#x27;AUTO_REFRESH&#x27;: True,
+ &#x27;MIN_REFRESH_INTERVAL&#x27;: 60,
+ &#x27;TOKEN_TTL&#x27;: &#x27;********************&#x27;}</pre></td>
+        </tr>
+      
+        <tr>
+          <td>ROOT_URLCONF</td>
+          <td class="code"><pre>&#x27;core.urls&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>S3_BACKUP_RETENTION_DAYS</td>
+          <td class="code"><pre>7</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECRET_KEY</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECRET_KEY_FALLBACKS</td>
+          <td class="code"><pre>&#x27;********************&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_CONTENT_TYPE_NOSNIFF</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_CROSS_ORIGIN_OPENER_POLICY</td>
+          <td class="code"><pre>&#x27;same-origin&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_HSTS_INCLUDE_SUBDOMAINS</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_HSTS_PRELOAD</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_HSTS_SECONDS</td>
+          <td class="code"><pre>0</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_PROXY_SSL_HEADER</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_REDIRECT_EXEMPT</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_REFERRER_POLICY</td>
+          <td class="code"><pre>&#x27;same-origin&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_SSL_HOST</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SECURE_SSL_REDIRECT</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SERVER_EMAIL</td>
+          <td class="code"><pre>&#x27;root@localhost&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_CACHE_ALIAS</td>
+          <td class="code"><pre>&#x27;default&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_COOKIE_AGE</td>
+          <td class="code"><pre>1209600</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_COOKIE_DOMAIN</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_COOKIE_HTTPONLY</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_COOKIE_NAME</td>
+          <td class="code"><pre>&#x27;sessionid&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_COOKIE_PATH</td>
+          <td class="code"><pre>&#x27;/&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_COOKIE_SAMESITE</td>
+          <td class="code"><pre>&#x27;Lax&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_COOKIE_SECURE</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_ENGINE</td>
+          <td class="code"><pre>&#x27;django.contrib.sessions.backends.db&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_EXPIRE_AT_BROWSER_CLOSE</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_FILE_PATH</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_SAVE_EVERY_REQUEST</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SESSION_SERIALIZER</td>
+          <td class="code"><pre>&#x27;django.contrib.sessions.serializers.JSONSerializer&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SETTINGS_MODULE</td>
+          <td class="code"><pre>&#x27;core.settings&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SHORT_DATETIME_FORMAT</td>
+          <td class="code"><pre>&#x27;m/d/Y P&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SHORT_DATE_FORMAT</td>
+          <td class="code"><pre>&#x27;m/d/Y&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SIGNING_BACKEND</td>
+          <td class="code"><pre>&#x27;django.core.signing.TimestampSigner&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SILENCED_SYSTEM_CHECKS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SITE_ID</td>
+          <td class="code"><pre>1</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SOCIALACCOUNT_AUTO_SIGNUP</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SOCIALACCOUNT_EMAIL_VERIFICATION</td>
+          <td class="code"><pre>&#x27;none&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>SOCIALACCOUNT_PROVIDERS</td>
+          <td class="code"><pre>{&#x27;google&#x27;: {&#x27;APP&#x27;: {&#x27;client_id&#x27;: &#x27;546509345769-j3513d0vqg4asubrsi92mdcc9qls8evh.apps.googleusercontent.com&#x27;,
+                    &#x27;key&#x27;: &#x27;********************&#x27;,
+                    &#x27;secret&#x27;: &#x27;********************&#x27;},
+            &#x27;AUTH_PARAMS&#x27;: &#x27;********************&#x27;,
+            &#x27;SCOPE&#x27;: [&#x27;profile&#x27;, &#x27;email&#x27;]}}</pre></td>
+        </tr>
+      
+        <tr>
+          <td>STATICFILES_DIRS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>STATICFILES_FINDERS</td>
+          <td class="code"><pre>[&#x27;django.contrib.staticfiles.finders.FileSystemFinder&#x27;,
+ &#x27;django.contrib.staticfiles.finders.AppDirectoriesFinder&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>STATIC_ROOT</td>
+          <td class="code"><pre>None</pre></td>
+        </tr>
+      
+        <tr>
+          <td>STATIC_URL</td>
+          <td class="code"><pre>&#x27;/static/&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>STORAGES</td>
+          <td class="code"><pre>{&#x27;default&#x27;: {&#x27;BACKEND&#x27;: &#x27;django.core.files.storage.FileSystemStorage&#x27;},
+ &#x27;staticfiles&#x27;: {&#x27;BACKEND&#x27;: &#x27;django.contrib.staticfiles.storage.StaticFilesStorage&#x27;}}</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TEMPLATES</td>
+          <td class="code"><pre>[{&#x27;APP_DIRS&#x27;: True,
+  &#x27;BACKEND&#x27;: &#x27;django.template.backends.django.DjangoTemplates&#x27;,
+  &#x27;DIRS&#x27;: [],
+  &#x27;OPTIONS&#x27;: {&#x27;context_processors&#x27;: [&#x27;django.template.context_processors.request&#x27;,
+                                     &#x27;django.contrib.auth.context_processors.auth&#x27;,
+                                     &#x27;django.contrib.messages.context_processors.messages&#x27;]}}]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TENANT_DB_IMAGE</td>
+100  162k  100  162k  100    57   331k    116 --:--:-- --:--:-- --:--:--  331k100  162k  100  162k  100    57   331k    116 --:--:-- --:--:-- --:--:--  331k
+          <td class="code"><pre>&#x27;mysql:8.0&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TENANT_DB_NETWORK</td>
+          <td class="code"><pre>&#x27;tenant_isolated&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TEST_NON_SERIALIZED_APPS</td>
+          <td class="code"><pre>[]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TEST_RUNNER</td>
+          <td class="code"><pre>&#x27;django.test.runner.DiscoverRunner&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>THOUSAND_SEPARATOR</td>
+          <td class="code"><pre>&#x27;,&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TIME_FORMAT</td>
+          <td class="code"><pre>&#x27;P&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TIME_INPUT_FORMATS</td>
+          <td class="code"><pre>[&#x27;%H:%M:%S&#x27;, &#x27;%H:%M:%S.%f&#x27;, &#x27;%H:%M&#x27;]</pre></td>
+        </tr>
+      
+        <tr>
+          <td>TIME_ZONE</td>
+          <td class="code"><pre>&#x27;UTC&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>USE_I18N</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>USE_THOUSAND_SEPARATOR</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>USE_TZ</td>
+          <td class="code"><pre>True</pre></td>
+        </tr>
+      
+        <tr>
+          <td>USE_X_FORWARDED_HOST</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>USE_X_FORWARDED_PORT</td>
+          <td class="code"><pre>False</pre></td>
+        </tr>
+      
+        <tr>
+          <td>WORDPRESS_SITES_DIR</td>
+          <td class="code"><pre>PosixPath(&#x27;/home/adarsha/Desktop/projects/HOST/host/backend/wordpress_sites&#x27;)</pre></td>
+        </tr>
+      
+        <tr>
+          <td>WSGI_APPLICATION</td>
+          <td class="code"><pre>&#x27;core.wsgi.application&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>X_FRAME_OPTIONS</td>
+          <td class="code"><pre>&#x27;DENY&#x27;</pre></td>
+        </tr>
+      
+        <tr>
+          <td>YEAR_MONTH_FORMAT</td>
+          <td class="code"><pre>&#x27;F Y&#x27;</pre></td>
+        </tr>
+      
+    </tbody>
+  </table>
+
+</div>
+</main>
+
+
+  <footer id="explanation">
+    <p>
+      You’re seeing this error because you have <code>DEBUG = True</code> in your
+      Django settings file. Change that to <code>False</code>, and Django will
+      display a standard page generated by the handler for this status code.
+    </p>
+  </footer>
+
+</body>
+</html>
