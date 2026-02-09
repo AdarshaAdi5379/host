@@ -1,30 +1,61 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table'
-import { FolderOpen, File, Download, Trash2, Upload, Plus } from 'lucide-react'
-import type { FileItem } from '@/data/mockData'
-import { formatBytes, formatDateTime } from '@/lib/utils'
+import { FolderOpen, ExternalLink, Server, AlertTriangle } from 'lucide-react'
+import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
+import { FileManagerTab } from '@/components/site/FileManagerTab'
+import { useToast } from '@/components/ui/toast'
 
 export function FileManager() {
-    const [files, setFiles] = useState<FileItem[]>([])
-    const [currentPath, setCurrentPath] = useState('/public_html')
+    const { addToast } = useToast()
+    const [sites, setSites] = useState<WordPressSite[]>([])
+    const [selectedSite, setSelectedSite] = useState<number | null>(null)
+    const [loading, setLoading] = useState(true)
 
-    const currentFiles = files.filter(f =>
-        f.path.startsWith(currentPath) &&
-        f.path.split('/').length === currentPath.split('/').length + 1
-    )
+    useEffect(() => {
+        loadSites()
+    }, [])
 
-    const handleDelete = (id: string) => {
-        setFiles(files.filter(f => f.id !== id))
+    const loadSites = async () => {
+        try {
+            const data = await wordpressAPI.getSites()
+            setSites(data.filter(site => site.status === 'running'))
+
+            // Auto-select first running site if available
+            if (data.length > 0 && data[0].status === 'running') {
+                setSelectedSite(data[0].id)
+            }
+        } catch (error) {
+            addToast({
+                title: 'Failed to load sites',
+                description: error instanceof Error ? error.message : 'Unknown error',
+                variant: 'error',
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const openFileBrowser = () => {
+        window.open('https://files.edubricz.online', '_blank', 'noopener,noreferrer')
+    }
+
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-brand-navy">File Manager</h1>
+                    <p className="text-gray-600 mt-1">Manage your WordPress site files</p>
+                </div>
+                <Card>
+                    <CardContent className="p-12 text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-purple mx-auto"></div>
+                        <p className="text-gray-600 mt-4">Loading sites...</p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
     }
 
     return (
@@ -32,125 +63,76 @@ export function FileManager() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-brand-navy">File Manager</h1>
-                    <p className="text-gray-600 mt-1">Browse and manage your website files</p>
+                    <p className="text-gray-600 mt-1">Manage your WordPress site files</p>
                 </div>
-                <div className="flex space-x-2">
-                    <Button variant="secondary">
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload
-                    </Button>
-                    <Button variant="primary">
-                        <Plus className="w-4 h-4 mr-2" />
-                        New Folder
-                    </Button>
+                <Button onClick={openFileBrowser} variant="primary">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Open FileBrowser
+                </Button>
+            </div>
+
+            {/* Info Alert */}
+            <div className="flex gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <FolderOpen className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                    <strong>FileBrowser Access:</strong> Use the button above to open the file manager in a new tab,
+                    or select a site below to view its specific file manager details and disk usage.
                 </div>
             </div>
 
-            {/* Breadcrumb Path */}
-            <Card>
-                <CardContent className="py-3">
-                    <div className="flex items-center space-x-2 text-sm">
-                        <span className="text-gray-500">Path:</span>
-                        <span className="font-mono font-semibold">{currentPath}</span>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Files and Folders</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Size</TableHead>
-                                <TableHead>Modified</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {currentFiles.map((file) => (
-                                <TableRow key={file.id} className="group">
-                                    <TableCell>
-                                        <div className="flex items-center space-x-2">
-                                            {file.type === 'directory' ? (
-                                                <FolderOpen className="w-5 h-5 text-yellow-500" />
-                                            ) : (
-                                                <File className="w-5 h-5 text-gray-400" />
+            {sites.length === 0 ? (
+                <Card>
+                    <CardContent className="p-12 text-center">
+                        <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No Running Sites</h3>
+                        <p className="text-gray-600 mb-4">
+                            You need at least one running WordPress site to use the file manager.
+                        </p>
+                        <Button onClick={() => window.location.href = '/hosting/create'}>
+                            Create WordPress Site
+                        </Button>
+                    </CardContent>
+                </Card>
+            ) : (
+                <>
+                    {/* Site Selection */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Select a Site</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {sites.map((site) => (
+                                    <button
+                                        key={site.id}
+                                        onClick={() => setSelectedSite(site.id)}
+                                        className={`p-4 rounded-lg border-2 transition-all text-left ${selectedSite === site.id
+                                            ? 'border-brand-purple bg-purple-50'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                <Server className="w-5 h-5 text-blue-600" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h3 className="font-semibold text-brand-navy">{site.name}</h3>
+                                                <p className="text-xs text-gray-500">{site.domain}</p>
+                                            </div>
+                                            {selectedSite === site.id && (
+                                                <Badge variant="success">Selected</Badge>
                                             )}
-                                            <span className="font-medium">{file.name}</span>
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={file.type === 'directory' ? 'info' : 'default'}>
-                                            {file.type === 'directory' ? 'Folder' : 'File'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        {file.size !== undefined ? (
-                                            <span className="text-sm">{formatBytes(file.size)}</span>
-                                        ) : (
-                                            <span className="text-gray-400">-</span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <span className="text-sm text-gray-600">
-                                            {formatDateTime(file.modified)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {file.type === 'file' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    title="Download"
-                                                >
-                                                    <Download className="w-4 h-4" />
-                                                </Button>
-                                            )}
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => handleDelete(file.id)}
-                                            >
-                                                <Trash2 className="w-4 h-4 text-red-600" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                                    </button>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
 
-            {/* Storage Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="text-sm text-gray-600">Total Files</div>
-                        <div className="text-2xl font-bold mt-1">{files.filter(f => f.type === 'file').length}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="text-sm text-gray-600">Total Folders</div>
-                        <div className="text-2xl font-bold mt-1">{files.filter(f => f.type === 'directory').length}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="text-sm text-gray-600">Total Size</div>
-                        <div className="text-2xl font-bold mt-1">
-                            {formatBytes(files.reduce((acc, f) => acc + (f.size || 0), 0))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                    {/* File Manager Tab for Selected Site */}
+                    {selectedSite && <FileManagerTab siteId={selectedSite} />}
+                </>
+            )}
         </div>
     )
 }

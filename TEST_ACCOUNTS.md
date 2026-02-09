@@ -75,9 +75,6 @@ Access and manage your WordPress site files directly through the browser.
 **Default Login Credentials:**
 ```
 Username: admin
-Password: b3qzDb-CsDu_fz8k
-```
-
 **⚠️ IMPORTANT:** Change this password immediately after first login!
 
 **Access Instructions:**
