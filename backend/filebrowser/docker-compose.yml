@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: hostinger_files
+    user: "1000:1000"  # Run as host user to access files
+    networks:
+      - tenant_isolated
+    volumes:
+      - ../wordpress_sites:/srv
+      - ./database:/database
+      - ./config:/config
+    environment:
+      - FB_NOAUTH=false
+      - FB_BASEURL=
+      - FB_ADDRESS=0.0.0.0
+      - FB_PORT=80
+      - FB_LOG=stdout
+      - FB_DATABASE=/database/filebrowser.db
+      - FB_ROOT=/srv
+    expose:
+      - "80"
+    restart: unless-stopped
+
+networks:
+  tenant_isolated:
+    external: true

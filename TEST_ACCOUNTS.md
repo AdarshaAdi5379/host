@@ -63,3 +63,40 @@ Access your WordPress databases via the secure Adminer interface.
 5. Open `https://db.edubricz.online` and paste the credentials.
 
 **System:** MySQL
+
+---
+
+### 📁 File Manager (FileBrowser)
+
+Access and manage your WordPress site files directly through the browser.
+
+**URL:** `https://files.edubricz.online`
+
+**Default Login Credentials:**
+```
+Username: admin
+Password: b3qzDb-CsDu_fz8k
+```
+
+**⚠️ IMPORTANT:** Change this password immediately after first login!
+
+**Access Instructions:**
+1. Add DNS CNAME record in Cloudflare:
+   - Name: `files`
+   - Target: `f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.cfargotunnel.com`
+   - Proxy: Enabled (orange cloud)
+2. Visit `https://files.edubricz.online`
+3. Login with credentials above
+4. Navigate to `/srv/{site_name}/` to access site files
+5. **Change password**: Settings → User Management → Edit admin user
+
+**Common Tasks:**
+- Upload themes/plugins to `wp-content/themes/` or `wp-content/plugins/`
+- Edit `wp-config.php` for configuration changes
+- Disable broken plugins by renaming their folders
+- Download backups of your files
+
+**Security Notes:**
+- Delete operations are disabled by default
+- Upload limit: 100MB per file
+- Access is restricted via Cloudflare Tunnel (no direct exposure)

@@ -554,3 +554,38 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             'adminer_url': 'https://db.edubricz.online',
             'container_name': site.db_container_name
         })
+    
+    @action(detail=True, methods=['get'])
+    def file_manager(self, request, pk=None):
+        """
+        Get file manager access information for a site
+        """
+        site = self.get_object()
+        
+        # Calculate disk usage for the site
+        import os
+        site_path = os.path.join('/home/adarsha/Desktop/projects/HOST/host/backend/wordpress_sites', site.name)
+        disk_used = 0
+        
+        try:
+            if os.path.exists(site_path):
+                for dirpath, dirnames, filenames in os.walk(site_path):
+                    for filename in filenames:
+                        filepath = os.path.join(dirpath, filename)
+                        if os.path.exists(filepath):
+                            disk_used += os.path.getsize(filepath)
+        except Exception as e:
+            print(f"Error calculating disk usage: {e}")
+        
+        return Response({
+            'url': 'https://files.edubricz.online',
+            'path': f'/srv/{site.name}',
+            'site_name': site.name,
+            'disk_usage': {
+                'used': disk_used,
+                'total': 10 * 1024 * 1024 * 1024,  # 10GB default
+                'used_mb': round(disk_used / (1024 * 1024), 2),
+                'used_gb': round(disk_used / (1024 * 1024 * 1024), 2)
+            }
+        })
+
