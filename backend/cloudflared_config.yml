@@ -6,7 +6,7 @@ ingress:
 - hostname: api.edubricz.online
   service: http://localhost:8000
 - hostname: db.edubricz.online
-  service: http://172.27.0.12:8080
+  service: http://172.27.0.11:8080
 - hostname: test23.edubricz.online
   service: http://localhost:9003
 - hostname: test24.edubricz.online

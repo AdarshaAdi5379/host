@@ -5,6 +5,7 @@ import { ResourceUsageCard } from '@/components/dashboard/ResourceUsageCard'
 import { QuickActions } from '@/components/dashboard/QuickActions'
 import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
 import { useAuthStore } from '@/store/authStore'
+import type { Service } from '@/data/mockData'
 import { Server, Globe, Mail, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
@@ -15,6 +16,7 @@ export function Dashboard() {
     const { user } = useAuthStore()
     const navigate = useNavigate()
     const [resourceUsage, setResourceUsage] = useState({ cpu: 0, ram: 0, disk: 0, bandwidth: 0 })
+    const [hostingServices, setHostingServices] = useState<Service[]>([])
 
     // Fetch real resource usage data
     useEffect(() => {
@@ -40,6 +42,26 @@ export function Dashboard() {
         // Initial fetch
         fetchResourceUsage()
 
+        // Fetch sites
+        const fetchServices = async () => {
+            try {
+                const sites = await wordpressAPI.getSites()
+                const services: Service[] = sites.map(site => ({
+                    id: site.id.toString(),
+                    type: 'hosting',
+                    name: site.name,
+                    status: (site.status === 'running' ? 'active' : site.status === 'stopped' ? 'suspended' : 'pending') as Service['status'],
+                    plan: 'Standard Plan',
+                    diskUsed: 0,
+                    diskTotal: 10 * 1024 * 1024 * 1024
+                }))
+                setHostingServices(services)
+            } catch (error) {
+                console.error('Failed to fetch services:', error)
+            }
+        }
+        fetchServices()
+
         // Poll every 3 seconds
         const interval = setInterval(fetchResourceUsage, 3000)
 
@@ -48,7 +70,6 @@ export function Dashboard() {
 
     // Only show real data from database
     const isAdmin = user?.role === 'owner'
-    const hostingServices: any[] = []
     const domainServices: any[] = []
     const emailServices: any[] = []
 
@@ -129,7 +150,12 @@ export function Dashboard() {
                 </>
             ) : (
                 /* Empty State for Regular Users */
-                <div className="py-16">
+                <div className="py-8">
+                    {/* Always show Quick Actions */}
+                    <div className="max-w-4xl mx-auto mb-12">
+                        <QuickActions />
+                    </div>
+
                     <div className="max-w-3xl mx-auto text-center">
                         <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
                             <Server className="w-12 h-12 text-brand-purple" />
