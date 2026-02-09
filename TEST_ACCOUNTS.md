@@ -82,10 +82,14 @@ Username: admin
    - Name: `files`
    - Target: `f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.cfargotunnel.com`
    - Proxy: Enabled (orange cloud)
-2. Visit `https://files.edubricz.online`
-3. Login with credentials above
-4. Navigate to `/srv/{site_name}/` to access site files
+2. Click "File Manager" in Quick Actions or the Files button on any site card
+3. FileBrowser will open directly to your site's directory (e.g., `/srv/test33/`)
+4. Login with credentials above
 5. **Change password**: Settings → User Management → Edit admin user
+
+**Direct Access:**
+- Full access (all sites): `https://files.edubricz.online`
+- Specific site: `https://files.edubricz.online/files/srv/{site_name}`
 
 **Common Tasks:**
 - Upload themes/plugins to `wp-content/themes/` or `wp-content/plugins/`

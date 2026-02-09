@@ -354,7 +354,7 @@ export function HostingManagement() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => window.open('https://files.edubricz.online', '_blank')}
+                                        onClick={() => window.open(`https://files.edubricz.online/files/srv/${site.name}`, '_blank')}
                                         title="Open File Manager"
                                     >
                                         <FolderOpen className="w-4 h-4" />

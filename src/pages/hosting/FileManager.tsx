@@ -37,8 +37,14 @@ export function FileManager() {
         }
     }
 
-    const openFileBrowser = () => {
-        window.open('https://files.edubricz.online', '_blank', 'noopener,noreferrer')
+    const openFileBrowser = (siteName?: string) => {
+        if (siteName) {
+            // Deep link to specific site directory
+            window.open(`https://files.edubricz.online/files/srv/${siteName}`, '_blank', 'noopener,noreferrer')
+        } else {
+            // Open to root (for admin access to all sites)
+            window.open('https://files.edubricz.online', '_blank', 'noopener,noreferrer')
+        }
     }
 
     if (loading) {
@@ -65,7 +71,14 @@ export function FileManager() {
                     <h1 className="text-3xl font-bold text-brand-navy">File Manager</h1>
                     <p className="text-gray-600 mt-1">Manage your WordPress site files</p>
                 </div>
-                <Button onClick={openFileBrowser} variant="primary">
+                <Button
+                    onClick={() => {
+                        const selectedSiteData = sites.find(s => s.id === selectedSite)
+                        openFileBrowser(selectedSiteData?.name)
+                    }}
+                    variant="primary"
+                    disabled={!selectedSite}
+                >
                     <ExternalLink className="w-4 h-4 mr-2" />
                     Open FileBrowser
                 </Button>

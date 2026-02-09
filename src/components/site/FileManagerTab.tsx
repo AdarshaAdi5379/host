@@ -37,7 +37,8 @@ export function FileManagerTab({ siteId }: FileManagerTabProps) {
 
     const openFileManager = () => {
         if (access) {
-            window.open(access.url, '_blank', 'noopener,noreferrer')
+            // Deep link directly to the site's directory
+            window.open(`${access.url}/files${access.path}`, '_blank', 'noopener,noreferrer')
         }
     }
 
