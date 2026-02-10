@@ -1,23 +1,23 @@
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {
-    Home,
     Server,
     Globe,
     Mail,
     CreditCard,
     ChevronLeft,
     ChevronRight,
-    GitBranch,
+    LayoutDashboard,
+    BarChart3,
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navigation = [
-    { name: 'Home', href: '/', icon: Home },
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Hosting', href: '/hosting', icon: Server },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Domains', href: '/domains', icon: Globe },
-    { name: 'Emails', href: '/email', icon: Mail },
-    { name: 'Deployment', href: '/deployment/git', icon: GitBranch },
+    { name: 'Email', href: '/email', icon: Mail },
     { name: 'Billing', href: '/billing', icon: CreditCard },
 ]
 

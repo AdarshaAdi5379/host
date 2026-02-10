@@ -55,6 +55,10 @@ class WordPressSite(models.Model):
     def __str__(self):
         return f"{self.name} ({self.domain})"
     
+    @property
+    def is_running(self):
+        return self.status == 'running'
+
     def get_frontend_url(self):
         """Get the frontend URL for this site"""
         return f"http://{self.domain}"
@@ -62,3 +66,35 @@ class WordPressSite(models.Model):
     def get_admin_url(self):
         """Get the WordPress admin URL"""
         return f"http://{self.domain}/wp-admin"
+
+
+class CustomDomain(models.Model):
+    """Model representing a custom domain connected to a WordPress site"""
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending Nameserver Update'),
+        ('active', 'Active'),
+        ('failed', 'Failed'),
+    ]
+    
+    site = models.ForeignKey(
+        WordPressSite, 
+        on_delete=models.CASCADE, 
+        related_name='custom_domains'
+    )
+    domain_name = models.CharField(max_length=255, unique=True)  # e.g., "myshop.com"
+    cloudflare_zone_id = models.CharField(max_length=100, blank=True, null=True)
+    nameservers = models.JSONField(default=list)  # List of nameserver addresses
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Timestamps
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Custom Domain'
+        verbose_name_plural = 'Custom Domains'
+    
+    def __str__(self):
+        return f"{self.domain_name} -> {self.site.name}"

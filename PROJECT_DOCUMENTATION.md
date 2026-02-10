@@ -1,6 +1,6 @@
 # Project Host: WordPress Hosting Platform Documentation
 
-**Last Updated:** February 4, 2026
+**Last Updated:** February 10, 2026
 
 ## 1. Project Overview
 "Project Host" is a local-first WordPress hosting platform designed for professional hosting environments on a local Windows machine. It allows users to:
@@ -198,6 +198,39 @@ graph TD
     -   Automatic retention management
     -   Professional subdomain URLs: `https://sitename.edubricz.online`
     -   Zero-downtime configuration updates
+
+### Phase 10: Custom Domain Management (White-Labeling)
+-   **Action**: Enabled users to connect their own domains (e.g., `myshop.com`) to their sites.
+-   **Architecture**: Cloudflare API integration for automated DNS Zone management.
+-   **Implementation**:
+    -   **Cloudflare Zone Manager** (`backend/sites/cloudflare_manager.py`):
+        -   Service class interacting with Cloudflare API
+        -   Capabilities: Create Zone, Get Status, Delete Zone
+        -   Handles API authentication and error mapping
+    -   **Database Schema**:
+        -   Added `CustomDomain` model (`backend/sites/models.py`)
+        -   Fields: `domain_name`, `cloudflare_zone_id`, `nameservers` (JSON), `status`
+        -   Relationship: One-to-Many (One WordPressSite can have multiple domains)
+    -   **API Endpoints**:
+        -   `POST /api/sites/{id}/connect_domain/` - Initiates connection, creates Cloudflare Zone
+        -   `GET /api/sites/{id}/domains/` - Lists connected domains
+        -   `DELETE /api/sites/{id}/domains/{domain_id}/` - Removes domain and deletes Zone
+    -   **Frontend Features**:
+        -   **Site-Specific Management**: `/sites/{id}/domains` page for managing a specific site's domains
+        -   **Global Overview**: `/domains` page showing all custom domains across all sites
+        -   **Connect Domain Modal**: UI for inputting domain name
+        -   **Instruction Panel**: Displays assigned nameservers and setup instructions
+    -   **User Flow**:
+        1. User enters domain (e.g., `example.com`)
+        2. System creates Cloudflare Zone via API
+        3. System returns generic nameservers (e.g., `ns1.cloudflare.com`)
+        4. User updates nameservers at their registrar
+        5. Cloudflare validates and activates the zone
+-   **Outcome**:
+    -   Users can bring their own branding/domains
+    -   Automated DNS configuration via Cloudflare
+    -   Centralized domain management dashboard
+    -   Seamless integration with existing site infrastructure
     -   Automatic SSL via Cloudflare
     -   One-click public access from dashboard
 

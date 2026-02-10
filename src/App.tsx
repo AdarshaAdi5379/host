@@ -9,7 +9,6 @@ import { Analytics } from '@/pages/Analytics'
 import { GitDeployment } from '@/pages/deployment/GitDeployment'
 import { AppInstaller } from '@/pages/apps/AppInstaller'
 import { HostingManagement } from '@/pages/HostingManagement'
-import { DomainManagement } from '@/pages/DomainManagement'
 import { EmailManagement } from '@/pages/EmailManagement'
 import { BillingManagement } from '@/pages/BillingManagement'
 import { Login } from '@/pages/auth/Login'
@@ -27,6 +26,8 @@ import { CreateHosting } from '@/pages/hosting/CreateHosting'
 import { DomainSearch } from '@/pages/domains/DomainSearch'
 import { CreateEmail } from '@/pages/email/CreateEmail'
 import { DomainTransferWizard } from '@/pages/domains/DomainTransferWizard'
+import DomainManagement from '@/pages/settings/DomainManagement'
+import DomainsOverview from '@/pages/DomainsOverview'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -64,10 +65,11 @@ function App() {
           <Route path="hosting/dns" element={<DNSEditor />} />
           <Route path="hosting/databases" element={<DatabaseManager />} />
           <Route path="hosting/files" element={<FileManager />} />
+          <Route path="sites/:id/domains" element={<DomainManagement />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="deployment/git" element={<GitDeployment />} />
           <Route path="apps" element={<AppInstaller />} />
-          <Route path="domains" element={<DomainManagement />} />
+          <Route path="domains" element={<DomainsOverview />} />
           <Route path="domains/search" element={<DomainSearch />} />
           <Route path="domains/transfer" element={<DomainTransferWizard />} />
           <Route path="email" element={<EmailManagement />} />

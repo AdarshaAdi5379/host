@@ -363,6 +363,15 @@ export function HostingManagement() {
                                     <Button
                                         variant="outline"
                                         size="sm"
+                                        onClick={() => navigate(`/sites/${site.id}/domains`)}
+                                        title="Manage Custom Domains"
+                                    >
+                                        <Globe className="w-4 h-4" />
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
                                         onClick={() => handleDelete(site.id, site.name)}
                                         disabled={actionLoading === site.id}
                                     >

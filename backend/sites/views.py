@@ -588,4 +588,104 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 'used_gb': round(disk_used / (1024 * 1024 * 1024), 2)
             }
         })
+    
+    @action(detail=True, methods=['post'])
+    def connect_domain(self, request, pk=None):
+        """
+        Connect a custom domain to this WordPress site
+        Creates a Cloudflare Zone and returns nameservers
+        """
+        from .models import CustomDomain
+        from .serializers import ConnectDomainSerializer, CustomDomainSerializer
+        from .cloudflare_manager import CloudflareZoneManager
+        
+        site = self.get_object()
+        serializer = ConnectDomainSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        domain_name = serializer.validated_data['domain_name']
+        
+        try:
+            # Initialize Cloudflare manager
+            cf_manager = CloudflareZoneManager()
+            
+            # Create zone in Cloudflare
+            result = cf_manager.create_zone(domain_name)
+            
+            if not result['success']:
+                return Response(
+                    {'error': result.get('error', 'Failed to create Cloudflare zone')},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create CustomDomain record
+            custom_domain = CustomDomain.objects.create(
+                site=site,
+                domain_name=domain_name,
+                cloudflare_zone_id=result['zone_id'],
+                nameservers=result['nameservers'],
+                status='pending'
+            )
+            
+            # Return domain details
+            domain_serializer = CustomDomainSerializer(custom_domain)
+            return Response(domain_serializer.data, status=status.HTTP_201_CREATED)
+        
+        except ValueError as e:
+            # Missing Cloudflare credentials
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            return Response(
+                {'error': f'Unexpected error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['get'])
+    def domains(self, request, pk=None):
+        """
+        List all custom domains connected to this site
+        """
+        from .models import CustomDomain
+        from .serializers import CustomDomainSerializer
+        
+        site = self.get_object()
+        domains = CustomDomain.objects.filter(site=site)
+        serializer = CustomDomainSerializer(domains, many=True)
+        
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['delete'], url_path='domains/(?P<domain_id>[^/.]+)')
+    def remove_domain(self, request, pk=None, domain_id=None):
+        """
+        Remove a custom domain and delete the Cloudflare zone
+        """
+        from .models import CustomDomain
+        from .cloudflare_manager import CloudflareZoneManager
+        
+        site = self.get_object()
+        
+        try:
+            domain = CustomDomain.objects.get(id=domain_id, site=site)
+        except CustomDomain.DoesNotExist:
+            return Response(
+                {'error': 'Domain not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Delete Cloudflare zone if it exists
+        if domain.cloudflare_zone_id:
+            try:
+                cf_manager = CloudflareZoneManager()
+                cf_manager.delete_zone(domain.cloudflare_zone_id)
+            except Exception as e:
+                # Log error but continue with database deletion
+                print(f"Failed to delete Cloudflare zone: {e}")
+        
+        # Delete from database
+        domain.delete()
+        
+        return Response({'message': 'Domain removed successfully'}, status=status.HTTP_200_OK)
 
