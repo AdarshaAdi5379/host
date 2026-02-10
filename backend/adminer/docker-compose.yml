@@ -12,7 +12,8 @@ services:
       # Security: Disable plugins that could be risky
       ADMINER_PLUGINS: ""
     networks:
-      - tenant_isolated
+      tenant_isolated:
+        ipv4_address: 172.27.0.11
     # Internal port only - no host binding for security
     expose:
       - "8080"

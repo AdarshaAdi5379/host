@@ -8,7 +8,7 @@ ingress:
 - hostname: db.edubricz.online
   service: http://172.27.0.11:8080
 - hostname: files.edubricz.online
-  service: http://172.27.0.13:80
+  service: http://172.27.0.10:80
 - hostname: test23.edubricz.online
   service: http://localhost:9003
 - hostname: test24.edubricz.online
@@ -29,4 +29,6 @@ ingress:
   service: http://localhost:9011
 - hostname: test33.edubricz.online
   service: http://localhost:9012
+- hostname: test34.edubricz.online
+  service: http://localhost:9000
 - service: http_status:404

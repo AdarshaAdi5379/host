@@ -10,6 +10,8 @@ export interface FileManagerAccess {
     }
 }
 
+import { useAuthStore } from '@/store/authStore'
+
 const API_BASE = 'http://localhost:8000/api/sites'
 
 export const fileManagerAPI = {
@@ -20,6 +22,11 @@ export const fileManagerAPI = {
                 'Content-Type': 'application/json'
             },
         })
+
+        if (response.status === 401) {
+            useAuthStore.getState().logout()
+            throw new Error('Session expired. Please login again.')
+        }
 
         if (!response.ok) {
             const error = await response.json()

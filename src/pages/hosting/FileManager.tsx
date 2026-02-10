@@ -39,8 +39,8 @@ export function FileManager() {
 
     const openFileBrowser = (siteName?: string) => {
         if (siteName) {
-            // Deep link to specific site directory
-            window.open(`https://files.edubricz.online/files/srv/${siteName}`, '_blank', 'noopener,noreferrer')
+            // Deep link to specific site directory (FileBrowser root is already /srv)
+            window.open(`https://files.edubricz.online/files/${siteName}/`, '_blank', 'noopener,noreferrer')
         } else {
             // Open to root (for admin access to all sites)
             window.open('https://files.edubricz.online', '_blank', 'noopener,noreferrer')

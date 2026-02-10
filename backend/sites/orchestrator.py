@@ -69,15 +69,13 @@ def generate_docker_compose(site_name, db_config, port):
                     'WORDPRESS_DB_NAME': db_name,
                 },
                 'volumes': [
-                    f'{site_name}_wp_data:/var/www/html'
+                    './html:/var/www/html',
+                    './wp-config.php:/var/www/html/wp-config.php'
                 ],
                 'networks': [
                     network_name
                 ]
             }
-        },
-        'volumes': {
-            f'{site_name}_wp_data': {}
         },
         'networks': {
             network_name: {

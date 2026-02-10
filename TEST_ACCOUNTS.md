@@ -89,7 +89,8 @@ Username: admin
 
 **Direct Access:**
 - Full access (all sites): `https://files.edubricz.online`
-- Specific site: `https://files.edubricz.online/files/srv/{site_name}`
+- Specific site: `https://files.edubricz.online/files/{site_name}/`
+- Example: `https://files.edubricz.online/files/test33/`
 
 **Common Tasks:**
 - Upload themes/plugins to `wp-content/themes/` or `wp-content/plugins/`

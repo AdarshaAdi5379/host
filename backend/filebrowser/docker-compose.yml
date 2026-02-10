@@ -6,7 +6,8 @@ services:
     container_name: hostinger_files
     user: "1000:1000"  # Run as host user to access files
     networks:
-      - tenant_isolated
+      tenant_isolated:
+        ipv4_address: 172.27.0.10
     volumes:
       - ../wordpress_sites:/srv
       - ./database:/database

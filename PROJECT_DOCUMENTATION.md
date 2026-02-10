@@ -111,6 +111,9 @@ graph TD
         -   Restart container.
     -   **Code**: `views.py` now handles this post-startup injection.
 -   **Outcome**: Sites now work immediately on both `localhost:PORT` and custom domains with zero configuration.
+    -   **Update (File Visibility)**: Switched from named Docker volumes to **Bind Mounts** (`./html:/var/www/html`) to ensure files are visible on the host and accessible to the File Manager.
+    -   **Update (Config Access)**: Added specific bind mount for `wp-config.php` to ensure it is editable via File Manager while remaining secure.
+
 
 ### Phase 7: UI & Asset Loading Fix (The "Plain Site" Issue)
 -   **Problem**: WordPress Admin Dashboard appeared "plain" (no CSS/JS) and features were missing.
@@ -295,6 +298,28 @@ graph TD
     docker logs sitename_wp
     docker logs sitename_mysql
     ```
+
+    docker logs sitename_mysql
+    ```
+
+**Problem**: Orphaned containers (Running but not in database)
+-   **Cause**: Failed site creation or manual deletion without cleanup
+    ./cleanup_orphaned_containers.sh
+    ```
+
+**Problem**: Cloudflare Tunnel 530 Error (DNS/Connection Refused)
+-   **Cause**: Docker container IP changed after restart, breaking the static configuration in `cloudflared_config.yml`.
+-   **Solution**: Assigned **Static IPs** to helper containers in `docker-compose.yml`:
+    -   FileBrowser: `172.27.0.10`
+    -   Adminer: `172.27.0.11`
+    -   Tunnel Config updated to point to these permanent IPs.
+
+**Problem**: File Manager shows only config files, no WordPress content
+-   **Cause**: WordPress files were stored in hidden named Docker volumes.
+-   **Solution**: Migrated to **Bind Mounts**.
+    -   Data is now stored in `backend/wordpress_sites/{site}/html/`.
+    -   Users can see and edit all files directly.
+
 
 ---
 
@@ -501,4 +526,34 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   One-click access to WordPress MySQL databases.
     -   Secure, authenticated credential retrieval.
     -   No manual port forwarding or command-line required.
+
+### Phase 12: File Manager Module (Web-Based File Access)
+-   **Action**: Implemented a visual File Manager using FileBrowser.
+-   **Tech**: FileBrowser (Docker), Cloudflare Tunnel, React.
+-   **Implementation**:
+    -   **Infrastructure**:
+        -   Deployed single **FileBrowser** container on `tenant_isolated` network with **Static IP** (`172.27.0.10`) for tunnel stability.
+        -   Volume mapped to `../wordpress_sites:/srv` to access all tenant files.
+        -   **Storage Strategy**: Migrated all sites to use **Bind Mounts** (`./html`) so files are physically present on the host and visible to FileBrowser.
+        -   Configured to use host user permissions (`1000:1000`) for read/write access.
+    -   **Access Control**:
+        -   **Cloudflare Tunnel**: Routes `https://files.edubricz.online` to FileBrowser container.
+        -   **Deep Linking**: Users are directed to their specific site folder (`/files/MySite/`).
+        -   **Security**: Upload limit 100MB, Delete disabled by default.
+    -   **API**:
+        -   `GET /api/sites/{id}/file_manager/` - Returns access URL and disk usage stats.
+        -   Calculates real-time directory size for quota monitoring.
+    -   **Frontend**:
+        -   **File Manager** page (`/hosting/files`): Central hub for file access.
+        -   **FileManagerTab** component:
+            -   Displays disk usage progress bar.
+            -   Provides direct "Open FileBrowser" button.
+            -   Shows common task instructions (Upload Theme, Edit Config).
+        -   **HostingManagement**: Quick access folder icon on site cards.
+-   **Outcome**:
+    -   Visual file management without SSH/FTP.
+    -   Secure access via HTTPS tunnel.
+    -   User-friendly interface for common WordPress tasks.
+    -   Real-time disk usage monitoring.
+
 

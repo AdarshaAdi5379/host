@@ -38,7 +38,9 @@ export function FileManagerTab({ siteId }: FileManagerTabProps) {
     const openFileManager = () => {
         if (access) {
             // Deep link directly to the site's directory
-            window.open(`${access.url}/files${access.path}`, '_blank', 'noopener,noreferrer')
+            // access.path is like "/srv/test33", FileBrowser root is /srv, so we need /files/test33/
+            const sitePath = access.path.replace('/srv/', '')
+            window.open(`${access.url}/files/${sitePath}/`, '_blank', 'noopener,noreferrer')
         }
     }
 
