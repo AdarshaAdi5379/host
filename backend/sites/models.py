@@ -47,6 +47,10 @@ class WordPressSite(models.Model):
     db_password = models.CharField(max_length=255, blank=True, null=True)  # Database password (encrypted in production)
     db_root_password = models.CharField(max_length=255, blank=True, null=True)  # Root password for backups
     
+    # FileBrowser Credentials (Multi-tenant file access)
+    filebrowser_username = models.CharField(max_length=100, blank=True, null=True)  # FileBrowser username
+    filebrowser_password = models.CharField(max_length=255, blank=True, null=True)  # FileBrowser password
+    
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'WordPress Site'

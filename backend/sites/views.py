@@ -101,6 +101,28 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 db_root_password=db_config['root_password']
             )
             
+            # Step 6.5: Create FileBrowser user for multi-tenant file access
+            from .filebrowser_manager import FileBrowserManager
+            
+            fb_manager = FileBrowserManager()
+            fb_credentials = fb_manager.generate_credentials(site_name)
+            
+            # Create scoped FileBrowser user
+            fb_result = fb_manager.create_user(
+                site_name=site_name,
+                username=fb_credentials['username'],
+                password=fb_credentials['password']
+            )
+            
+            if fb_result['success']:
+                # Save credentials to database
+                site.filebrowser_username = fb_credentials['username']
+                site.filebrowser_password = fb_credentials['password']
+                site.save()
+            else:
+                # Log warning but don't fail site creation
+                print(f"Warning: Failed to create FileBrowser user: {fb_result.get('error')}")
+            
             # Start Docker containers
             success, output = run_docker_compose_up(site_dir)
             
@@ -287,6 +309,16 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 # Log error but don't fail the entire operation
                 print(f"Warning: Failed to remove tenant database: {db_error}")
         
+        # Step 2.5: Remove FileBrowser user
+        if site.filebrowser_username:
+            from .filebrowser_manager import FileBrowserManager
+            fb_manager = FileBrowserManager()
+            fb_result = fb_manager.delete_user(site.filebrowser_username)
+            
+            if not fb_result['success']:
+                # Log warning but don't fail deletion
+                print(f"Warning: Failed to delete FileBrowser user: {fb_result.get('error')}")
+        
         # Step 3: Delete site record
         site.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -315,6 +347,31 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 'memory_limit_mb': 0,
                 'memory_percent': 0
             })
+    
+    @action(detail=True, methods=['get'])
+    def filebrowser_credentials(self, request, pk=None):
+        """
+        Get FileBrowser credentials for this site
+        Returns username, password, and URL for file manager access
+        """
+        from .serializers import FileBrowserCredentialsSerializer
+        
+        site = self.get_object()
+        
+        if not site.filebrowser_username or not site.filebrowser_password:
+            return Response(
+                {'error': 'FileBrowser credentials not configured for this site'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        credentials = {
+            'username': site.filebrowser_username,
+            'password': site.filebrowser_password,
+            'url': 'https://files.edubricz.online'
+        }
+        
+        serializer = FileBrowserCredentialsSerializer(credentials)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def enable_public_access(self, request, pk=None):
@@ -586,7 +643,10 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 'total': 10 * 1024 * 1024 * 1024,  # 10GB default
                 'used_mb': round(disk_used / (1024 * 1024), 2),
                 'used_gb': round(disk_used / (1024 * 1024 * 1024), 2)
-            }
+            },
+            # Include FileBrowser credentials if available
+            'username': site.filebrowser_username if site.filebrowser_username else None,
+            'password': site.filebrowser_password if site.filebrowser_password else None
         })
     
     @action(detail=True, methods=['post'])

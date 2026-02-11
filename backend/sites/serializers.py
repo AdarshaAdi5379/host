@@ -65,3 +65,11 @@ class ConnectDomainSerializer(serializers.Serializer):
             raise serializers.ValidationError("This domain is already connected to a site")
         
         return value.lower()
+
+
+class FileBrowserCredentialsSerializer(serializers.Serializer):
+    """Serializer for FileBrowser credentials response"""
+    
+    username = serializers.CharField()
+    password = serializers.CharField()
+    url = serializers.URLField()

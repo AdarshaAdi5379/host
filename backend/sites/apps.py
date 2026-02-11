@@ -5,3 +5,7 @@ class SitesConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'sites'
     label = 'wordpress_sites'  # Avoid conflict with django.contrib.sites
+    
+    def ready(self):
+        """Import signals when app is ready"""
+        import sites.signals  # noqa

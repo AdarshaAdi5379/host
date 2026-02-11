@@ -172,6 +172,29 @@ class WordPressAPI {
 
         return response.json();
     }
+
+    /**
+     * Get FileBrowser credentials for a site
+     */
+    async getFileBrowserCredentials(id: number): Promise<{
+        username: string;
+        password: string;
+        url: string;
+    }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${id}/filebrowser_credentials/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to fetch FileBrowser credentials');
+        }
+
+        return response.json();
+    }
 }
 
 export const wordpressAPI = new WordPressAPI();

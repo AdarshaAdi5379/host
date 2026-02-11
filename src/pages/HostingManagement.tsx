@@ -9,6 +9,8 @@ import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
 import { ResourceMonitor } from '@/components/hosting/ResourceMonitor'
 import { useToast } from '@/components/ui/toast'
 import { copyToClipboard } from '@/lib/clipboardUtils'
+import FileBrowserCredentialsModal from '@/components/FileBrowserCredentialsModal'
+import DeleteConfirmationModal from '@/components/DeleteConfirmationModal'
 
 export function HostingManagement() {
     const navigate = useNavigate()
@@ -18,6 +20,15 @@ export function HostingManagement() {
     const [actionLoading, setActionLoading] = useState<number | null>(null)
     const [tunnelLoading, setTunnelLoading] = useState<number | null>(null)
     const [copiedUrl, setCopiedUrl] = useState<number | null>(null)
+    const [fileBrowserModal, setFileBrowserModal] = useState<{
+        isOpen: boolean
+        credentials: { username: string; password: string; url: string } | null
+    }>({ isOpen: false, credentials: null })
+    const [deleteModal, setDeleteModal] = useState<{
+        isOpen: boolean
+        siteId: number | null
+        siteName: string
+    }>({ isOpen: false, siteId: null, siteName: '' })
 
     const loadSites = async () => {
         try {
@@ -80,21 +91,26 @@ export function HostingManagement() {
         }
     }
 
-    const handleDelete = async (id: number, name: string) => {
-        if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
-            return
-        }
+    const handleDeleteClick = (id: number, name: string) => {
+        setDeleteModal({ isOpen: true, siteId: id, siteName: name })
+    }
 
-        setActionLoading(id)
+    const handleConfirmDelete = async () => {
+        const { siteId, siteName } = deleteModal
+        if (!siteId) return
+
+        setActionLoading(siteId)
         try {
-            await wordpressAPI.deleteSite(id)
+            await wordpressAPI.deleteSite(siteId)
             addToast({
                 title: 'Site Deleted',
-                description: `${name} has been permanently deleted`,
+                description: `${siteName} has been permanently deleted`,
                 variant: 'success',
             })
+            setDeleteModal({ isOpen: false, siteId: null, siteName: '' })
             await loadSites()
         } catch (error) {
+            console.error('Delete error:', error)
             addToast({
                 title: 'Failed to delete site',
                 description: error instanceof Error ? error.message : 'Unknown error',
@@ -354,7 +370,18 @@ export function HostingManagement() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => window.open(`https://files.edubricz.online/files/${site.name}/`, '_blank')}
+                                        onClick={async () => {
+                                            try {
+                                                const creds = await wordpressAPI.getFileBrowserCredentials(site.id)
+                                                setFileBrowserModal({ isOpen: true, credentials: creds })
+                                            } catch (error) {
+                                                addToast({
+                                                    title: 'Failed to load credentials',
+                                                    description: error instanceof Error ? error.message : 'Unknown error',
+                                                    variant: 'error',
+                                                })
+                                            }
+                                        }}
                                         title="Open File Manager"
                                     >
                                         <FolderOpen className="w-4 h-4" />
@@ -372,7 +399,10 @@ export function HostingManagement() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => handleDelete(site.id, site.name)}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleDeleteClick(site.id, site.name)
+                                        }}
                                         disabled={actionLoading === site.id}
                                     >
                                         {actionLoading === site.id ? (
@@ -404,6 +434,23 @@ export function HostingManagement() {
                     </Button>
                 </div>
             )}
+
+            {/* Modals */}
+            {fileBrowserModal.credentials && (
+                <FileBrowserCredentialsModal
+                    isOpen={fileBrowserModal.isOpen}
+                    onClose={() => setFileBrowserModal({ ...fileBrowserModal, isOpen: false })}
+                    credentials={fileBrowserModal.credentials || { username: '', password: '', url: '' }}
+                />
+            )}
+
+            <DeleteConfirmationModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, siteId: null, siteName: '' })}
+                onConfirm={handleConfirmDelete}
+                siteName={deleteModal.siteName}
+                isLoading={actionLoading === deleteModal.siteId}
+            />
         </div>
     )
 }
