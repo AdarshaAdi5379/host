@@ -628,3 +628,24 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   Disable Password Authentication for SSH (Requires SSH Key setup).
     -   Implement 2FA for SSH.
     -   Web Application Firewall (ModSecurity).
+
+### Phase 14: Local VPC & Security Groups (Network Isolation)
+-   **Objective**: Replicate AWS Security Groups locally to achieve Zero-Trust tenant isolation.
+-   **Architecture**: "Lobby and Vault" design using Docker Bridge Networks.
+    -   **`vpc_public_web` (The Lobby)**: Standard bridge network. Allows web containers to access the internet (plugins/updates) and receive traffic via Cloudflare Tunnel.
+    -   **`vpc_private_db` (The Vault)**: Internal-only bridge network (`internal: true`). No internet access. Prevents data exfiltration.
+-   **Implementation Plan**:
+    1.  **Network Definition**: Define distinct networks for each tenant in `docker-compose.yml`.
+    2.  **Service Assignment**:
+        -   **Database**: Assigned ONLY to `vpc_private_db`.
+        -   **Web Server**: Assigned to `vpc_public_web` AND `vpc_private_db`.
+    3.  **Critical Modification (Backup Access)**:
+        -   Databases MUST retain `127.0.0.1` port bindings (e.g., `127.0.0.1:9006:3306`) to allow the Host (Django) to perform backups and Adminer to manage data.
+        -   The `internal: true` network flag successfully blocks *internet* access while port binding allows *host* access.
+-   **Status**: 🟢 Completed (Verified).
+-   **Verification Protocol**:
+    -   Automated testing via `backend/scripts/verify_vpc_isolation.py`.
+    -   **Results**:
+        -   **Database Outbound**: BLOCKED (Zero Trust Confirmed).
+        -   **Web Outbound**: ALLOWED (Plugins/Updates Functional).
+        -   **Web -> Database**: ALLOWED (Application Functional).

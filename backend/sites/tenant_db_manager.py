@@ -42,7 +42,25 @@ class TenantDatabaseManager:
         alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
         return ''.join(secrets.choice(alphabet) for _ in range(length))
     
-    def create_tenant_database(self, site_name: str) -> Tuple[bool, Optional[Dict], Optional[str]]:
+    def generate_credentials(self, site_name: str) -> Dict:
+        """
+        Generate credentials for a new tenant database without creating the container.
+        Used when the database is managed by docker-compose (VPC Architecture).
+        """
+        root_password = self._generate_secure_password()
+        db_password = self._generate_secure_password()
+        
+        return {
+            'container_name': f"{site_name}_db",  # Service name in docker-compose
+            'db_name': "wordpress",
+            'db_user': "wordpress", 
+            'db_password': db_password,
+            'root_password': root_password,
+            'db_host': f"{site_name}_db",  # Hostname in docker network
+            'db_port': 3306,
+            'network': f"{site_name}_vpc_private_db" # VPC network
+        }
+
         """
         Create an isolated MySQL container for a WordPress site
         

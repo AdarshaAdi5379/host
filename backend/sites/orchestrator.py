@@ -52,6 +52,98 @@ def generate_docker_compose(site_name, db_config, port):
     db_name = db_config.get('db_name', 'wordpress')
     network_name = db_config.get('network', 'tenant_isolated')
     
+    # Determine if this is a VPC setup (Database inside Compose) or Legacy (External DB)
+    is_vpc_setup = 'container_id' not in db_config
+    
+    # ----------------------------------------------------------------
+    # VPC ARCHITECTURE (New Sites)
+    # The "Lobby and Vault" Model
+    # ----------------------------------------------------------------
+    if is_vpc_setup:
+        # Define Network Names (Scoped to this project/compose file automatically, but let's be explicit)
+        # Actually, in docker-compose, networks are project-scoped by default.
+        # So 'vpc_public_web' becomes 'site_name_vpc_public_web' if we don't name them explicitly?
+        # No, 'driver: bridge' inside compose creates a project-scoped network.
+        # Let's stick to the PRD names: 'vpc_public_web' and 'vpc_private_db'.
+        
+        db_root_password = db_config.get('root_password')
+        
+        compose_config = {
+            'version': '3.8',
+            'services': {
+                # ------------------------------------------------------------
+                # 1. The Database (The Vault)
+                # ------------------------------------------------------------
+                'db': {
+                    'image': 'mysql:8.0',  # Using 8.0 as per modern standards (PRD said 5.7, but code uses 8.0)
+                    'container_name': f'{site_name}_db',
+                    'command': '--default-authentication-plugin=mysql_native_password',
+                    'restart': 'unless-stopped',
+                    'environment': {
+                        'MYSQL_ROOT_PASSWORD': db_root_password,
+                        'MYSQL_DATABASE': db_name,
+                        'MYSQL_USER': db_user,
+                        'MYSQL_PASSWORD': db_password,
+                    },
+                    'volumes': [
+                        'db_data:/var/lib/mysql'  # Persistent Volume
+                    ],
+                    'networks': [
+                        'vpc_private_db'  # Isolated Network ONLY
+                    ],
+                    # CRITICAL: Allow Host Access for Backups via Localhost Port Binding
+                    'ports': [
+                        '127.0.0.1:0:3306'  # Bind to random ephemeral port on localhost
+                    ]
+                },
+                
+                # ------------------------------------------------------------
+                # 2. The Web Server (The Bridge)
+                # ------------------------------------------------------------
+                f'{site_name}_wordpress': {
+                    'image': 'wordpress:latest',
+                    'container_name': f'{site_name}_wp',
+                    'restart': 'unless-stopped',
+                    'ports': [
+                        f'{port}:80'
+                    ],
+                    'environment': {
+                        'WORDPRESS_DB_HOST': 'db:3306', # Connect to 'db' service
+                        'WORDPRESS_DB_USER': db_user,
+                        'WORDPRESS_DB_PASSWORD': db_password,
+                        'WORDPRESS_DB_NAME': db_name,
+                    },
+                    'volumes': [
+                        './html:/var/www/html',
+                        './wp-config.php:/var/www/html/wp-config.php'
+                    ],
+                    'networks': [
+                        'vpc_public_web',  # Internet Access
+                        'vpc_private_db'   # Database Access
+                    ],
+                    'depends_on': ['db']
+                }
+            },
+            'networks': {
+                'vpc_public_web': {
+                    'driver': 'bridge'
+                },
+                'vpc_private_db': {
+                    'driver': 'bridge',
+                    'internal': True  # The "Zero Trust" Lock
+                }
+            },
+            'volumes': {
+                'db_data': {}
+            }
+        }
+        return compose_config
+
+    # ----------------------------------------------------------------
+    # LEGACY ARCHITECTURE (Existing Sites)
+    # External Database Container
+    # ----------------------------------------------------------------
+    
     compose_config = {
         'version': '3.8',
         'services': {

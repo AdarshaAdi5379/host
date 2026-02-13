@@ -53,13 +53,15 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             from .tenant_db_manager import TenantDatabaseManager
             
             db_manager = TenantDatabaseManager()
-            db_success, db_config, db_error = db_manager.create_tenant_database(site_name)
             
-            if not db_success:
-                return Response(
-                    {'error': f'Failed to create tenant database: {db_error}'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            # VPC ARCHITECTURE CHANGE: 
+            # We no longer create the DB container here. 
+            # Instead, we generate credentials and let docker-compose handle the DB lifecycle.
+            db_config = db_manager.generate_credentials(site_name)
+            
+            # Legacy compatibility (variables used later)
+            db_success = True
+            db_error = None
             
             # Step 2: Generate configuration
             port = find_available_port()
@@ -93,7 +95,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 status='provisioning',
                 # Tenant database credentials
                 db_container_name=db_config['container_name'],
-                db_container_id=db_config['container_id'],
+                db_container_id=db_config.get('container_id'), # Use .get() as it may be None in VPC mode
                 db_host=db_config['db_host'],
                 db_name=db_config['db_name'],
                 db_user=db_config['db_user'],
@@ -148,6 +150,19 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     print(f"Warning: Failed to copy wp-config.php: {cp_result.stderr}")
 
                 site.status = 'running'
+                
+                # VPC ARCHITECTURE: Fetch and save DB Container ID
+                # Since docker-compose started the DB, we need to look it up now
+                try:
+                    import docker
+                    client = docker.from_env()
+                    db_container_name = db_config['container_name']
+                    container = client.containers.get(db_container_name)
+                    site.db_container_id = container.id
+                    site.save()
+                except Exception as e:
+                    print(f"Warning: Failed to fetch DB container ID for {db_container_name}: {e}")
+                
                 site.save()
                 
                 # Step 7: Automatic S3 Backup (Non-blocking)

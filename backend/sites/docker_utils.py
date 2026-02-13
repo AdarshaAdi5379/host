@@ -18,7 +18,7 @@ def run_docker_compose_up(site_directory: str) -> tuple[bool, str]:
     """
     try:
         result = subprocess.run(
-            ['docker-compose', 'up', '-d'],
+            ['docker', 'compose', 'up', '-d'],  # Use 'docker compose' (v2)
             cwd=site_directory,
             capture_output=True,
             text=True,
@@ -33,14 +33,14 @@ def run_docker_compose_up(site_directory: str) -> tuple[bool, str]:
     except subprocess.TimeoutExpired:
         return False, "Docker compose command timed out after 5 minutes"
     except FileNotFoundError:
-        return False, "Docker or docker-compose not found. Please ensure Docker Desktop is installed and running."
+        return False, "Docker command not found. Please ensure Docker is installed."
     except Exception as e:
         return False, f"Unexpected error: {str(e)}"
 
 
 def run_docker_compose_down(site_directory: str) -> tuple[bool, str]:
     """
-    Stop Docker containers using docker-compose down
+    Stop Docker containers using docker compose down
     
     Args:
         site_directory: Path to the directory containing docker-compose.yml
@@ -50,7 +50,7 @@ def run_docker_compose_down(site_directory: str) -> tuple[bool, str]:
     """
     try:
         result = subprocess.run(
-            ['docker-compose', 'down'],
+            ['docker', 'compose', 'down'],  # Use 'docker compose' (v2)
             cwd=site_directory,
             capture_output=True,
             text=True,
@@ -65,14 +65,14 @@ def run_docker_compose_down(site_directory: str) -> tuple[bool, str]:
     except subprocess.TimeoutExpired:
         return False, "Docker compose down timed out"
     except FileNotFoundError:
-        return False, "Docker or docker-compose not found"
+        return False, "Docker command not found"
     except Exception as e:
         return False, f"Unexpected error: {str(e)}"
 
 
 def run_docker_compose_down_volumes(site_directory: str) -> tuple[bool, str]:
     """
-    Stop and remove Docker containers and volumes using docker-compose down -v
+    Stop and remove Docker containers and volumes using docker compose down -v
     
     Args:
         site_directory: Path to the directory containing docker-compose.yml
@@ -82,7 +82,7 @@ def run_docker_compose_down_volumes(site_directory: str) -> tuple[bool, str]:
     """
     try:
         result = subprocess.run(
-            ['docker-compose', 'down', '-v'],
+            ['docker', 'compose', 'down', '-v'],  # Use 'docker compose' (v2)
             cwd=site_directory,
             capture_output=True,
             text=True,
@@ -97,7 +97,7 @@ def run_docker_compose_down_volumes(site_directory: str) -> tuple[bool, str]:
     except subprocess.TimeoutExpired:
         return False, "Docker compose down -v timed out"
     except FileNotFoundError:
-        return False, "Docker or docker-compose not found"
+        return False, "Docker command not found"
     except Exception as e:
         return False, f"Unexpected error: {str(e)}"
 
