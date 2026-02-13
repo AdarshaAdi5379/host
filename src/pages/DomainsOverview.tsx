@@ -1,19 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Globe, Plus, RefreshCw, ExternalLink, Settings } from 'lucide-react'
-import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
 import { domainsAPI, type CustomDomain } from '@/lib/api/domains'
 import { useAuthStore } from '@/store/authStore'
-
-interface DomainWithSite extends CustomDomain {
-    site_details?: WordPressSite
-}
 
 export default function DomainsOverview() {
     const navigate = useNavigate()
     const token = useAuthStore(state => state.token)
 
-    const [domains, setDomains] = useState<DomainWithSite[]>([])
+    const [domains, setDomains] = useState<CustomDomain[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -30,26 +25,7 @@ export default function DomainsOverview() {
         setError(null)
 
         try {
-            // First, get all sites
-            const sitesData = await wordpressAPI.getSites()
-
-            // Then, fetch domains for each site
-            const allDomains: DomainWithSite[] = []
-
-            for (const site of sitesData) {
-                try {
-                    const siteDomains = await domainsAPI.getDomains(site.id, token)
-                    const domainsWithSite = siteDomains.map(domain => ({
-                        ...domain,
-                        site_details: site
-                    }))
-                    allDomains.push(...domainsWithSite)
-                } catch (err) {
-                    // Skip sites with errors
-                    console.error(`Failed to load domains for site ${site.id}:`, err)
-                }
-            }
-
+            const allDomains = await domainsAPI.getAllDomains(token)
             setDomains(allDomains)
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load domains')
@@ -224,7 +200,7 @@ export default function DomainsOverview() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">{domain.site_name}</div>
                                             <div className="text-xs text-gray-500">
-                                                {domain.site_details?.domain || 'N/A'}
+                                                {domain.site_domain || 'N/A'}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">

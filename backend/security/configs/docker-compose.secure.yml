@@ -1,0 +1,77 @@
+# Secure Docker Compose Template
+# This template shows how to configure Docker services securely.
+#
+# Key Security Principles:
+# 1. Bind to localhost only - Never expose ports to 0.0.0.0
+# 2. Use dedicated networks - Isolate services
+# 3. Avoid privileged mode - Run as non-root when possible
+# 4. Read-only when possible - Minimize write access
+
+version: '3.8'
+
+services:
+  # Example Secure WordPress Service
+  wordpress:
+    image: wordpress:latest
+    container_name: mysite_wp
+    
+    # ✅ SECURE: Bind to localhost only
+    ports:
+      - "127.0.0.1:9000:80"
+    
+    # ✅ Use dedicated network
+    networks:
+      - mysite_network
+    
+    # ✅ Run as non-root user
+    user: "1000:1000"
+    
+    environment:
+      WORDPRESS_DB_HOST: mysql
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wpuser
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+    
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+    
+    restart: unless-stopped
+    
+    # ✅ Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+  
+  # Example Secure Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: mysite_db
+    
+    # ✅ NO ports exposed (internal only)
+    # ports: []
+    
+    networks:
+      - mysite_network
+    
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wpuser
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    
+    volumes:
+      - mysql_data:/var/lib/mysql
+    
+    restart: unless-stopped
+
+networks:
+  mysite_network:
+    driver: bridge
+    # ✅ Internal network (no internet access by default)
+    # internal: true 
+
+volumes:
+  mysql_data:
+    driver: local

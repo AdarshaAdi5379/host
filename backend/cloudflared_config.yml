@@ -33,4 +33,6 @@ ingress:
   service: http://localhost:9000
 - hostname: 35.edubricz.online
   service: http://localhost:9001
+- hostname: test43.edubricz.online
+  service: http://localhost:9006
 - service: http_status:404

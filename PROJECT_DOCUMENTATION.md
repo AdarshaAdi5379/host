@@ -590,3 +590,41 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   Real-time disk usage monitoring.
 
 
+### Phase 13: Server Security Hardening (Phase A)
+-   **Action**: Implemented a comprehensive, multi-layer security system to protect the hosting infrastructure.
+-   **Tech**: UFW, Fail2Ban, Kernel Sysctl, Docker Network Isolation, Unattended Upgrades.
+-   **Implementation**:
+    -   **Layer 1: Docker Isolation (The Wall)**
+        -   **Action**: Audited and fixed all tenant containers to bind ports to `127.0.0.1` instead of `0.0.0.0`.
+        -   **Script**: `backend/security/scripts/fix_docker_ports.py`
+        -   **Outcome**: Database and WordPress ports are strictly localhost-only. External access is only possible via Cloudflare Tunnel.
+    -   **Layer 2: Firewall - UFW (The Bouncer)**
+        -   **Action**: Configured Default Deny Incoming / Allow Outgoing.
+        -   **Rule**: Allow `SSH (Port 22)` with rate limiting.
+        -   **Script**: `backend/security/scripts/configure_firewall.sh`
+        -   **Outcome**: All non-essential ports are blocked at the network level.
+    -   **Layer 3: Kernel Hardening (The Camouflage)**
+        -   **Action**: Tuned `/etc/sysctl.conf` for network security.
+        -   **Settings**: Disabled ICMP Ping (`icmp_echo_ignore_all`), enabled IP Spoofing protection (`rp_filter`), enabled TCP SYN Cookies.
+        -   **Script**: `backend/security/scripts/harden_kernel.sh`
+        -   **Outcome**: Server ignores pings (Stealth Mode) and is resistant to common network attacks.
+    -   **Layer 4: Intrusion Detection (The Guard)**
+        -   **Action**: Installed and configured **Fail2Ban**.
+        -   **Jail**: Monitors `sshd` logs.
+        -   **Policy**: Bans IP for 1 hour after 3 failed login attempts.
+        -   **Script**: `backend/security/scripts/install_fail2ban.sh`
+        -   **Outcome**: Active protection against brute-force password attacks.
+    -   **Layer 5: Automatic Updates (The Maintenance Crew)**
+        -   **Action**: Configured `unattended-upgrades`.
+        -   **Policy**: Automatically install security patches daily. Auto-reboot at 03:00 if required.
+        -   **Script**: `backend/security/scripts/enable_auto_updates.sh`
+        -   **Outcome**: Zero-day protection with automated patch management.
+-   **Documentation**:
+    -   `backend/security/README.md` - Master security guide.
+    -   `backend/security/docs/SECURITY_SETUP.md` - Setup and verification steps.
+    -   `backend/security/docs/DISASTER_RECOVERY.md` - Emergency procedures.
+    -   `backend/security/docs/SSH_KEYS_SETUP.md` - Guide for future SSH key migration.
+-   **Future Roadmap (Phase B)**:
+    -   Disable Password Authentication for SSH (Requires SSH Key setup).
+    -   Implement 2FA for SSH.
+    -   Web Application Firewall (ModSecurity).

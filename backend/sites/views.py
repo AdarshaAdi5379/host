@@ -5,8 +5,8 @@ from django.conf import settings
 import secrets
 import string
 
-from .models import WordPressSite
-from .serializers import WordPressSiteSerializer, WordPressSiteCreateSerializer
+from .models import WordPressSite, CustomDomain
+from .serializers import WordPressSiteSerializer, WordPressSiteCreateSerializer, CustomDomainSerializer
 from .orchestrator import (
     find_available_port,
     generate_docker_compose,
@@ -749,3 +749,10 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         
         return Response({'message': 'Domain removed successfully'}, status=status.HTTP_200_OK)
 
+
+class CustomDomainViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for listing and retrieving Custom Domains
+    """
+    queryset = CustomDomain.objects.all()
+    serializer_class = CustomDomainSerializer

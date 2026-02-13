@@ -35,11 +35,12 @@ class CustomDomainSerializer(serializers.ModelSerializer):
     """Serializer for Custom Domain"""
     
     site_name = serializers.CharField(source='site.name', read_only=True)
+    site_domain = serializers.CharField(source='site.domain', read_only=True)
     
     class Meta:
         model = CustomDomain
         fields = [
-            'id', 'domain_name', 'site', 'site_name', 
+            'id', 'domain_name', 'site', 'site_name', 'site_domain',
             'cloudflare_zone_id', 'nameservers', 'status',
             'created_at', 'updated_at'
         ]
