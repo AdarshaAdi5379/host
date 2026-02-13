@@ -56,6 +56,22 @@ services:
       - "-c"
       - "max_wal_size=4GB"
 
+  # Local S3 Object Storage (MinIO)
+  local_s3:
+    image: minio/minio:latest
+    container_name: hostinger_minio
+    restart: unless-stopped
+    ports:
+      - "9300:9000" # S3 API (Mapped to 9300 to avoid conflict with tenant sites)
+      - "9301:9001" # Console
+    env_file:
+      - ./backend/.env
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - hostinger_internal
+
   # Django Backend (optional - for full containerization)
   # Uncomment when ready to containerize the backend
   # backend:
@@ -94,4 +110,6 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  minio_data:
     driver: local

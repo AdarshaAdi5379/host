@@ -649,3 +649,18 @@ The system uses **Adminer**, a lightweight database management tool, running in 
         -   **Database Outbound**: BLOCKED (Zero Trust Confirmed).
         -   **Web Outbound**: ALLOWED (Plugins/Updates Functional).
         -   **Web -> Database**: ALLOWED (Application Functional).
+
+### Phase 15: Local S3 Object Storage (MinIO)
+-   **Objective**: Replicate Amazon S3 locally to decouple storage from compute and enable scalable, API-driven file management.
+-   **Architecture**: "Cloud Region" model.
+    -   **Global Service**: MinIO runs as a shared service on the host (`hostinger_minio`).
+    -   **Networking**:
+        -   **API**: `http://localhost:9300` (Mapped from 9000).
+        -   **Console**: `http://localhost:9301` (Mapped from 9001).
+        -   *Note*: Ports were moved from 9000/9001 to avoid conflict with Tenant Sites which utilize the 9000+ range.
+    -   **Access**:
+        -   **Django**: Connects via Host IP/DNS.
+        -   **Tenants**: Connect via Docker Host Gateway.
+-   **Configuration**:
+    -   **Root Credentials**: Customized in `backend/.env` (User: `hostinger_admin`).
+-   **Status**: 🟢 Completed (Verified).
