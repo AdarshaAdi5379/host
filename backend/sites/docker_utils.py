@@ -82,11 +82,11 @@ def run_docker_compose_down_volumes(site_directory: str) -> tuple[bool, str]:
     """
     try:
         result = subprocess.run(
-            ['docker', 'compose', 'down', '-v'],  # Use 'docker compose' (v2)
+            ['docker', 'compose', 'down', '-v', '--remove-orphans'],  # Added --remove-orphans for thorough cleanup
             cwd=site_directory,
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=30  # Reduced from 60s - force faster cleanup
         )
         
         if result.returncode == 0:

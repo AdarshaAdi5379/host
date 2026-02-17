@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     # Local apps
     'sites.apps.SitesConfig',  # Use full path to avoid conflict with django.contrib.sites
     'authentication',
+    'storages',  # Django Storages for MinIO/S3
 ]
 
 MIDDLEWARE = [
@@ -296,9 +297,24 @@ BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', 7))
 TENANT_DB_IMAGE = os.getenv('TENANT_DB_IMAGE', 'mysql:8.0')
 TENANT_DB_NETWORK = os.getenv('TENANT_DB_NETWORK', 'tenant_isolated')
 
-# AWS S3 Backup Settings
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
-AWS_S3_REGION = os.getenv('AWS_S3_REGION', 'ap-south-1')
-S3_BACKUP_RETENTION_DAYS = int(os.getenv('S3_BACKUP_RETENTION_DAYS', 7))
+# AWS S3 / MinIO Configuration
+MAX_UPLOAD_SIZE = 5242880
+AWS_ACCESS_KEY_ID = os.getenv('MINIO_ROOT_USER')
+AWS_SECRET_ACCESS_KEY = os.getenv('MINIO_ROOT_PASSWORD')
+AWS_STORAGE_BUCKET_NAME = os.getenv('MINIO_STORAGE_BUCKET_NAME', 'hostinger-uploads')
+AWS_S3_ENDPOINT_URL = 'http://localhost:9300'  # MinIO API Port
+AWS_S3_REGION_NAME = 'us-east-1'  # Default for MinIO
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+
+# Static Files & Media
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "addressing_style": "path",
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}

@@ -89,7 +89,7 @@ def generate_docker_compose(site_name, db_config, port):
                         'db_data:/var/lib/mysql'  # Persistent Volume
                     ],
                     'networks': [
-                        'vpc_private_db'  # Isolated Network ONLY
+                        network_name  # Correctly use the dynamic network name
                     ],
                     # CRITICAL: Allow Host Access for Backups via Localhost Port Binding
                     'ports': [
@@ -101,7 +101,7 @@ def generate_docker_compose(site_name, db_config, port):
                 # 2. The Web Server (The Bridge)
                 # ------------------------------------------------------------
                 f'{site_name}_wordpress': {
-                    'image': 'wordpress:latest',
+                    'image': 'hostinger_wordpress:latest',  # Custom image with WP-CLI
                     'container_name': f'{site_name}_wp',
                     'restart': 'unless-stopped',
                     'ports': [
@@ -119,7 +119,7 @@ def generate_docker_compose(site_name, db_config, port):
                     ],
                     'networks': [
                         'vpc_public_web',  # Internet Access
-                        'vpc_private_db'   # Database Access
+                        network_name       # Database Access
                     ],
                     'depends_on': ['db']
                 }
@@ -128,7 +128,7 @@ def generate_docker_compose(site_name, db_config, port):
                 'vpc_public_web': {
                     'driver': 'bridge'
                 },
-                'vpc_private_db': {
+                network_name: {
                     'driver': 'bridge',
                     'internal': True  # The "Zero Trust" Lock
                 }
@@ -148,7 +148,7 @@ def generate_docker_compose(site_name, db_config, port):
         'version': '3.8',
         'services': {
             f'{site_name}_wordpress': {
-                'image': 'wordpress:latest',
+                'image': 'hostinger_wordpress:latest',
                 'container_name': f'{site_name}_wp',
                 'restart': 'unless-stopped',
                 'ports': [
@@ -171,7 +171,7 @@ def generate_docker_compose(site_name, db_config, port):
         },
         'networks': {
             network_name: {
-                'external': True
+                'driver': 'bridge'
             }
         }
     }

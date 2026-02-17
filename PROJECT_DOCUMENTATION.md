@@ -663,4 +663,8 @@ The system uses **Adminer**, a lightweight database management tool, running in 
         -   **Tenants**: Connect via Docker Host Gateway.
 -   **Configuration**:
     -   **Root Credentials**: Customized in `backend/.env` (User: `hostinger_admin`).
+    -   **Bucket**: `hostinger-uploads` (Public Read).
+-   **Integration**:
+    -   **Django**: Connected via `django-storages` + `boto3`.
+    -   **Validation**: Automated script `verify_minio_upload.py` confirms success.
 -   **Status**: 🟢 Completed (Verified).

@@ -38,8 +38,8 @@ class TenantDatabaseManager:
             )
     
     def _generate_secure_password(self, length: int = 32) -> str:
-        """Generate a cryptographically secure password"""
-        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+        """Generate a cryptographically secure password (alphanumeric only to avoid YAML escaping issues)"""
+        alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for _ in range(length))
     
     def generate_credentials(self, site_name: str) -> Dict:
@@ -194,7 +194,7 @@ class TenantDatabaseManager:
             
             # Stop container
             if container.status == 'running':
-                container.stop(timeout=10)
+                container.stop(timeout=5)  # Reduced from 10s for faster deletion
             
             # Remove container and volumes
             container.remove(v=remove_volumes, force=True)
