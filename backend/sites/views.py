@@ -33,6 +33,24 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
     queryset = WordPressSite.objects.all()
     serializer_class = WordPressSiteSerializer
     
+    def get_queryset(self):
+        """
+        Multi-Tenant Filtering:
+        - Superusers/Staff: See ALL sites
+        - Regular Users: See ONLY their own sites
+        """
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return WordPressSite.objects.all()
+        # Regular users only see what they own
+        if user.is_authenticated:
+            return WordPressSite.objects.filter(owner=user)
+        return WordPressSite.objects.none()
+
+    def perform_create(self, serializer):
+        """Assign current user as owner when creating site"""
+        serializer.save(owner=self.request.user)
+    
     def get_serializer_class(self):
         if self.action == 'create':
             return WordPressSiteCreateSerializer
@@ -94,6 +112,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 site_directory=site_dir,
                 docker_compose_path=compose_path,
                 status='provisioning',
+                owner=request.user,  # Assign owner for multi-tenancy
                 # Tenant database credentials
                 db_container_name=db_config['container_name'],
                 db_container_id=db_config.get('container_id'), # Use .get() as it may be None in VPC mode

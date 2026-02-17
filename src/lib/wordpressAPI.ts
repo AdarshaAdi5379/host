@@ -2,6 +2,8 @@
  * API Service for WordPress Orchestrator Backend
  */
 
+import { useAuthStore } from '@/store/authStore';
+
 const API_BASE_URL = 'http://localhost:8000/api';
 
 export interface WordPressSite {
@@ -25,15 +27,21 @@ export interface CreateSiteRequest {
 }
 
 class WordPressAPI {
+    private getHeaders(): HeadersInit {
+        const token = useAuthStore.getState().token;
+        return {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Token ${token}` } : {}),
+        };
+    }
+
     /**
      * Fetch all WordPress sites
      */
     async getSites(): Promise<WordPressSite[]> {
         const response = await fetch(`${API_BASE_URL}/sites/`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(),
         });
 
         if (!response.ok) {
@@ -49,9 +57,7 @@ class WordPressAPI {
     async createSite(data: CreateSiteRequest): Promise<WordPressSite> {
         const response = await fetch(`${API_BASE_URL}/sites/`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(),
             body: JSON.stringify(data),
         });
 
@@ -69,9 +75,7 @@ class WordPressAPI {
     async startSite(id: number): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/sites/${id}/start/`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(),
         });
 
         if (!response.ok) {
@@ -85,9 +89,7 @@ class WordPressAPI {
     async stopSite(id: number): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/sites/${id}/stop/`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(),
         });
 
         if (!response.ok) {
@@ -101,9 +103,7 @@ class WordPressAPI {
     async deleteSite(id: number): Promise<void> {
         const response = await fetch(`${API_BASE_URL}/sites/${id}/terminate/`, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(),
         });
 
         if (!response.ok) {
@@ -117,9 +117,7 @@ class WordPressAPI {
     async enablePublicAccess(id: number): Promise<{ public_url: string; subdomain: string; status: string }> {
         const response = await fetch(`${API_BASE_URL}/sites/${id}/enable_public_access/`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(),
         });
 
         if (!response.ok) {
@@ -136,9 +134,7 @@ class WordPressAPI {
     async disablePublicAccess(id: number): Promise<{ status: string }> {
         const response = await fetch(`${API_BASE_URL}/sites/${id}/disable_public_access/`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(),
         });
 
         if (!response.ok) {
@@ -161,9 +157,7 @@ class WordPressAPI {
     }> {
         const response = await fetch(`${API_BASE_URL}/sites/aggregate_stats/`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(),
         });
 
         if (!response.ok) {
@@ -183,9 +177,7 @@ class WordPressAPI {
     }> {
         const response = await fetch(`${API_BASE_URL}/sites/${id}/filebrowser_credentials/`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: this.getHeaders(),
         });
 
         if (!response.ok) {

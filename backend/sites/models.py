@@ -16,6 +16,15 @@ class WordPressSite(models.Model):
     domain = models.CharField(max_length=255, unique=True)  # e.g., mysite.local
     port = models.IntegerField(unique=True)  # Docker port mapping
     
+    # Ownership (Multi-Tenancy)
+    owner = models.ForeignKey(
+        'auth.User', 
+        on_delete=models.CASCADE, 
+        related_name='sites',
+        null=True,  # Allow null for existing sites (to be backfilled)
+        blank=True
+    )
+    
     # WordPress credentials
     admin_username = models.CharField(max_length=100)
     admin_password = models.CharField(max_length=255)  # In production, use encryption

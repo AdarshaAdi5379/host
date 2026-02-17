@@ -10,9 +10,12 @@ class WordPressSiteSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'domain', 'port', 'status', 
             'created_at', 'updated_at', 'admin_username',
-            'subdomain', 'public_url', 'public_access_enabled'
+            'subdomain', 'public_url', 'public_access_enabled',
+            'owner'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'port', 'domain']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'port', 'domain', 'owner']
+    
+    owner = serializers.CharField(source='owner.username', read_only=True, allow_null=True, required=False)
 
 
 class WordPressSiteCreateSerializer(serializers.Serializer):
