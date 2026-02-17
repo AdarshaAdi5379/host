@@ -666,5 +666,50 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   **Bucket**: `hostinger-uploads` (Public Read).
 -   **Integration**:
     -   **Django**: Connected via `django-storages` + `boto3`.
+    -   **Automated Offload**: Signals (`post_save`) automatically upload WordPress media to MinIO bucket.
     -   **Validation**: Automated script `verify_minio_upload.py` confirms success.
 -   **Status**: 🟢 Completed (Verified).
+
+### Phase 16: Multi-Tenant Access Control (Role-Based Visibility)
+-   **Objective**: Transition from a single-tenant "Shared Dashboard" to a true **Multi-Tenant System** where users only see their own sites.
+-   **Architecture**:
+    -   **Regular Users**: Isolated view. Can only see, manage, and delete sites where `owner == user`.
+    -   **Super Users (Admins)**: "God Mode" view. Can see and manage **ALL** sites on the platform.
+-   **Implementation**:
+    -   **Database**:
+        -   Added `owner` ForeignKey to `WordPressSite` model (`backend/sites/models.py`).
+        -   Migration: `0007_wordpresssite_owner.py`.
+    -   **Backend Logic** (`backend/sites/views.py`):
+        -   **Query Filtering**: `get_queryset()` checks `request.user.is_superuser`.
+        -   **Assignment**: `create()` method automatically assigns `owner=request.user`.
+    -   **Frontend Authentication Fix**:
+        -   **problem**: Frontend was not sending Auth Headers, causing backend to see `AnonymousUser`.
+        -   **Fix**: Updated `wordpressAPI.ts` to inject `Authorization: Token {token}` into every request.
+    -   **Management**:
+        -   Created comprehensive guide: `brain/super_user_handling.md`.
+        -   Tooling for promoting/demoting users via CLI (`manage.py shell`).
+-   **Outcome**:
+    -   Secure site isolation between users.
+    -   Super Admin capability for platform management.
+    -   Backfilled ownership for existing sites to the primary admin account.
+    -   **Status**: 🟢 Completed (Verified).
+
+### Phase 17: Performance Optimizations (Speed & Efficiency)
+-   **Objective**: Reduce the time taken for site lifecycle operations (Creation, Deletion) to improve user experience.
+-   **Problem**:
+    -   **Creation**: Took ~120s due to fixed sleeps and inefficient loops.
+    -   **Deletion**: Took ~70s due to long Docker timeouts.
+-   **Implementation**:
+    -   **Creation Optimization**:
+        -   **Smart Looping**: Reduced database polling interval from 3s to 2s, added early exit.
+        -   **Plugin Init**: Reduced fixed delay from 5s to 2s.
+        -   **Result**: Creation time reduced by ~50% (avg 50s).
+    -   **Deletion Optimization**:
+        -   **Timeouts**: Reduced Docker Compose timeout (60s -> 30s) and MySQL stop timeout (10s -> 5s).
+        -   **Orphan Cleanup**: Added `--remove-orphans` flag to ensure single-pass cleanup.
+        -   **Result**: Deletion time reduced by ~50% (avg 35s).
+-   **Outcome**:
+    -   Snappier dashboard response.
+    -   Less waiting for users.
+    -   Cleaner resource teardown.
+    -   **Status**: 🟢 Completed (Verified).
