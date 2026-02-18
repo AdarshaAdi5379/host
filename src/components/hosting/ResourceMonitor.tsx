@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { Loader2, Cpu, HardDrive } from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
 
 interface ResourceStats {
     cpu_percent: number
@@ -19,6 +20,7 @@ export function ResourceMonitor({ siteId, isRunning }: ResourceMonitorProps) {
     const [stats, setStats] = useState<ResourceStats | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
+    const token = useAuthStore(state => state.token)
 
     useEffect(() => {
         let intervalId: ReturnType<typeof setInterval>
@@ -31,9 +33,11 @@ export function ResourceMonitor({ siteId, isRunning }: ResourceMonitorProps) {
             }
 
             try {
-                // We need to add getSiteStats to wordpressAPI first, calling it directly for now
-                // or extending the API. Let's assume we extended the API or use fetch directly
-                const response = await fetch(`http://localhost:8000/api/sites/${siteId}/stats/`)
+                const response = await fetch(`http://localhost:8000/api/sites/${siteId}/stats/`, {
+                    headers: {
+                        ...(token ? { 'Authorization': `Token ${token}` } : {}),
+                    },
+                })
                 if (response.ok) {
                     const data = await response.json()
                     setStats(data)
@@ -60,7 +64,7 @@ export function ResourceMonitor({ siteId, isRunning }: ResourceMonitorProps) {
         return () => {
             if (intervalId) clearInterval(intervalId)
         }
-    }, [siteId, isRunning])
+    }, [siteId, isRunning, token])
 
     if (!isRunning) {
         return (

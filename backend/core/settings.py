@@ -30,7 +30,10 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-kejjynu*q6xfkajcx#i
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') + [
+    'edubricz.online',
+    '.edubricz.online',  # Allow all subdomains
+]
 
 
 # Application definition
@@ -178,6 +181,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:5175",  # React dev server (alternate port)
     "http://127.0.0.1:5175",
+    "https://dashboard.edubricz.online",  # Public Cloudflare tunnel
+    "https://api.edubricz.online",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
