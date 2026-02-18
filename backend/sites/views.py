@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.conf import settings
+from django.conf import settings as django_settings
 import secrets
 import string
 import time
@@ -184,204 +184,150 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     print(f"Warning: Failed to fetch DB container ID for {db_container_name}: {e}")
                 
                 site.save()
-                
-                site.save()
 
-                # Step 7: Configure S3 Offload (Media Cloud)
-                # Automate connection to MinIO for new sites
-                try:
-                    print(f"Configuring S3 Offload for {site_name}...")
-                    
-                    # 0. Wait for Database & Install WordPress Core (Critical Fix)
-                    # The container starts but WP isn't "installed" yet (no tables).
-                    # We must run 'wp core install' proactively.
-                    
-                    # Wait loop for DB connection (optimized)
-                    max_attempts = 20  # Reduced from 30
+                # Steps 7 & 8: Run WP setup + S3 config + backup in background
+                # This makes the API return immediately after containers start (~5-10s)
+                import threading
+                import subprocess as _subprocess
+                import gzip
+                import os as _os
+
+                # Capture all needed values before the thread starts
+                _container_name = container_name
+                _site_name = site_name
+                _port = port
+                _admin_user = request.data.get('admin_username', 'admin')
+                _admin_email = request.data.get('admin_email', 'admin@example.com')
+                _admin_password = request.data.get('admin_password', 'password')
+                _db_config = db_config
+                _s3_endpoint = 'http://host.docker.internal:9300'
+                _s3_bucket = django_settings.AWS_STORAGE_BUCKET_NAME
+                _s3_key = django_settings.AWS_ACCESS_KEY_ID
+                _s3_secret = django_settings.AWS_SECRET_ACCESS_KEY
+
+                def setup_wordpress_background():
+                    """Background task: wait for DB, install WP, configure S3, backup."""
+                    # --- Step 7a: Wait for DB ---
+                    print(f"[BG] Waiting for DB for {_site_name}...")
+                    max_attempts = 30
                     for i in range(max_attempts):
-                        time.sleep(2)  # Reduced from 3s to 2s
-                        db_check = subprocess.run([
-                            'docker', 'exec', container_name,
+                        time.sleep(3)
+                        db_check = _subprocess.run([
+                            'docker', 'exec', _container_name,
                             'wp', 'db', 'check', '--allow-root'
                         ], capture_output=True)
                         if db_check.returncode == 0:
-                            print(f"✅ Database ready after {(i+1)*2} seconds")
+                            print(f"[BG] ✅ Database ready after {(i+1)*3}s")
                             break
-                        if i < max_attempts - 1:  # Don't print on last iteration
-                            print(f"Waiting for DB connection... ({i+1}/{max_attempts})")
+                        print(f"[BG] Waiting for DB... ({i+1}/{max_attempts})")
+                    else:
+                        print(f"[BG] ❌ DB never became ready for {_site_name}. Aborting setup.")
+                        return
 
-                    # Run Core Install
-                    print(f"Installing WordPress Core for {site_name}...")
-                    # Inside the container, the site is on port 80.
-                    # However, WP_SITEURL in wp-config.php might be dynamic.
-                    # Let's use localhost for the install command to satisfy WP-CLI.
-                    url = "http://localhost" 
-                    
-                    admin_user = request.data.get('admin_username', 'admin')
-                    # Use a standard domain to avoid "invalid email" errors with underscores in the site name
-                    admin_email = request.data.get('admin_email', 'admin@example.com')
-                    admin_password = request.data.get('admin_password', 'password') 
-                    
-                    core_install = subprocess.run([
-                        'docker', 'exec', container_name,
+                    # --- Step 7b: WP Core Install (with correct port URL) ---
+                    # Use the actual host port so WordPress stores the right siteurl
+                    wp_url = f"http://localhost:{_port}"
+                    print(f"[BG] Installing WordPress Core for {_site_name} at {wp_url}...")
+                    core_install = _subprocess.run([
+                        'docker', 'exec', _container_name,
                         'wp', 'core', 'install',
-                        f'--url={url}',
-                        f'--title={site_name}',
-                        f'--admin_user={admin_user}',
-                        f'--admin_password={admin_password}',
-                        f'--admin_email={admin_email}',
+                        f'--url={wp_url}',
+                        f'--title={_site_name}',
+                        f'--admin_user={_admin_user}',
+                        f'--admin_password={_admin_password}',
+                        f'--admin_email={_admin_email}',
                         '--skip-email',
                         '--allow-root'
-                    ], check=False, capture_output=True, text=True) # Changed to capture failure
+                    ], capture_output=True, text=True)
 
                     if core_install.returncode != 0:
-                        print(f"❌ Core Install Failed: {core_install.stderr}")
-                        print(f"Stdout: {core_install.stdout}")
-                        raise Exception(f"WordPress core installation failed: {core_install.stderr}")
-                    else:
-                        print(f"✅ Core Installed: {core_install.stdout}")
+                        print(f"[BG] ❌ Core Install Failed: {core_install.stderr}")
+                        return
+                    print(f"[BG] ✅ Core Installed: {core_install.stdout.strip()}")
 
-                    # 1. Install & Activate Plugin
-                    # Redirect output to a file inside the container so we can inspect it later if it fails
+                    # --- Step 7c: Install & Activate Media Cloud plugin ---
                     plugin_cmd = (
                         "wp plugin install ilab-media-tools --activate --allow-root "
                         "> /tmp/wp_install.log 2>&1"
                     )
-                    
-                    plugin_install = subprocess.run([
-                        'docker', 'exec', container_name,
+                    plugin_install = _subprocess.run([
+                        'docker', 'exec', _container_name,
                         'sh', '-c', plugin_cmd
-                    ], check=False, capture_output=True, text=True)
-                    
-
+                    ], capture_output=True, text=True)
 
                     if plugin_install.returncode != 0:
-                        print(f"❌ Plugin Install Failed. Check /tmp/wp_install.log in container.")
+                        log_out = _subprocess.run(
+                            ['docker', 'exec', _container_name, 'cat', '/tmp/wp_install.log'],
+                            capture_output=True, text=True
+                        )
+                        print(f"[BG] ❌ Plugin Install Failed: {log_out.stdout}")
+                        return
+                    print(f"[BG] ✅ Plugin Installed.")
 
-                        # Read the log file to print it
-                        log_output = subprocess.run([
-                            'docker', 'exec', container_name, 'cat', '/tmp/wp_install.log'
-                        ], capture_output=True, text=True)
-                        print(f"Log Output: {log_output.stdout}")
-                        raise Exception(f"Plugin installation failed. Check container logs.")
-                    else:
-                        print(f"✅ Plugin Installed.")
-                        
-                    # Give the plugin a moment to initialize database tables
-                    time.sleep(2)  # Reduced from 5s - tables initialize quickly
-                    
-                    # 2. Configure Settings via WP-CLI
-                    s3_endpoint = 'http://host.docker.internal:9300' # Access host from container
-                    s3_bucket = 'hostinger-uploads'
-                    s3_key = 'adarsha'          # Hardcoded based on .env
-                    s3_secret = 'adarsha@123'   # Hardcoded based on .env
-                    
+                    time.sleep(2)  # Let plugin initialise DB tables
+
+                    # --- Step 7d: Configure S3/MinIO via WP options ---
+                    mcloud_settings = {
+                        'mcloud-storage-provider': 's3',
+                        'mcloud-storage-s3-endpoint': _s3_endpoint,
+                        'mcloud-storage-s3-bucket': _s3_bucket,
+                        'mcloud-storage-s3-access-key': _s3_key,
+                        'mcloud-storage-s3-secret': _s3_secret,
+                        'mcloud-storage-s3-region': 'us-east-1',
+                        'mcloud-storage-s3-use-path-style-endpoint': '1',
+                        'mcloud-storage-upload-images': '1',
+                        'mcloud-storage-upload-audio': '1',
+                        'mcloud-storage-upload-videos': '1',
+                        'mcloud-storage-upload-documents': '1',
+                        'mcloud-storage-delete-uploads': '1',
+                    }
                     try:
-                        # Configure S3 settings directly via WP Options (since CLI command 'media-cloud' is missing)
-                        print("Configuring Media Cloud via WP Options...")
-
-                        
-                        settings = {
-                            'mcloud-storage-provider': 's3',
-                            'mcloud-storage-s3-endpoint': s3_endpoint,
-                            'mcloud-storage-s3-bucket': s3_bucket,
-                            'mcloud-storage-s3-access-key': s3_key,
-                            'mcloud-storage-s3-secret': s3_secret,
-                            'mcloud-storage-s3-region': 'us-east-1',
-                            'mcloud-storage-s3-use-path-style-endpoint': '1',
-                            'mcloud-storage-upload-images': '1',
-                            'mcloud-storage-upload-audio': '1',
-                            'mcloud-storage-upload-videos': '1',
-                            'mcloud-storage-upload-documents': '1',
-                            'mcloud-storage-delete-uploads': '1', 
-                        }
-
-                        for key, value in settings.items():
-                            print(f"Setting option {key}...")
-
-                            
-                            subprocess.run([
-                                'docker', 'exec', container_name,
-                                'wp', 'option', 'update', key, value, '--allow-root'
+                        for opt_key, opt_val in mcloud_settings.items():
+                            _subprocess.run([
+                                'docker', 'exec', _container_name,
+                                'wp', 'option', 'update', opt_key, opt_val, '--allow-root'
                             ], check=True, capture_output=True)
-
-                        # Flush cache to ensure settings stick
-                        subprocess.run([
-                            'docker', 'exec', container_name,
+                        _subprocess.run([
+                            'docker', 'exec', _container_name,
                             'wp', 'cache', 'flush', '--allow-root'
                         ], check=True, capture_output=True)
+                        print(f"[BG] ✅ S3 Offload configured for {_site_name}")
+                    except _subprocess.CalledProcessError as e:
+                        print(f"[BG] ❌ S3 Config Failed: {e}")
 
-                        print(f"✓ S3 Offload configured for {site_name} (via Options)")
-
-
-                    except subprocess.CalledProcessError as e:
-                        err_msg = e.stderr.decode() if e.stderr else str(e)
-                        print(f"❌ S3 Config Failed: {err_msg}")
-                        raise Exception(f"S3 Configuration failed: {err_msg}")
-                    
-                except subprocess.CalledProcessError as e:
-                    print(f"Warning: Failed to configure S3 Offload: {e.stderr.decode() if e.stderr else str(e)}")
-                except Exception as e:
-                    print(f"Warning: Unexpected error configuring S3: {str(e)}")
-                
-                # Step 8: Automatic S3 Backup (Non-blocking)
-                # Trigger backup after successful site creation
-                try:
-                    from core.s3_backup_manager import S3BackupManager
-                    import threading
-                    import gzip
-                    import os
-                    from .tenant_db_manager import TenantDatabaseManager
-                    
-                    def backup_new_site():
-                        """Background task to backup newly created site"""
-                        try:
-                            s3_manager = S3BackupManager()
-                            db_manager = TenantDatabaseManager()
-                            
-                            # Create database dump
-                            success, dump_path, error = db_manager.snapshot_tenant_database(
-                                site_name,
-                                db_config['root_password']
+                    # --- Step 8: Auto S3 Backup ---
+                    try:
+                        from core.s3_backup_manager import S3BackupManager
+                        from .tenant_db_manager import TenantDatabaseManager as _TDB
+                        s3_manager = S3BackupManager()
+                        db_mgr = _TDB()
+                        ok, dump_path, err = db_mgr.snapshot_tenant_database(
+                            _site_name, _db_config['root_password']
+                        )
+                        if ok and dump_path:
+                            gz_path = dump_path + '.gz'
+                            with open(dump_path, 'rb') as f_in:
+                                with gzip.open(gz_path, 'wb', compresslevel=6) as f_out:
+                                    f_out.writelines(f_in)
+                            up_ok, up_key, up_err = s3_manager.upload_backup(
+                                gz_path, _site_name, backup_type='tenant'
                             )
-                            
-                            if success and dump_path:
-                                # Compress the dump
-                                gz_path = dump_path + '.gz'
-                                with open(dump_path, 'rb') as f_in:
-                                    with gzip.open(gz_path, 'wb', compresslevel=6) as f_out:
-                                        f_out.writelines(f_in)
-                                
-                                # Upload to S3
-                                upload_success, s3_key, upload_error = s3_manager.upload_backup(
-                                    gz_path,
-                                    site_name,
-                                    backup_type='tenant'
-                                )
-                                
-                                # Cleanup temporary files
-                                if os.path.exists(dump_path):
-                                    os.remove(dump_path)
-                                if os.path.exists(gz_path):
-                                    os.remove(gz_path)
-                                
-                                if upload_success:
-                                    print(f"✓ Auto-backup successful for {site_name}: {s3_key}")
-                                else:
-                                    print(f"✗ Auto-backup upload failed for {site_name}: {upload_error}")
+                            for p in (dump_path, gz_path):
+                                if _os.path.exists(p):
+                                    _os.remove(p)
+                            if up_ok:
+                                print(f"[BG] ✅ Auto-backup done: {up_key}")
                             else:
-                                print(f"✗ Auto-backup dump failed for {site_name}: {error}")
-                                
-                        except Exception as e:
-                            print(f"✗ Auto-backup error for {site_name}: {str(e)}")
-                    
-                    # Run backup in background thread (non-blocking)
-                    backup_thread = threading.Thread(target=backup_new_site, daemon=True)
-                    backup_thread.start()
-                    
-                except Exception as e:
-                    # Don't fail site creation if backup fails
-                    print(f"Warning: Auto-backup initialization failed: {str(e)}")
+                                print(f"[BG] ✗ Auto-backup upload failed: {up_err}")
+                        else:
+                            print(f"[BG] ✗ Auto-backup dump failed: {err}")
+                    except Exception as e:
+                        print(f"[BG] ✗ Auto-backup error: {e}")
+
+                # Launch background thread — API returns immediately
+                bg_thread = threading.Thread(target=setup_wordpress_background, daemon=True)
+                bg_thread.start()
+                print(f"[BG] WordPress setup thread started for {site_name}")
                 
             else:
                 site.status = 'error'

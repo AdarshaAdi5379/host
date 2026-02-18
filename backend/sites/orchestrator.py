@@ -121,6 +121,9 @@ def generate_docker_compose(site_name, db_config, port):
                         'vpc_public_web',  # Internet Access
                         network_name       # Database Access
                     ],
+                    'extra_hosts': [
+                        'host.docker.internal:host-gateway'  # Linux host resolution for MinIO
+                    ],
                     'depends_on': ['db']
                 }
             },
@@ -166,6 +169,9 @@ def generate_docker_compose(site_name, db_config, port):
                 ],
                 'networks': [
                     network_name
+                ],
+                'extra_hosts': [
+                    'host.docker.internal:host-gateway'  # Linux host resolution for MinIO
                 ]
             }
         },

@@ -30,6 +30,8 @@ services:
     - test17_wp_data:/var/www/html
     networks:
     - test17_network
+    extra_hosts:
+    - host.docker.internal:host-gateway
 volumes:
   test17_db_data: {}
   test17_wp_data: {}

@@ -37,7 +37,7 @@ export function CreateHosting() {
 
             addToast({
                 title: 'WordPress Site Created!',
-                description: `${site.domain} is being provisioned on port ${site.port}`,
+                description: `${site.domain} is starting on port ${site.port}. WordPress setup runs in the background — the login page will be ready in ~60 seconds.`,
                 variant: 'success',
             })
 

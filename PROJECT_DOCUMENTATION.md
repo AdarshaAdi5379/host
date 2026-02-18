@@ -3,7 +3,7 @@
 **Last Updated:** February 10, 2026
 
 ## 1. Project Overview
-"Project Host" is a local-first WordPress hosting platform designed for professional hosting environments on a local Windows machine. It allows users to:
+"Project Host" is a local-first WordPress hosting platform designed for professional hosting environments on a local machine. It allows users to:
 -   Provision isolated WordPress instances in seconds.
 -   Access sites via custom local domains (e.g., `mysite.local`) or direct ports (e.g., `localhost:9005`).
 -   **Secure User Authentication**: Email/Password and Google OAuth2 login.
