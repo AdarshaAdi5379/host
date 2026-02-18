@@ -89,7 +89,8 @@ def generate_docker_compose(site_name, db_config, port):
                         'db_data:/var/lib/mysql'  # Persistent Volume
                     ],
                     'networks': [
-                        network_name  # Correctly use the dynamic network name
+                        'tenant_isolated',  # Global network for Adminer access
+                        'vpc_private_db'    # Private internal network
                     ],
                     # CRITICAL: Allow Host Access for Backups via Localhost Port Binding
                     'ports': [
@@ -108,7 +109,7 @@ def generate_docker_compose(site_name, db_config, port):
                         f'{port}:80'
                     ],
                     'environment': {
-                        'WORDPRESS_DB_HOST': 'db:3306', # Connect to 'db' service
+                        'WORDPRESS_DB_HOST': 'db:3306', # Connect to 'db' service via internal network
                         'WORDPRESS_DB_USER': db_user,
                         'WORDPRESS_DB_PASSWORD': db_password,
                         'WORDPRESS_DB_NAME': db_name,
@@ -119,7 +120,7 @@ def generate_docker_compose(site_name, db_config, port):
                     ],
                     'networks': [
                         'vpc_public_web',  # Internet Access
-                        network_name       # Database Access
+                        'vpc_private_db'   # Database Access
                     ],
                     'extra_hosts': [
                         'host.docker.internal:host-gateway'  # Linux host resolution for MinIO
@@ -131,9 +132,12 @@ def generate_docker_compose(site_name, db_config, port):
                 'vpc_public_web': {
                     'driver': 'bridge'
                 },
-                network_name: {
+                'vpc_private_db': {
                     'driver': 'bridge',
                     'internal': True  # The "Zero Trust" Lock
+                },
+                'tenant_isolated': {
+                    'external': True  # Connect to the global network where Adminer lives
                 }
             },
             'volumes': {
