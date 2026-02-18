@@ -4,13 +4,13 @@ services:
   filebrowser:
     image: filebrowser/filebrowser:latest
     container_name: hostinger_files
-    user: "1000:1000"  # Run as host user to access files
+    user: "1000:1000" # Run as host user to access files
     networks:
       tenant_isolated:
         ipv4_address: 172.27.0.10
     volumes:
       - ../wordpress_sites:/srv
-      - ./database:/database
+      - filebrowser_db:/database
       - ./config:/config
     environment:
       - FB_NOAUTH=false
@@ -27,3 +27,7 @@ services:
 networks:
   tenant_isolated:
     external: true
+
+volumes:
+  filebrowser_db:
+    driver: local
