@@ -247,12 +247,16 @@ REST_KNOX = {
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_EMAIL_VERIFICATION = 'optional'  # MVP: optional, Production: 'mandatory'
+ACCOUNT_EMAIL_VERIFICATION = 'none'   # No SMTP server in dev — set to 'mandatory' in production
 ACCOUNT_UNIQUE_EMAIL = True
 
 # Social Account Settings
 SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-create account on Google login
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'  # Skip email verification for social accounts
+
+# Email Backend — use console in development so no SMTP server is needed.
+# In production, replace with SMTP / SendGrid / SES settings.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Google OAuth2 Settings
 SOCIALACCOUNT_PROVIDERS = {
@@ -264,11 +268,6 @@ SOCIALACCOUNT_PROVIDERS = {
         'AUTH_PARAMS': {
             'access_type': 'online',
         },
-        'APP': {
-            'client_id': os.getenv('GOOGLE_CLIENT_ID', ''),
-            'secret': os.getenv('GOOGLE_CLIENT_SECRET', ''),
-            'key': ''
-        }
     }
 }
 

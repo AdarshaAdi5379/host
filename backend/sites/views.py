@@ -967,6 +967,11 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
                 {'error': 'User not found. They must register first.'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        except User.MultipleObjectsReturned:
+            return Response(
+                {'error': 'Multiple users found with this email. Please contact support.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         # Check if user is already a member
         if ProjectMembership.objects.filter(project=site, user=invited_user).exists():

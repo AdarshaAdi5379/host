@@ -41,9 +41,10 @@ export function Signup() {
             })
             navigate('/onboarding')
         } catch (err) {
+            const message = err instanceof Error ? err.message : 'Registration failed. Please try again.'
             addToast({
                 title: 'Registration Failed',
-                description: 'Please try again',
+                description: message,
                 variant: 'error',
             })
         }

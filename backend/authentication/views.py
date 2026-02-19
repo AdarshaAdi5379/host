@@ -1,6 +1,10 @@
 from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
 from allauth.socialaccount.providers.oauth2.client import OAuth2Client
-from dj_rest_auth.registration.views import SocialLoginView
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView, RegisterView
+from dj_rest_auth.app_settings import api_settings
+from allauth.account import app_settings as allauth_settings
 from knox.models import AuthToken
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -19,6 +23,24 @@ def create_knox_token(token_model, user, serializer):
     return instance
 
 User = get_user_model()
+
+
+class CustomRegisterView(RegisterView):
+    """
+    Custom RegisterView to handle Knox token generation.
+    dj-rest-auth default RegisterView assumes user.auth_token exists,
+    which fails with Knox.
+    """
+    def get_response_data(self, user):
+        if allauth_settings.EMAIL_VERIFICATION == \
+                allauth_settings.EmailVerificationMethod.MANDATORY:
+            return {"detail": "Verification e-mail sent."}
+
+        # Create Knox token explicitly
+        token = create_knox_token(None, user, None)
+        
+        # Serialize using our configured TOKEN_SERIALIZER (KnoxTokenSerializer)
+        return api_settings.TOKEN_SERIALIZER(token, context=self.get_serializer_context()).data
 
 
 class GoogleLogin(SocialLoginView):

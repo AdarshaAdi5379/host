@@ -18,15 +18,22 @@ export const authAPI = {
     },
 
     // Password registration
-    register: async (email: string, password1: string, password2: string, username?: string) => {
+    register: async (email: string, password1: string, password2: string) => {
         const response = await fetch(`${API_BASE}/register/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password1, password2, username: username || email.split('@')[0] }),
+            body: JSON.stringify({ email, password1, password2 }),
         })
         if (!response.ok) {
             const error = await response.json()
-            const errorMessage = error.email?.[0] || error.password1?.[0] || error.non_field_errors?.[0] || 'Registration failed'
+            const errorMessage =
+                error.email?.[0] ||
+                error.password1?.[0] ||
+                error.password2?.[0] ||
+                error.non_field_errors?.[0] ||
+                error.username?.[0] ||
+                error.detail ||
+                'Registration failed'
             throw new Error(errorMessage)
         }
         return response.json()

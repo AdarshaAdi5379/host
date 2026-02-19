@@ -1,8 +1,10 @@
 from django.urls import path, include
-from .views import GoogleLogin, UserProfileView
+from .views import GoogleLogin, UserProfileView, CustomRegisterView
 
 urlpatterns = [
-    # Password auth endpoints (provided by dj-rest-auth)
+    # Override default registration view to fix Knox token compatibility
+    path('register/', CustomRegisterView.as_view(), name='rest_register'),
+    # Include other registration endpoints (verify-email, etc)
     path('register/', include('dj_rest_auth.registration.urls')),
     path('', include('dj_rest_auth.urls')),  # Includes login/, logout/, user/ etc. at the root
     
