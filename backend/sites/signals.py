@@ -3,7 +3,8 @@ Django signals for WordPress site lifecycle events
 """
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import WordPressSite
+from django.contrib.auth.models import User
+from .models import WordPressSite, UserProfile, ProjectMembership
 import subprocess
 import threading
 import logging
@@ -66,3 +67,34 @@ def create_filebrowser_user(sender, instance, created, **kwargs):
         )
         thread.daemon = True
         thread.start()
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    """
+    Automatically create UserProfile when a new user is created
+    """
+    if created:
+        UserProfile.objects.create(
+            user=instance,
+            platform_role='user',
+            project_quota=5
+        )
+        logger.info(f"UserProfile created for user: {instance.email}")
+
+
+@receiver(post_save, sender=WordPressSite)
+def create_owner_membership(sender, instance, created, **kwargs):
+    """
+    Automatically create ProjectMembership for the site owner
+    """
+    if created and instance.owner:
+        # Check if membership already exists
+        if not ProjectMembership.objects.filter(project=instance, user=instance.owner).exists():
+            ProjectMembership.objects.create(
+                project=instance,
+                user=instance.owner,
+                role='owner',
+                invited_by=instance.owner
+            )
+            logger.info(f"Owner membership created for {instance.owner.email} on project {instance.name}")

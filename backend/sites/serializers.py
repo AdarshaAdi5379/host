@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import WordPressSite, CustomDomain
+from django.contrib.auth.models import User
+from .models import WordPressSite, CustomDomain, ProjectMembership, AuditLog, UserProfile
 
 
 class WordPressSiteSerializer(serializers.ModelSerializer):
@@ -77,3 +78,92 @@ class FileBrowserCredentialsSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
     url = serializers.URLField()
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Serializer for User details (for team members)"""
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'date_joined']
+        read_only_fields = ['id', 'date_joined']
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for User Profile with RBAC info"""
+    
+    user = UserSerializer(read_only=True)
+    is_super_admin = serializers.BooleanField(read_only=True)
+    can_create_project = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = UserProfile
+        fields = [
+            'id', 'user', 'platform_role', 'project_quota',
+            'email_notifications', 'is_super_admin', 'can_create_project',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class ProjectMembershipSerializer(serializers.ModelSerializer):
+    """Serializer for Project Team Members"""
+    
+    user = UserSerializer(read_only=True)
+    invited_by = UserSerializer(read_only=True)
+    project_name = serializers.CharField(source='project.name', read_only=True)
+    
+    class Meta:
+        model = ProjectMembership
+        fields = [
+            'id', 'project', 'project_name', 'user', 'role',
+            'permissions', 'invited_by', 'joined_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'joined_at', 'updated_at', 'invited_by']
+
+
+class InviteMemberSerializer(serializers.Serializer):
+    """Serializer for inviting a team member"""
+    
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(
+        choices=ProjectMembership.ROLE_CHOICES,
+        default='collaborator'
+    )
+    
+    def validate_email(self, value):
+        """Check if user exists"""
+        try:
+            User.objects.get(email=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError(
+                "User with this email does not exist. They must register first."
+            )
+        return value
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    """Serializer for Audit Logs"""
+    
+    user = UserSerializer(read_only=True)
+    project_name = serializers.CharField(source='project.name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = AuditLog
+        fields = [
+            'id', 'user', 'project', 'project_name', 'action',
+            'description', 'ip_address', 'metadata', 'timestamp'
+        ]
+        read_only_fields = ['id', 'timestamp']
+
+
+class ServerStatsSerializer(serializers.Serializer):
+    """Serializer for Super Admin server statistics"""
+    
+    total_users = serializers.IntegerField()
+    total_projects = serializers.IntegerField()
+    active_containers = serializers.IntegerField()
+    server_cpu_percent = serializers.FloatField()
+    server_memory_percent = serializers.FloatField()
+    server_disk_usage_gb = serializers.FloatField()
+    total_storage_used_gb = serializers.FloatField()

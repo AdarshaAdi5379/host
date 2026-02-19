@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
 
 
 class WordPressSite(models.Model):
@@ -111,3 +112,168 @@ class CustomDomain(models.Model):
     
     def __str__(self):
         return f"{self.domain_name} -> {self.site.name}"
+
+
+class ProjectMembership(models.Model):
+    """Model representing a team member's access to a project"""
+    
+    ROLE_CHOICES = [
+        ('owner', 'Owner'),
+        ('collaborator', 'Collaborator'),
+    ]
+    
+    project = models.ForeignKey(
+        WordPressSite,
+        on_delete=models.CASCADE,
+        related_name='team_members'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='project_memberships'
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='collaborator'
+    )
+    permissions = models.JSONField(
+        default=dict,
+        help_text='Granular permissions for this member'
+    )
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='invited_members',
+        null=True,
+        blank=True
+    )
+    joined_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ('project', 'user')
+        ordering = ['-joined_at']
+        verbose_name = 'Project Membership'
+        verbose_name_plural = 'Project Memberships'
+    
+    def __str__(self):
+        return f"{self.user.email} -> {self.project.name} ({self.role})"
+    
+    @property
+    def is_owner(self):
+        return self.role == 'owner'
+    
+    @property
+    def is_collaborator(self):
+        return self.role == 'collaborator'
+
+
+class AuditLog(models.Model):
+    """Model for tracking all actions across the platform"""
+    
+    ACTION_CHOICES = [
+        ('project_created', 'Project Created'),
+        ('project_deleted', 'Project Deleted'),
+        ('project_started', 'Project Started'),
+        ('project_stopped', 'Project Stopped'),
+        ('member_invited', 'Member Invited'),
+        ('member_removed', 'Member Removed'),
+        ('env_updated', 'Environment Updated'),
+        ('backup_created', 'Backup Created'),
+        ('backup_restored', 'Backup Restored'),
+        ('public_access_enabled', 'Public Access Enabled'),
+        ('public_access_disabled', 'Public Access Disabled'),
+        ('domain_connected', 'Domain Connected'),
+        ('domain_removed', 'Domain Removed'),
+        ('container_restart', 'Container Restart'),
+        ('terminal_access', 'Terminal Access'),
+        ('database_access', 'Database Access'),
+        ('file_access', 'File Access'),
+        ('login', 'User Login'),
+        ('logout', 'User Logout'),
+        ('password_reset', 'Password Reset'),
+        ('settings_updated', 'Settings Updated'),
+    ]
+    
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='audit_logs'
+    )
+    project = models.ForeignKey(
+        WordPressSite,
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+        null=True,
+        blank=True
+    )
+    action = models.CharField(max_length=50, choices=ACTION_CHOICES)
+    description = models.TextField(blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Audit Log'
+        verbose_name_plural = 'Audit Logs'
+        indexes = [
+            models.Index(fields=['user', '-timestamp']),
+            models.Index(fields=['project', '-timestamp']),
+            models.Index(fields=['action', '-timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.action} at {self.timestamp}"
+
+
+class UserProfile(models.Model):
+    """Extended user profile for RBAC and quotas"""
+    
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='profile'
+    )
+    # Role in the platform
+    platform_role = models.CharField(
+        max_length=20,
+        choices=[
+            ('super_admin', 'Super Admin'),
+            ('user', 'User'),
+        ],
+        default='user'
+    )
+    # Project quota (0 = unlimited for super admins)
+    project_quota = models.IntegerField(default=5)
+    # Notification preferences
+    email_notifications = models.BooleanField(default=True)
+    # Security settings
+    last_password_change = models.DateTimeField(null=True, blank=True)
+    password_change_required = models.BooleanField(default=False)
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'User Profile'
+        verbose_name_plural = 'User Profiles'
+    
+    def __str__(self):
+        return f"{self.user.email} ({self.platform_role})"
+    
+    @property
+    def is_super_admin(self):
+        return self.platform_role == 'super_admin'
+    
+    @property
+    def can_create_project(self):
+        if self.is_super_admin:
+            return True
+        owned_projects = ProjectMembership.objects.filter(
+            user=self.user,
+            role='owner'
+        ).count()
+        return owned_projects < self.project_quota

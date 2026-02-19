@@ -1,13 +1,27 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from django.conf import settings as django_settings
+from django.contrib.auth.models import User
+from django.db.models import Q
 import secrets
 import string
 import time
+import psutil
+import docker
 
-from .models import WordPressSite, CustomDomain
-from .serializers import WordPressSiteSerializer, WordPressSiteCreateSerializer, CustomDomainSerializer
+from .models import WordPressSite, CustomDomain, ProjectMembership, AuditLog, UserProfile
+from .serializers import (
+    WordPressSiteSerializer, WordPressSiteCreateSerializer, CustomDomainSerializer,
+    ProjectMembershipSerializer, InviteMemberSerializer, AuditLogSerializer,
+    UserProfileSerializer, ServerStatsSerializer, UserSerializer
+)
+from .permissions import (
+    IsSuperAdmin, IsSiteOwner, IsProjectMember, CanManageTeam,
+    CanDeleteProject, CanStartStopContainer, HasProjectQuota
+)
+from .audit_logger import AuditLogger
 from .orchestrator import (
     find_available_port,
     generate_docker_compose,
@@ -876,3 +890,401 @@ class CustomDomainViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = CustomDomain.objects.all()
     serializer_class = CustomDomainSerializer
+
+
+class ProjectTeamViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing project team members
+    """
+    serializer_class = ProjectMembershipSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Filter memberships based on user's role:
+        - Super Admin: All memberships
+        - Site Owner: Memberships for their projects
+        - Collaborator: Their own memberships only
+        """
+        user = self.request.user
+        
+        # Super admins see all
+        if hasattr(user, 'profile') and user.profile.is_super_admin:
+            return ProjectMembership.objects.all()
+        
+        # Get project ID from URL if available
+        project_id = self.kwargs.get('project_pk')
+        if project_id:
+            # Check if user is owner or member of this project
+            try:
+                site = WordPressSite.objects.get(id=project_id)
+                if site.owner == user:
+                    return ProjectMembership.objects.filter(project=site)
+                # Check if user is a member
+                if ProjectMembership.objects.filter(project=site, user=user).exists():
+                    return ProjectMembership.objects.filter(project=site)
+                return ProjectMembership.objects.none()
+            except WordPressSite.DoesNotExist:
+                return ProjectMembership.objects.none()
+        
+        # Return user's own memberships
+        return ProjectMembership.objects.filter(user=user)
+    
+    def get_permissions(self):
+        """
+        Instantiate and return the list of permissions.
+        """
+        if self.action in ['create', 'destroy']:
+            permission_classes = [IsAuthenticated, CanManageTeam]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+    
+    @action(detail=True, methods=['post'], url_path='invite')
+    def invite_member(self, request, pk=None):
+        """
+        Invite a user to join the project team
+        """
+        site = self.get_object()
+        
+        serializer = InviteMemberSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
+        role = serializer.validated_data.get('role', 'collaborator')
+        
+        try:
+            invited_user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found. They must register first.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if user is already a member
+        if ProjectMembership.objects.filter(project=site, user=invited_user).exists():
+            return Response(
+                {'error': 'User is already a member of this project'},
+                status=status.HTTP_409_CONFLICT
+            )
+        
+        # Create membership
+        membership = ProjectMembership.objects.create(
+            project=site,
+            user=invited_user,
+            role=role,
+            invited_by=request.user
+        )
+        
+        # Log the action
+        AuditLogger.log_member_invited(
+            user=request.user,
+            project=site,
+            invited_user=invited_user,
+            role=role,
+            request=request
+        )
+        
+        return Response(
+            ProjectMembershipSerializer(membership).data,
+            status=status.HTTP_201_CREATED
+        )
+    
+    @action(detail=True, methods=['post'], url_path='remove/(?P<user_id>[^/.]+)')
+    def remove_member(self, request, pk=None, user_id=None):
+        """
+        Remove a member from the project team
+        """
+        site = self.get_object()
+        
+        try:
+            removed_user = User.objects.get(id=user_id)
+            membership = ProjectMembership.objects.get(project=site, user=removed_user)
+        except (User.DoesNotExist, ProjectMembership.DoesNotExist):
+            return Response(
+                {'error': 'Member not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Prevent removing the owner
+        if membership.role == 'owner':
+            return Response(
+                {'error': 'Cannot remove the project owner'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Log the action
+        AuditLogger.log_member_removed(
+            user=request.user,
+            project=site,
+            removed_user=removed_user,
+            request=request
+        )
+        
+        membership.delete()
+        
+        return Response({'message': 'Member removed successfully'})
+    
+    @action(detail=True, methods=['get'])
+    def members(self, request, pk=None):
+        """
+        List all team members for a project
+        """
+        site = self.get_object()
+        
+        # Check if user has access to this project
+        if not (site.owner == request.user or 
+                ProjectMembership.objects.filter(project=site, user=request.user).exists() or
+                (hasattr(request.user, 'profile') and request.user.profile.is_super_admin)):
+            return Response(
+                {'error': 'You do not have access to this project'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        memberships = ProjectMembership.objects.filter(project=site)
+        serializer = ProjectMembershipSerializer(memberships, many=True)
+        
+        return Response(serializer.data)
+
+
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for viewing audit logs
+    """
+    serializer_class = AuditLogSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Filter audit logs based on user's role:
+        - Super Admin: All logs
+        - Site Owner: Logs for their projects + their own actions
+        - Collaborator: Logs for their projects only
+        """
+        user = self.request.user
+        
+        # Super admins see all logs
+        if hasattr(user, 'profile') and user.profile.is_super_admin:
+            return AuditLog.objects.all()
+        
+        # Get project ID from query params if available
+        project_id = self.request.query_params.get('project')
+        if project_id:
+            try:
+                site = WordPressSite.objects.get(id=project_id)
+                # Check if user has access to this project
+                if (site.owner == user or 
+                    ProjectMembership.objects.filter(project=site, user=user).exists()):
+                    return AuditLog.objects.filter(project=site)
+                return AuditLog.objects.none()
+            except WordPressSite.DoesNotExist:
+                return AuditLog.objects.none()
+        
+        # Return logs for user's projects + their own actions
+        owned_projects = WordPressSite.objects.filter(owner=user)
+        member_projects = ProjectMembership.objects.filter(user=user).values_list('project', flat=True)
+        
+        return AuditLog.objects.filter(
+            Q(project__in=owned_projects) | 
+            Q(project__in=member_projects) |
+            Q(user=user)
+        ).distinct()
+    
+    @action(detail=False, methods=['get'])
+    def my_logs(self, request):
+        """
+        Get current user's activity logs
+        """
+        logs = AuditLog.objects.filter(user=request.user)[:50]
+        serializer = AuditLogSerializer(logs, many=True)
+        return Response(serializer.data)
+
+
+class SuperAdminViewSet(viewsets.ViewSet):
+    """
+    ViewSet for Super Admin operations
+    """
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    
+    @action(detail=False, methods=['get'])
+    def server_stats(self, request):
+        """
+        Get comprehensive server statistics
+        """
+        # Get system stats
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # Get Docker stats
+        try:
+            client = docker.from_env()
+            containers = client.containers.list()
+            active_containers = len(containers)
+        except Exception:
+            active_containers = 0
+        
+        # Get platform stats
+        total_users = User.objects.count()
+        total_projects = WordPressSite.objects.count()
+        
+        # Calculate total storage used
+        total_storage = 0
+        for site in WordPressSite.objects.all():
+            import os
+            site_path = os.path.join('/home/adarsha/Desktop/projects/HOST/host/backend/wordpress_sites', site.name)
+            if os.path.exists(site_path):
+                for dirpath, dirnames, filenames in os.walk(site_path):
+                    for filename in filenames:
+                        filepath = os.path.join(dirpath, filename)
+                        if os.path.exists(filepath):
+                            total_storage += os.path.getsize(filepath)
+        
+        stats = {
+            'total_users': total_users,
+            'total_projects': total_projects,
+            'active_containers': active_containers,
+            'server_cpu_percent': cpu_percent,
+            'server_memory_percent': memory.percent,
+            'server_disk_usage_gb': round(disk.used / (1024**3), 2),
+            'total_storage_used_gb': round(total_storage / (1024**3), 2)
+        }
+        
+        serializer = ServerStatsSerializer(stats)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def all_users(self, request):
+        """
+        List all users with their profiles
+        """
+        users = User.objects.all().select_related('profile')
+        data = []
+        for user in users:
+            user_data = UserSerializer(user).data
+            if hasattr(user, 'profile'):
+                user_data['platform_role'] = user.profile.platform_role
+                user_data['project_quota'] = user.profile.project_quota
+            data.append(user_data)
+        return Response(data)
+    
+    @action(detail=True, methods=['post'])
+    def impersonate(self, request, pk=None):
+        """
+        Login as a specific user (for support purposes)
+        """
+        try:
+            user = User.objects.get(id=pk)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Generate a token for the impersonated user
+        from knox.models import AuthToken
+        token = AuthToken.objects.create(user=user)[1]
+        
+        return Response({
+            'token': token,
+            'user': UserSerializer(user).data,
+            'message': f'Impersonating user {user.email}'
+        })
+    
+    @action(detail=False, methods=['post'])
+    def emergency_stop(self, request):
+        """
+        Emergency stop all containers or a specific container
+        """
+        container_name = request.data.get('container_name')
+        
+        try:
+            client = docker.from_env()
+            
+            if container_name:
+                # Stop specific container
+                container = client.containers.get(container_name)
+                container.stop(timeout=10)
+                return Response({'message': f'Container {container_name} stopped'})
+            else:
+                # Stop all containers
+                containers = client.containers.list()
+                for container in containers:
+                    container.stop(timeout=10)
+                return Response({'message': f'Stopped {len(containers)} containers'})
+        
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to stop container: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'])
+    def system_prune(self, request):
+        """
+        Clean up unused Docker resources
+        """
+        try:
+            client = docker.from_env()
+            
+            # Prune containers
+            containers_pruned = client.containers.prune()
+            
+            # Prune images
+            images_pruned = client.images.prune()
+            
+            # Prune volumes
+            volumes_pruned = client.volumes.prune()
+            
+            return Response({
+                'message': 'System prune completed',
+                'containers': containers_pruned,
+                'images': images_pruned,
+                'volumes': volumes_pruned
+            })
+        
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to prune system: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class UserProfileViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing user profiles
+    """
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Users can only see their own profile"""
+        return UserProfile.objects.filter(user=self.request.user)
+    
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Get current user's profile"""
+        profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'platform_role': 'user', 'project_quota': 5}
+        )
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['patch'])
+    def update_me(self, request):
+        """Update current user's profile"""
+        profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'platform_role': 'user', 'project_quota': 5}
+        )
+        
+        # Only allow updating certain fields
+        allowed_fields = ['email_notifications']
+        for field in allowed_fields:
+            if field in request.data:
+                setattr(profile, field, request.data[field])
+        
+        profile.save()
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
