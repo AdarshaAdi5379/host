@@ -17,6 +17,8 @@ export interface User {
     email: string
     name: string
     role: Role
+    project_quota?: number
+    platform_role?: 'super_admin' | 'user'
     avatar?: string
     emailVerified: boolean
     mfaEnabled: boolean

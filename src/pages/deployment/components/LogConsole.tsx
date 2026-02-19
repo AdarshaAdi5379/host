@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Terminal, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { Terminal, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 

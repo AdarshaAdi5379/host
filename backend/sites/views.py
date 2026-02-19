@@ -912,15 +912,14 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
         if hasattr(user, 'profile') and user.profile.is_super_admin:
             return ProjectMembership.objects.all()
         
-        # Get project ID from URL if available
-        project_id = self.kwargs.get('project_pk')
-        if project_id:
-            # Check if user is owner or member of this project
+        # Get project ID from URL if available (nested router uses project_pk, flat router uses pk)
+        project_id = self.kwargs.get('project_pk') or self.kwargs.get('pk')
+        if project_id and self.action not in ['list', 'retrieve', 'create', 'update', 'partial_update', 'destroy']:
+            # For custom actions (members/invite/remove), filter by project
             try:
                 site = WordPressSite.objects.get(id=project_id)
                 if site.owner == user:
                     return ProjectMembership.objects.filter(project=site)
-                # Check if user is a member
                 if ProjectMembership.objects.filter(project=site, user=user).exists():
                     return ProjectMembership.objects.filter(project=site)
                 return ProjectMembership.objects.none()
@@ -945,7 +944,15 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
         """
         Invite a user to join the project team
         """
-        site = self.get_object()
+        # pk here is the site/project ID (not a membership ID)
+        try:
+            site = WordPressSite.objects.get(pk=pk)
+        except WordPressSite.DoesNotExist:
+            return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check that the requesting user owns this project
+        if site.owner != request.user and not (hasattr(request.user, 'profile') and request.user.profile.is_super_admin):
+            return Response({'error': 'You do not have permission to manage this team'}, status=status.HTTP_403_FORBIDDEN)
         
         serializer = InviteMemberSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -995,7 +1002,14 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
         """
         Remove a member from the project team
         """
-        site = self.get_object()
+        # pk here is the site/project ID
+        try:
+            site = WordPressSite.objects.get(pk=pk)
+        except WordPressSite.DoesNotExist:
+            return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if site.owner != request.user and not (hasattr(request.user, 'profile') and request.user.profile.is_super_admin):
+            return Response({'error': 'You do not have permission to manage this team'}, status=status.HTTP_403_FORBIDDEN)
         
         try:
             removed_user = User.objects.get(id=user_id)
@@ -1030,7 +1044,11 @@ class ProjectTeamViewSet(viewsets.ModelViewSet):
         """
         List all team members for a project
         """
-        site = self.get_object()
+        # pk here is the site/project ID
+        try:
+            site = WordPressSite.objects.get(pk=pk)
+        except WordPressSite.DoesNotExist:
+            return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
         
         # Check if user has access to this project
         if not (site.owner == request.user or 

@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
     LineChart,
     Line,
@@ -13,7 +12,7 @@ import {
     ResponsiveContainer,
     Legend,
 } from 'recharts'
-import { Activity, TrendingUp, TrendingDown, Calendar } from 'lucide-react'
+import { Activity, TrendingUp, TrendingDown } from 'lucide-react'
 import { useState } from 'react'
 
 // Mock analytics data

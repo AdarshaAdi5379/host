@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { checkPasswordRequirements } from '@/lib/authValidation'
 import { Progress } from '@/components/ui/progress'
 import { Check, X } from 'lucide-react'

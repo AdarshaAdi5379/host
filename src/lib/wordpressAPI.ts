@@ -6,6 +6,18 @@ import { useAuthStore } from '@/store/authStore';
 
 const API_BASE_URL = 'http://localhost:8000/api';
 
+/**
+ * Handle globally unauthorized responses: clear the stale token and
+ * redirect to /login so the user can re-authenticate.
+ */
+function handleUnauthorized() {
+    useAuthStore.getState().logout()
+    // Use window.location so this works outside React component tree
+    if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login'
+    }
+}
+
 export interface WordPressSite {
     id: number;
     name: string;
@@ -35,6 +47,17 @@ class WordPressAPI {
         };
     }
 
+    /** Throw on error; trigger logout+redirect on 401 */
+    private checkOk(response: Response, message: string) {
+        if (response.status === 401) {
+            handleUnauthorized();
+            throw new Error('Session expired. Please log in again.');
+        }
+        if (!response.ok) {
+            throw new Error(message);
+        }
+    }
+
     /**
      * Fetch all WordPress sites
      */
@@ -43,11 +66,7 @@ class WordPressAPI {
             method: 'GET',
             headers: this.getHeaders(),
         });
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch sites');
-        }
-
+        this.checkOk(response, 'Failed to fetch sites');
         return response.json();
     }
 

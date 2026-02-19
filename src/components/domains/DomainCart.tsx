@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { X, ShoppingCart, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { useDomainStore } from '@/store/domainStore'
 import { formatPrice } from '@/lib/domainUtils'
 

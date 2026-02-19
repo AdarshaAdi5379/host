@@ -4,7 +4,9 @@ Django signals for WordPress site lifecycle events
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User
+from django.contrib.auth.signals import user_logged_in, user_logged_out
 from .models import WordPressSite, UserProfile, ProjectMembership
+from .audit_logger import AuditLogger
 import subprocess
 import threading
 import logging
@@ -98,3 +100,22 @@ def create_owner_membership(sender, instance, created, **kwargs):
                 invited_by=instance.owner
             )
             logger.info(f"Owner membership created for {instance.owner.email} on project {instance.name}")
+
+
+@receiver(user_logged_in)
+def log_user_login(sender, request, user, **kwargs):
+    """
+    Log user login event
+    """
+    AuditLogger.log_login(user=user, request=request)
+    logger.info(f"User logged in: {user.email}")
+
+
+@receiver(user_logged_out)
+def log_user_logout(sender, request, user, **kwargs):
+    """
+    Log user logout event
+    """
+    if user:
+        AuditLogger.log_logout(user=user, request=request)
+        logger.info(f"User logged out: {user.email}")

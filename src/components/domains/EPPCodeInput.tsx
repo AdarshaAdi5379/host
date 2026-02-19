@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Eye, EyeOff, Lock, Unlock, AlertCircle, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, Lock, AlertCircle, CheckCircle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { isValidEPPCode } from '@/lib/domainUtils'
 
 interface EPPCodeInputProps {

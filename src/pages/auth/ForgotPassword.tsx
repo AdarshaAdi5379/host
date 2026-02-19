@@ -23,7 +23,7 @@ export function ForgotPassword() {
         resolver: zodResolver(forgotPasswordSchema),
     })
 
-    const onSubmit = async (data: ForgotPasswordData) => {
+    const onSubmit = async () => {
         setIsLoading(true)
         try {
             // Mock API call - replace with real API

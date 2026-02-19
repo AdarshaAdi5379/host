@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { useEffect, useState } from 'react'
 import type { AuthState, User, LoginCredentials, RegisterData } from '@/types/auth'
 import { authAPI } from '@/lib/api/auth'
 
@@ -17,8 +18,8 @@ export const useAuthStore = create<AuthState>()(
                 set({ isLoading: true, error: null })
                 try {
                     const response = await authAPI.login(credentials.email, credentials.password)
-                    // Fetch user profile with the token
-                    const userProfile = await authAPI.getUser(response.key)
+                    // Fetch full user profile including RBAC info
+                    const userProfile = await authAPI.me(response.key)
                     set({
                         user: userProfile,
                         token: response.key,
@@ -40,11 +41,11 @@ export const useAuthStore = create<AuthState>()(
                 try {
                     const response = await authAPI.register(
                         data.email,
-                        data.password,  // password1
-                        data.confirmPassword  // password2
+                        data.password,
+                        data.confirmPassword
                     )
-                    // Fetch user profile with the token
-                    const userProfile = await authAPI.getUser(response.key)
+                    // Fetch full user profile including RBAC info
+                    const userProfile = await authAPI.me(response.key)
                     set({
                         user: userProfile,
                         token: response.key,
@@ -138,3 +139,32 @@ export function stopTokenRefresh() {
         refreshInterval = null
     }
 }
+
+/**
+ * Returns true once Zustand's persist middleware has finished
+ * rehydrating the store from localStorage. Always use this to gate
+ * authenticated API calls in useEffect, and in ProtectedRoute, to
+ * avoid the 401 race condition where the token is null on first render.
+ */
+export function useHasHydrated() {
+    const [hasHydrated, setHasHydrated] = useState(
+        // Check synchronously first — if hydration already happened, no flash
+        () => useAuthStore.persist.hasHydrated()
+    )
+
+    useEffect(() => {
+        if (hasHydrated) return
+        // Subscribe to the hydration finish event (Zustand v5+ API)
+        const unsub = useAuthStore.persist.onFinishHydration(() => {
+            setHasHydrated(true)
+        })
+        // Guard: hydration may have completed between useState init and this effect
+        if (useAuthStore.persist.hasHydrated()) {
+            setHasHydrated(true)
+        }
+        return unsub
+    }, [hasHydrated])
+
+    return hasHydrated
+}
+

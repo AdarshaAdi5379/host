@@ -23,9 +23,11 @@ import { NotificationSettings } from '@/pages/settings/NotificationSettings'
 import { SessionManagement } from '@/pages/settings/SessionManagement'
 import { useAuthStore } from '@/store/authStore'
 import { CreateHosting } from '@/pages/hosting/CreateHosting'
+import { ProjectSettings } from '@/pages/hosting/ProjectSettings'
 import { DomainSearch } from '@/pages/domains/DomainSearch'
 import { CreateEmail } from '@/pages/email/CreateEmail'
 import { DomainTransferWizard } from '@/pages/domains/DomainTransferWizard'
+import { AuditLogViewer } from '@/components/audit/AuditLogViewer'
 import DomainManagement from '@/pages/settings/DomainManagement'
 import DomainsOverview from '@/pages/DomainsOverview'
 
@@ -65,8 +67,10 @@ function App() {
           <Route path="hosting/dns" element={<DNSEditor />} />
           <Route path="hosting/databases" element={<DatabaseManager />} />
           <Route path="hosting/files" element={<FileManager />} />
+          <Route path="hosting/:id/settings" element={<ProjectSettings />} />
           <Route path="sites/:id/domains" element={<DomainManagement />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="admin/audit-logs" element={<div className="p-8"><h1 className="text-2xl font-bold mb-6">System Audit Logs</h1><AuditLogViewer /></div>} />
           <Route path="deployment/git" element={<GitDeployment />} />
           <Route path="apps" element={<AppInstaller />} />
           <Route path="domains" element={<DomainsOverview />} />

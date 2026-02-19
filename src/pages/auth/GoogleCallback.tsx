@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react'
 
 export function GoogleCallback() {
     const navigate = useNavigate()
-    const { user, token, isAuthenticated } = useAuthStore()
+    const { isAuthenticated } = useAuthStore()
 
     useEffect(() => {
         const handleGoogleCallback = async () => {

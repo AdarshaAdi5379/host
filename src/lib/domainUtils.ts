@@ -81,7 +81,7 @@ export async function checkDomainAvailability(domainName: string): Promise<Domai
 /**
  * Generate AI-powered domain suggestions
  */
-export function generateDomainSuggestions(domainName: string, takenTLDs: string[] = []): DomainSuggestion[] {
+export function generateDomainSuggestions(domainName: string, _takenTLDs: string[] = []): DomainSuggestion[] {
     const suggestions: DomainSuggestion[] = []
 
     // Alternative prefixes/suffixes
@@ -143,7 +143,7 @@ export function isValidEPPCode(code: string): boolean {
 /**
  * Check if domain is locked (mock)
  */
-export async function checkDomainLockStatus(domain: string): Promise<{ locked: boolean; registrar: string }> {
+export async function checkDomainLockStatus(_domain: string): Promise<{ locked: boolean; registrar: string }> {
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     // Mock response
@@ -156,7 +156,7 @@ export async function checkDomainLockStatus(domain: string): Promise<{ locked: b
 /**
  * Validate transfer eligibility
  */
-export async function validateTransferEligibility(domain: string, eppCode: string): Promise<{
+export async function validateTransferEligibility(_domain: string, eppCode: string): Promise<{
     eligible: boolean
     reason?: string
 }> {

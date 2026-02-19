@@ -33,7 +33,7 @@ export function ResetPassword() {
 
     const password = watch('password', '')
 
-    const onSubmit = async (data: ResetPasswordData) => {
+    const onSubmit = async () => {
         setIsLoading(true)
         try {
             // Mock API call - replace with real API

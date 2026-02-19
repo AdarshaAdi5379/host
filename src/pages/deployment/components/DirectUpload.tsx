@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { UploadCloud, FileArchive, X, CheckCircle, AlertCircle } from 'lucide-react'
+import { UploadCloud, FileArchive, X, AlertCircle } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 
 interface DirectUploadProps {
@@ -51,8 +51,6 @@ export function DirectUpload({ onUploadComplete }: DirectUploadProps) {
 
         // Simulate chunked upload
         let currentProgress = 0
-        const totalSize = file.size
-        const chunkSize = totalSize / 100 // 100 chunks
         const interval = setInterval(() => {
             currentProgress += Math.random() * 5
             if (currentProgress >= 100) {

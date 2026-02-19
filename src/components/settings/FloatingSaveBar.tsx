@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Button } from '@/components/ui/button'
 import { X, Check } from 'lucide-react'

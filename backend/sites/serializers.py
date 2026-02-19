@@ -130,16 +130,6 @@ class InviteMemberSerializer(serializers.Serializer):
         choices=ProjectMembership.ROLE_CHOICES,
         default='collaborator'
     )
-    
-    def validate_email(self, value):
-        """Check if user exists"""
-        try:
-            User.objects.get(email=value)
-        except User.DoesNotExist:
-            raise serializers.ValidationError(
-                "User with this email does not exist. They must register first."
-            )
-        return value
 
 
 class AuditLogSerializer(serializers.ModelSerializer):

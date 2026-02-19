@@ -11,4 +11,6 @@ ingress:
   service: http://172.27.0.10:80
 - hostname: test1.edubricz.online
   service: http://localhost:9000
+- hostname: test3.edubricz.online
+  service: http://localhost:9002
 - service: http_status:404

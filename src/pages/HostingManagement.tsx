@@ -3,7 +3,7 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Server, Plus, Play, Square, Trash2, ExternalLink, Loader2, Globe, Copy, Check, FolderOpen } from 'lucide-react'
+import { Server, Plus, Play, Square, Trash2, ExternalLink, Loader2, Globe, Copy, Check, FolderOpen, Users } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
 import { ResourceMonitor } from '@/components/hosting/ResourceMonitor'
@@ -11,10 +11,13 @@ import { useToast } from '@/components/ui/toast'
 import { copyToClipboard } from '@/lib/clipboardUtils'
 import FileBrowserCredentialsModal from '@/components/FileBrowserCredentialsModal'
 import DeleteConfirmationModal from '@/components/DeleteConfirmationModal'
+import { useAuthStore, useHasHydrated } from '@/store/authStore'
 
 export function HostingManagement() {
     const navigate = useNavigate()
     const { addToast } = useToast()
+    const { isAuthenticated } = useAuthStore()
+    const hydrated = useHasHydrated()
     const [sites, setSites] = useState<WordPressSite[]>([])
     const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState<number | null>(null)
@@ -46,8 +49,12 @@ export function HostingManagement() {
     }
 
     useEffect(() => {
-        loadSites()
-    }, [])
+        if (hydrated && isAuthenticated) {
+            loadSites()
+        } else if (hydrated && !isAuthenticated) {
+            setLoading(false)
+        }
+    }, [hydrated, isAuthenticated])
 
     const handleStart = async (id: number) => {
         setActionLoading(id)
@@ -394,6 +401,15 @@ export function HostingManagement() {
                                         title="Manage Custom Domains"
                                     >
                                         <Globe className="w-4 h-4" />
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => navigate(`/hosting/${site.id}/settings`)}
+                                        title="Project Settings & Team"
+                                    >
+                                        <Users className="w-4 h-4" />
                                     </Button>
 
                                     <Button

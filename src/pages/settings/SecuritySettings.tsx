@@ -30,7 +30,7 @@ export function SecuritySettings() {
         resolver: zodResolver(passwordChangeSchema),
     })
 
-    const onPasswordChange = async (data: PasswordChangeFormData) => {
+    const onPasswordChange = async () => {
         try {
             // Mock API call
             await new Promise((resolve) => setTimeout(resolve, 1000))

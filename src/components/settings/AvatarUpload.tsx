@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
 import { Upload, X, User } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { generateInitialsAvatar } from '@/lib/identicon'
 import { useAuthStore } from '@/store/authStore'
 
@@ -94,8 +93,8 @@ export function AvatarUpload({ currentAvatar, onAvatarChange }: AvatarUploadProp
                         onDragLeave={() => setIsDragging(false)}
                         onDrop={handleDrop}
                         className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${isDragging
-                                ? 'border-brand-purple bg-purple-50'
-                                : 'border-gray-300 hover:border-gray-400'
+                            ? 'border-brand-purple bg-purple-50'
+                            : 'border-gray-300 hover:border-gray-400'
                             }`}
                     >
                         <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />

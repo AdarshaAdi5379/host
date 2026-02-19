@@ -18,14 +18,13 @@ type ProfileFormData = z.infer<typeof profileUpdateSchema>
 type LocalizationFormData = z.infer<typeof localizationSchema>
 
 export function GeneralSettings() {
-    const { user, updateUser } = useAuthStore()
-    const { localization, updateLocalization, setUnsavedChanges } = useSettingsStore()
+    const { user } = useAuthStore()
+    const { localization, setUnsavedChanges } = useSettingsStore()
     const { addToast } = useToast()
-    const [avatarFile, setAvatarFile] = useState<File | null>(null)
+    const [, setAvatarFile] = useState<File | null>(null)
 
     const {
         register: registerProfile,
-        handleSubmit: handleSubmitProfile,
         formState: { errors: profileErrors },
     } = useForm<ProfileFormData>({
         resolver: zodResolver(profileUpdateSchema),
@@ -40,7 +39,6 @@ export function GeneralSettings() {
 
     const {
         register: registerLocalization,
-        handleSubmit: handleSubmitLocalization,
         watch,
     } = useForm<LocalizationFormData>({
         resolver: zodResolver(localizationSchema),

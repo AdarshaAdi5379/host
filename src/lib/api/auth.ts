@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:8000/api/auth'
+import { API_BASE_URL } from './config'
+
+const API_BASE = `${API_BASE_URL}/api/auth`
 
 export const authAPI = {
     // Password login
@@ -61,5 +63,24 @@ export const authAPI = {
             throw new Error('Failed to fetch user')
         }
         return response.json()
+    },
+
+    // Get full user profile with RBAC
+    me: async (token: string) => {
+        // We use the profile/me endpoint to get full details including role
+        const response = await fetch('http://localhost:8000/api/profile/me/', {
+            headers: { 'Authorization': `Token ${token}` },
+        })
+        if (!response.ok) {
+            throw new Error('Failed to fetch user profile')
+        }
+        const data = await response.json()
+        // Map the profile data to our User interface
+        return {
+            ...data.user,
+            platform_role: data.platform_role,
+            project_quota: data.project_quota,
+            email_notifications: data.email_notifications
+        }
     },
 }
