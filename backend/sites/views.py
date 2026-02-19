@@ -56,9 +56,11 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_staff or user.is_superuser:
             return WordPressSite.objects.all()
-        # Regular users only see what they own
+        # Regular users see what they own OR what they are a member of
         if user.is_authenticated:
-            return WordPressSite.objects.filter(owner=user)
+            return WordPressSite.objects.filter(
+                Q(owner=user) | Q(team_members__user=user)
+            ).distinct()
         return WordPressSite.objects.none()
 
     def perform_create(self, serializer):

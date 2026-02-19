@@ -9,6 +9,7 @@ import { useAuthStore, useHasHydrated } from '@/store/authStore'
 
 interface ProjectMembership {
     id: number
+    project: number
     project_name: string
     role: 'owner' | 'collaborator'
     joined_at: string
@@ -80,7 +81,7 @@ export function CollaboratorDashboard() {
                                     <Shield className="w-3 h-3 mr-1" />
                                     Limited Access
                                 </span>
-                                <Link to="/hosting">
+                                <Link to={`/hosting/${membership.project}/settings`}>
                                     <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-0 h-auto font-medium">
                                         View Project <ArrowRight className="w-4 h-4 ml-1" />
                                     </Button>
