@@ -23,6 +23,7 @@ import { NotificationSettings } from '@/pages/settings/NotificationSettings'
 import { SessionManagement } from '@/pages/settings/SessionManagement'
 import { useAuthStore } from '@/store/authStore'
 import { CreateHosting } from '@/pages/hosting/CreateHosting'
+import { CreateFullStack } from '@/pages/hosting/CreateFullStack'
 import { ProjectSettings } from '@/pages/hosting/ProjectSettings'
 import { DomainSearch } from '@/pages/domains/DomainSearch'
 import { CreateEmail } from '@/pages/email/CreateEmail'
@@ -64,6 +65,7 @@ function App() {
 
           <Route path="hosting" element={<HostingManagement />} />
           <Route path="hosting/create" element={<CreateHosting />} />
+          <Route path="hosting/create-fullstack" element={<CreateFullStack />} />
           <Route path="hosting/dns" element={<DNSEditor />} />
           <Route path="hosting/databases" element={<DatabaseManager />} />
           <Route path="hosting/files" element={<FileManager />} />

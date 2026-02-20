@@ -8,143 +8,178 @@ from pathlib import Path
 from django.conf import settings
 
 
-def find_available_port(start_port=9000, end_port=9999):
+def find_available_port(start_port=9000, end_port=9999, count=1):
     """
-    Find an available port in the specified range
+    Find available port(s) in the specified range
     Checks both network availability and database assignments
+    
+    Args:
+        count: Number of consecutive ports needed (default 1)
+    
+    Returns:
+        int or list: Single port if count=1, else list of ports
     """
     # Import here to avoid circular dependency
     from .models import WordPressSite
     
     # Get all ports already assigned in database
+    # We need to check both 'port' and 'api_port'
     assigned_ports = set(WordPressSite.objects.values_list('port', flat=True))
+    assigned_api_ports = set(WordPressSite.objects.filter(api_port__isnull=False).values_list('api_port', flat=True))
+    all_assigned = assigned_ports.union(assigned_api_ports)
+    
+    found_ports = []
     
     for port in range(start_port, end_port + 1):
-        # Skip if port is already assigned in database
-        if port in assigned_ports:
+        # Check if this port is free
+        if port in all_assigned:
+            found_ports = [] # Reset consecutive count if we hit a snag
             continue
             
-        # Check if port is available on the network
+        # Check network availability
+        is_free = False
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             try:
                 sock.bind(('127.0.0.1', port))
-                return port
+                is_free = True
             except OSError:
-                continue
+                is_free = False
+        
+        if is_free:
+            found_ports.append(port)
+            if len(found_ports) == count:
+                if count == 1:
+                    return found_ports[0]
+                return found_ports
+        else:
+            found_ports = [] # Reset on network conflict
+            
     raise RuntimeError(f"No available ports in range {start_port}-{end_port}")
 
 
-def generate_docker_compose(site_name, db_config, port):
+def generate_docker_compose(site_name, db_config, port, site_type='wordpress', api_port=None, repo_paths=None, env_vars=None):
     """
-    Generate docker-compose.yml configuration for a WordPress site
+    Generate docker-compose.yml configuration
     
     Args:
-        site_name: Name of the site (used for container names)
-        db_config: Database configuration dict (host, password, network, etc.)
-        port: Host port to map to WordPress container
-    
-    Returns:
-        dict: Docker Compose configuration
+        site_name: Name of the site
+        db_config: Database configuration dict
+        port: Host port to map to Frontend/WordPress
+        site_type: 'wordpress' or 'react_django'
+        api_port: Host port to map to Backend API (Full Stack only)
+        repo_paths: Dict with 'frontend_path' and 'backend_path' (Full Stack only)
+        env_vars: Dict of environment variables to inject
     """
     db_host = db_config.get('db_host')
     db_password = db_config.get('db_password')
     db_user = db_config.get('db_user', 'wordpress')
     db_name = db_config.get('db_name', 'wordpress')
-    network_name = db_config.get('network', 'tenant_isolated')
     
-    # Determine if this is a VPC setup (Database inside Compose) or Legacy (External DB)
-    is_vpc_setup = 'container_id' not in db_config
-    
-    # ----------------------------------------------------------------
-    # VPC ARCHITECTURE (New Sites)
-    # The "Lobby and Vault" Model
-    # ----------------------------------------------------------------
-    if is_vpc_setup:
-        # Define Network Names (Scoped to this project/compose file automatically, but let's be explicit)
-        # Actually, in docker-compose, networks are project-scoped by default.
-        # So 'vpc_public_web' becomes 'site_name_vpc_public_web' if we don't name them explicitly?
-        # No, 'driver: bridge' inside compose creates a project-scoped network.
-        # Let's stick to the PRD names: 'vpc_public_web' and 'vpc_private_db'.
-        
-        db_root_password = db_config.get('root_password')
-        
-        compose_config = {
-            'version': '3.8',
-            'services': {
-                # ------------------------------------------------------------
-                # 1. The Database (The Vault)
-                # ------------------------------------------------------------
-                'db': {
-                    'image': 'mysql:8.0',  # Using 8.0 as per modern standards (PRD said 5.7, but code uses 8.0)
-                    'container_name': f'{site_name}_db',
-                    'command': '--default-authentication-plugin=mysql_native_password',
-                    'restart': 'unless-stopped',
-                    'environment': {
-                        'MYSQL_ROOT_PASSWORD': db_root_password,
-                        'MYSQL_DATABASE': db_name,
-                        'MYSQL_USER': db_user,
-                        'MYSQL_PASSWORD': db_password,
-                    },
-                    'volumes': [
-                        'db_data:/var/lib/mysql'  # Persistent Volume
-                    ],
-                    'networks': [
-                        'tenant_isolated',  # Global network for Adminer access
-                        'vpc_private_db'    # Private internal network
-                    ],
-                    # CRITICAL: Allow Host Access for Backups via Localhost Port Binding
-                    'ports': [
-                        '127.0.0.1:0:3306'  # Bind to random ephemeral port on localhost
-                    ]
-                },
-                
-                # ------------------------------------------------------------
-                # 2. The Web Server (The Bridge)
-                # ------------------------------------------------------------
-                f'{site_name}_wordpress': {
-                    'image': 'hostinger_wordpress:latest',  # Custom image with WP-CLI
-                    'container_name': f'{site_name}_wp',
-                    'restart': 'unless-stopped',
-                    'ports': [
-                        f'{port}:80'
-                    ],
-                    'environment': {
-                        'WORDPRESS_DB_HOST': 'db:3306', # Connect to 'db' service via internal network
-                        'WORDPRESS_DB_USER': db_user,
-                        'WORDPRESS_DB_PASSWORD': db_password,
-                        'WORDPRESS_DB_NAME': db_name,
-                    },
-                    'volumes': [
-                        './html:/var/www/html',
-                        './wp-config.php:/var/www/html/wp-config.php'
-                    ],
-                    'networks': [
-                        'vpc_public_web',  # Internet Access
-                        'vpc_private_db'   # Database Access
-                    ],
-                    'extra_hosts': [
-                        'host.docker.internal:host-gateway'  # Linux host resolution for MinIO
-                    ],
-                    'depends_on': ['db']
-                }
-            },
-            'networks': {
-                'vpc_public_web': {
-                    'driver': 'bridge'
-                },
-                'vpc_private_db': {
-                    'driver': 'bridge',
-                    'internal': True  # The "Zero Trust" Lock
-                },
-                'tenant_isolated': {
-                    'external': True  # Connect to the global network where Adminer lives
-                }
-            },
-            'volumes': {
-                'db_data': {}
-            }
+    # Common Network Config
+    networks_config = {
+        'vpc_public_web': {
+            'driver': 'bridge'
+        },
+        'vpc_private_db': {
+            'driver': 'bridge',
+            'internal': True  # The "Zero Trust" Lock
+        },
+        'tenant_isolated': {
+            'external': True  # For Adminer
         }
-        return compose_config
+    }
+    
+    # ----------------------------------------------------------------
+    # 1. DATABASE SERVICE (Common for VPC)
+    # ----------------------------------------------------------------
+    db_service = {
+        'image': 'mysql:8.0',
+        'container_name': f'{site_name}_db',
+        'command': '--default-authentication-plugin=mysql_native_password',
+        'restart': 'unless-stopped',
+        'environment': {
+            'MYSQL_ROOT_PASSWORD': db_config.get('root_password'),
+            'MYSQL_DATABASE': db_name,
+            'MYSQL_USER': db_user,
+            'MYSQL_PASSWORD': db_password,
+        },
+        'volumes': ['db_data:/var/lib/mysql'],
+        'networks': ['tenant_isolated', 'vpc_private_db'],
+        'ports': ['127.0.0.1:0:3306']
+    }
+
+    services = {'db': db_service}
+    
+    # ----------------------------------------------------------------
+    # 2. REACT + DJANGO ARCHITECTURE
+    # ----------------------------------------------------------------
+    if site_type == 'react_django':
+        if not api_port or not repo_paths:
+            raise ValueError("API Port and Repo Paths required for React+Django")
+            
+        frontend_build = repo_paths.get('frontend_path', '.')
+        backend_build = repo_paths.get('backend_path', '.')
+        
+        # Backend Service (Django)
+        backend_env = {
+            'DATABASE_URL': f'mysql://{db_user}:{db_password}@db/{db_name}',
+            'AllowedHosts': '*'
+        }
+        
+        # Inject user env vars into backend
+        if env_vars:
+            backend_env.update(env_vars)
+            
+        services[f'{site_name}_backend'] = {
+            'build': backend_build,
+            'container_name': f'{site_name}_backend',
+            'restart': 'unless-stopped',
+            'ports': [f'{api_port}:8000'],
+            'environment': backend_env,
+            'networks': ['vpc_public_web', 'vpc_private_db'],
+            'depends_on': ['db']
+        }
+        
+        # Frontend Service (React/Nginx)
+        services[f'{site_name}_frontend'] = {
+            'build': frontend_build,
+            'container_name': f'{site_name}_frontend',
+            'restart': 'unless-stopped',
+            'ports': [f'{port}:80'],
+            'networks': ['vpc_public_web'],
+            'depends_on': [f'{site_name}_backend']
+        }
+
+    # ----------------------------------------------------------------
+    # 3. WORDPRESS ARCHITECTURE (Default)
+    # ----------------------------------------------------------------
+    else:
+        services[f'{site_name}_wordpress'] = {
+            'image': 'hostinger_wordpress:latest',
+            'container_name': f'{site_name}_wp',
+            'restart': 'unless-stopped',
+            'ports': [f'{port}:80'],
+            'environment': {
+                'WORDPRESS_DB_HOST': 'db:3306',
+                'WORDPRESS_DB_USER': db_user,
+                'WORDPRESS_DB_PASSWORD': db_password,
+                'WORDPRESS_DB_NAME': db_name,
+            },
+            'volumes': [
+                './html:/var/www/html',
+                './wp-config.php:/var/www/html/wp-config.php'
+            ],
+            'networks': ['vpc_public_web', 'vpc_private_db'],
+            'extra_hosts': ['host.docker.internal:host-gateway'],
+            'depends_on': ['db']
+        }
+    
+    return {
+        'version': '3.8',
+        'services': services,
+        'networks': networks_config,
+        'volumes': {'db_data': {}}
+    }
 
     # ----------------------------------------------------------------
     # LEGACY ARCHITECTURE (Existing Sites)
@@ -339,3 +374,96 @@ def create_site_directory(site_name):
     os.makedirs(sites_dir, exist_ok=True)
     
     return str(site_dir)
+
+
+def clone_repository(repo_url, branch, destination):
+    """
+    Clone a git repository to a destination folder
+    """
+    import subprocess
+    
+    # Ensure destination exists
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+        
+    try:
+        # Securely clone using subprocess
+        # Note: In production, handle SSH keys or Auth Tokens for private repos
+        cmd = ['git', 'clone', '--branch', branch, '--depth', '1', repo_url, destination]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return True, "Repository cloned successfully"
+    except subprocess.CalledProcessError as e:
+        return False, f"Failed to clone repository: {e.stderr}"
+
+
+def detect_and_inject_dockerfiles(site_path):
+    """
+    Detect the project structure and inject appropriate Dockerfiles
+    Returns a dict with 'frontend_path' and 'backend_path' relative to site_path
+    """
+    frontend_path = None
+    backend_path = None
+    
+    # 1. Search for Frontend (package.json)
+    # Strategy: Look in root, then in 'frontend', 'client', 'ui' folders
+    possible_frontend_dirs = ['.', 'frontend', 'client', 'ui', 'web']
+    
+    for relative_dir in possible_frontend_dirs:
+        check_path = os.path.join(site_path, relative_dir)
+        if os.path.exists(os.path.join(check_path, 'package.json')):
+            frontend_path = relative_dir
+            # Inject React Dockerfile
+            dockerfile_content = """
+# Stage 1: Build the React app
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# Stage 2: Serve with Nginx
+FROM nginx:alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+"""
+            with open(os.path.join(check_path, 'Dockerfile'), 'w') as f:
+                f.write(dockerfile_content.strip())
+            break
+            
+    # 2. Search for Backend (manage.py for Django)
+    # Strategy: Look in root, then 'backend', 'server', 'api' folders
+    possible_backend_dirs = ['.', 'backend', 'server', 'api']
+    
+    for relative_dir in possible_backend_dirs:
+        # Don't confuse frontend with backend if they are in same dir (unlikely but possible)
+        if relative_dir == frontend_path and relative_dir != '.':
+            continue
+            
+        check_path = os.path.join(site_path, relative_dir)
+        if os.path.exists(os.path.join(check_path, 'manage.py')):
+            backend_path = relative_dir
+            # Inject Django Dockerfile
+            dockerfile_content = """
+FROM python:3.10
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+RUN pip install gunicorn
+COPY . .
+EXPOSE 8000
+# Run the app using Gunicorn
+CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000"]
+"""
+            # Note: We assume 'core.wsgi' exists. Real implementation might need to parse manage.py to find project name.
+            # Only simplistic injection for now.
+            
+            with open(os.path.join(check_path, 'Dockerfile'), 'w') as f:
+                f.write(dockerfile_content.strip())
+            break
+            
+    return {
+        'frontend_path': frontend_path,
+        'backend_path': backend_path
+    }

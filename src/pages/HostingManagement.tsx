@@ -3,7 +3,7 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Server, Plus, Play, Square, Trash2, ExternalLink, Loader2, Globe, Copy, Check, FolderOpen, Users } from 'lucide-react'
+import { Server, Plus, Play, Square, Trash2, ExternalLink, Loader2, Globe, Copy, Check, FolderOpen, Users, Code } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
 import { ResourceMonitor } from '@/components/hosting/ResourceMonitor'
@@ -214,13 +214,19 @@ export function HostingManagement() {
 
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-brand-navy">WordPress Sites</h1>
-                    <p className="text-gray-600 mt-1">Manage your local WordPress instances</p>
+                    <h1 className="text-3xl font-bold text-brand-navy">Hosting & Sites</h1>
+                    <p className="text-gray-600 mt-1">Manage your local WordPress and Full Stack applications</p>
                 </div>
-                <Button variant="primary" onClick={() => navigate('/hosting/create')}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    New WordPress Site
-                </Button>
+                <div className="flex gap-3">
+                    <Button variant="outline" onClick={() => navigate('/hosting/create-fullstack')}>
+                        <Code className="w-4 h-4 mr-2" />
+                        New Full Stack App
+                    </Button>
+                    <Button variant="primary" onClick={() => navigate('/hosting/create')}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        New WordPress Site
+                    </Button>
+                </div>
             </div>
 
             {sites.length > 0 ? (
@@ -230,8 +236,12 @@ export function HostingManagement() {
                             <CardContent className="p-6">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center space-x-3">
-                                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                            <Server className="w-5 h-5 text-blue-600" />
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${site.framework === 'react_django' ? 'bg-purple-100' : 'bg-blue-100'}`}>
+                                            {site.framework === 'react_django' ? (
+                                                <Code className="w-5 h-5 text-purple-600" />
+                                            ) : (
+                                                <Server className="w-5 h-5 text-blue-600" />
+                                            )}
                                         </div>
                                         <div>
                                             <h3 className="font-semibold text-brand-navy">{site.name}</h3>
@@ -246,10 +256,20 @@ export function HostingManagement() {
                                         <span className="text-gray-600">Domain:</span>
                                         <span className="font-mono text-xs">{site.domain}</span>
                                     </div>
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="text-gray-600">Admin:</span>
-                                        <span className="text-xs">{site.admin_username}</span>
-                                    </div>
+
+                                    {site.framework === 'react_django' ? (
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-600">Repo:</span>
+                                            <span className="text-xs truncate max-w-[150px]" title={site.repo_url}>
+                                                {site.repo_url?.split('/').pop()} ({site.branch})
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-600">Admin:</span>
+                                            <span className="text-xs">{site.admin_username}</span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="mb-4">
@@ -374,25 +394,39 @@ export function HostingManagement() {
                                         <ExternalLink className="w-4 h-4" />
                                     </Button>
 
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={async () => {
-                                            try {
-                                                const creds = await wordpressAPI.getFileBrowserCredentials(site.id)
-                                                setFileBrowserModal({ isOpen: true, credentials: creds })
-                                            } catch (error) {
-                                                addToast({
-                                                    title: 'Failed to load credentials',
-                                                    description: error instanceof Error ? error.message : 'Unknown error',
-                                                    variant: 'error',
-                                                })
-                                            }
-                                        }}
-                                        title="Open File Manager"
-                                    >
-                                        <FolderOpen className="w-4 h-4" />
-                                    </Button>
+                                    {/* Conditional Actions based on Framework */}
+                                    {site.framework === 'wordpress' || !site.framework ? (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={async () => {
+                                                try {
+                                                    const creds = await wordpressAPI.getFileBrowserCredentials(site.id)
+                                                    setFileBrowserModal({ isOpen: true, credentials: creds })
+                                                } catch (error) {
+                                                    addToast({
+                                                        title: 'Failed to load credentials',
+                                                        description: error instanceof Error ? error.message : 'Unknown error',
+                                                        variant: 'error',
+                                                    })
+                                                }
+                                            }}
+                                            title="Open File Manager"
+                                        >
+                                            <FolderOpen className="w-4 h-4" />
+                                        </Button>
+                                    ) : (
+                                        // TODO: Add Build Logs or Env Vars button here for React+Django
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            // onClick={() => ...}
+                                            title="Build Logs (Coming Soon)"
+                                            disabled
+                                        >
+                                            <Code className="w-4 h-4" />
+                                        </Button>
+                                    )}
 
                                     <Button
                                         variant="outline"
@@ -439,15 +473,21 @@ export function HostingManagement() {
                         <Server className="w-10 h-10 text-blue-600" />
                     </div>
                     <h2 className="text-2xl font-bold text-brand-navy mb-3">
-                        No WordPress Sites Yet
+                        No Sites Yet
                     </h2>
                     <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                        You haven't created any WordPress sites. Get started by deploying your first local instance.
+                        You haven't created any sites. Get started by deploying your first application.
                     </p>
-                    <Button variant="primary" onClick={() => navigate('/hosting/create')}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Your First Site
-                    </Button>
+                    <div className="flex justify-center gap-4">
+                        <Button variant="outline" onClick={() => navigate('/hosting/create-fullstack')}>
+                            <Code className="w-4 h-4 mr-2" />
+                            New Full Stack App
+                        </Button>
+                        <Button variant="primary" onClick={() => navigate('/hosting/create')}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            New WordPress Site
+                        </Button>
+                    </div>
                 </div>
             )}
 

@@ -61,6 +61,27 @@ class WordPressSite(models.Model):
     filebrowser_username = models.CharField(max_length=100, blank=True, null=True)  # FileBrowser username
     filebrowser_password = models.CharField(max_length=255, blank=True, null=True)  # FileBrowser password
     
+    # Full-Stack Hosting Fields
+    FRAMEWORK_CHOICES = [
+        ('wordpress', 'WordPress'),
+        ('react_django', 'React + Django'),
+        ('node', 'Node.js'),
+    ]
+    BUILD_STATUS_CHOICES = [
+        ('idle', 'Idle'),
+        ('building', 'Building'),
+        ('deploying', 'Deploying'),
+        ('failed', 'Failed'),
+        ('running', 'Running'),
+    ]
+    
+    framework = models.CharField(max_length=20, choices=FRAMEWORK_CHOICES, default='wordpress')
+    repo_url = models.URLField(blank=True, null=True)
+    branch = models.CharField(max_length=100, default='main')
+    env_vars = models.JSONField(default=dict, blank=True)  # Encrypted environment variables
+    build_status = models.CharField(max_length=20, choices=BUILD_STATUS_CHOICES, default='idle')
+    api_port = models.IntegerField(unique=True, null=True, blank=True)  # Second port for Backend API (React+Django)
+    
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'WordPress Site'

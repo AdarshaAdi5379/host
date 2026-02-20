@@ -30,12 +30,22 @@ export interface WordPressSite {
     subdomain?: string;
     public_url?: string;
     public_access_enabled: boolean;
+    framework?: 'wordpress' | 'react_django';
+    repo_url?: string;
+    branch?: string;
+    build_status?: 'idle' | 'building' | 'deploying' | 'failed' | 'running';
+    api_port?: number;
+    env_vars?: Record<string, string>;
 }
 
 export interface CreateSiteRequest {
     name: string;
-    admin_username: string;
-    admin_password: string;
+    admin_username?: string;
+    admin_password?: string;
+    framework?: 'wordpress' | 'react_django';
+    repo_url?: string;
+    branch?: string;
+    env_vars?: Record<string, string>;
 }
 
 class WordPressAPI {
@@ -202,6 +212,22 @@ class WordPressAPI {
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to fetch FileBrowser credentials');
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Get build logs for a site
+     */
+    async getBuildLogs(id: number): Promise<{ logs: string }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${id}/build_logs/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch build logs');
         }
 
         return response.json();

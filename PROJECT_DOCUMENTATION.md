@@ -713,3 +713,49 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   Less waiting for users.
     -   Cleaner resource teardown.
     -   **Status**: 🟢 Completed (Verified).
+
+### Phase 18: Authentication Hardening & Fixes
+-   **Objective**: Stabilize the authentication flows for reliable user onboarding and team growth.
+-   **Problems**:
+    -   **Registration 500**: `dj-rest-auth` default view failed because it tried to access non-existent `user.auth_token` (Knox uses a different model).
+    -   **Google Login 500**: Duplicate `SocialApp` records caused `MultipleObjectsReturned`.
+    -   **Invite 500**: Legacy duplicate users sharing an email caused crashes during invitation lookups.
+-   **Implementation**:
+    -   **Custom Registration View**:
+        -   Created `CustomRegisterView` in `authentication/views.py`.
+        -   Manually generates and returns a **Knox Token** upon successful registration.
+        -   Outcome: Seamless sign-up process returning 201 Created.
+    -   **Social Auth Fix**:
+        -   Cleaned up `settings.py` to rely solely on database configuration.
+        -   Removed duplicate Google provider entries.
+        -   Disabled `ACCOUNT_EMAIL_VERIFICATION` in development to prevent SMTP connection errors.
+    -   **Invite Logic Hardening**:
+        -   Updated `invite_member` view to catch `MultipleObjectsReturned` exceptions.
+        -   Now returns a friendly **400 Bad Request** if duplicates are found, instead of crashing.
+        -   Cleaned up database to remove duplicate user records.
+-   **Outcome**:
+    -   Reliable user registration and login.
+    -   Stable team invitation flow.
+    -   **Status**: 🟢 Completed (Verified).
+
+### Phase 19: Advanced Collaboration Features (RBAC Refinement)
+-   **Objective**: Ensure that invited collaborators can actually see and access the projects they are assigned to.
+-   **Problems**:
+    -   **Invisible Projects**: Collaborators couldn't see shared projects in the main dashboard because the API only returned *owned* sites.
+    -   **Broken Redirection**: "View Project" button redirected to the generic hosting page instead of the specific project settings.
+-   **Implementation**:
+    -   **API Visibility Extension** (`WordPressSiteViewSet`):
+        -   Updated `get_queryset` to use `Q` objects.
+        -   Logic: `filter(Q(owner=user) | Q(team_members__user=user))`.
+        -   Result: Shared projects now appear in the site list.
+    -   **Frontend Routing**:
+        -   Updated `CollaboratorDashboard.tsx` to link directly to `/hosting/{id}/settings`.
+        -   Ensured `project` ID is correctly passed from the API.
+    -   **RBAC Documentation**:
+        -   Created `rbac.md` as the single source of truth for permission logic.
+        -   Detailed the hierarchy: **Super Admin** > **Site Owner** > **Co-Owner** > **Collaborator**.
+-   **Outcome**:
+    -   True multi-user collaboration is now functional.
+    -   Team members can manage shared resources based on their role.
+    -   Clear documentation for future development.
+    -   **Status**: 🟢 Completed (Verified).
