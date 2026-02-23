@@ -759,3 +759,26 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   Team members can manage shared resources based on their role.
     -   Clear documentation for future development.
     -   **Status**: 🟢 Completed (Verified).
+
+### Phase 20: Full Stack App Hosting (React + Django)
+-   **Objective**: Transform the platform from a "WordPress-only" host to a general PaaS supporting custom frameworks, starting with React + Django.
+-   **Implementation**:
+    -   **App Creation Flow** (`backend/sites/views.py`, `CreateFullStack.tsx`):
+        -   Users input a Git repository URL (HTTPS or SSH) containing `package.json` and/or `manage.py`, along with specific environment variables.
+        -   Input format validation ensures valid repository URLs.
+    -   **Orchestration** (`backend/sites/orchestrator.py`):
+        -   **Repository Cloning**: Clones the user's repository via `gitpython`/`subprocess`.
+        -   **Docker Injection**: Detects the framework and injects robust `Dockerfile` templates. Now uses standard `python:3.10` with `gunicorn` and `build-essential` built-in to handle complex dependencies like `backports.zoneinfo`. Fixes encoding issues on `requirements.txt` dynamically.
+        -   **Port Allocation**: Allocates *two* distinct ports per app (one for the React frontend, one for the Django backend API).
+        -   **Compose Generation**: Auto-generates `docker-compose.yml` linking the frontend, backend, and isolated MySQL containers. Injects user-provided `env_vars` safely into the backend.
+    -   **Background Task Architecture**:
+        -   Deployment triggers a background thread (`run_fullstack_build_task`) which runs `docker-compose up --build -d`.
+        -   Logs are captured and streamed to `/api/sites/{id}/build_logs/` for real-time UI feedback.
+    -   **Frontend Updates**:
+        -   New `CreateFullStack.tsx` page for onboarding custom apps.
+        -   Upgraded `ProjectSettings.tsx` to include "Environment Variables" (masked keys) and "Build Logs" tabs.
+        -   Dashboard lists frameworks (`react_django` vs `wordpress`) with distinct identifiers.
+-   **Outcome**:
+    -   Successfully deploys 3-tier custom applications.
+    -   Stable deployment pipeline with automatic dependency handling and error logging.
+    -   **Status**: 🟢 Completed (Verified).
