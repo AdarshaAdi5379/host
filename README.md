@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🚀 hPanel Frontend Clone</h1>
+  <h1>Internal server</h1>
   <p><strong>Professional-Grade Deployment & Hosting Management Platform</strong></p>
   
   <p>
