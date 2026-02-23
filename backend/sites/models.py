@@ -215,6 +215,7 @@ class AuditLog(models.Model):
         ('logout', 'User Logout'),
         ('password_reset', 'Password Reset'),
         ('settings_updated', 'Settings Updated'),
+        ('malware_detected', 'Malware Detected'),
     ]
     
     user = models.ForeignKey(

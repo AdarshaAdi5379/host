@@ -156,4 +156,6 @@ class ServerStatsSerializer(serializers.Serializer):
     server_cpu_percent = serializers.FloatField()
     server_memory_percent = serializers.FloatField()
     server_disk_usage_gb = serializers.FloatField()
+    server_disk_percent = serializers.FloatField()
     total_storage_used_gb = serializers.FloatField()
+    active_malware_alerts = serializers.IntegerField()

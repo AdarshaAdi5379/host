@@ -11,7 +11,12 @@ export function Dashboard() {
 
     // Super Admin View
     if (user.platform_role === 'super_admin') {
-        return <SuperAdminDashboard />
+        return (
+            <div className="space-y-12">
+                <SuperAdminDashboard />
+                <SiteOwnerDashboard />
+            </div>
+        )
     }
 
     // Standard User View

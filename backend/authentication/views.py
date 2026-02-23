@@ -61,6 +61,18 @@ class UserProfileView(APIView):
     
     def get(self, request):
         user = request.user
+        # Get profile data safely
+        project_quota = 5
+        platform_role = 'super_admin' if getattr(user, 'is_superuser', False) else 'user'
+        
+        if hasattr(user, 'profile'):
+            if user.is_superuser:
+               project_quota = 0
+               platform_role = 'super_admin'
+            else:
+               project_quota = user.profile.project_quota
+               platform_role = user.profile.platform_role
+
         return Response({
             'id': user.id,
             'email': user.email,
@@ -69,6 +81,8 @@ class UserProfileView(APIView):
             'last_name': user.last_name,
             'name': user.get_full_name() or user.email.split('@')[0],
             'role': 'owner' if user.is_staff else 'user',
+            'project_quota': project_quota,
+            'platform_role': platform_role,
             'emailVerified': user.email is not None,
             'createdAt': user.date_joined.isoformat() if hasattr(user, 'date_joined') else None,
             'lastLoginAt': user.last_login.isoformat() if user.last_login else None,

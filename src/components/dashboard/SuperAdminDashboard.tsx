@@ -16,7 +16,9 @@ interface ServerStats {
     server_cpu_percent: number
     server_memory_percent: number
     server_disk_usage_gb: number
+    server_disk_percent: number
     total_storage_used_gb: number
+    active_malware_alerts?: number
 }
 
 export function SuperAdminDashboard() {
@@ -56,7 +58,12 @@ export function SuperAdminDashboard() {
                 headers: { 'Authorization': `Token ${token}` }
             })
             if (response.ok) {
-                alert('System prune completed successfully')
+                const data = await response.json()
+                const containersReclaimed = (data.containers?.SpaceReclaimed || 0) / (1024 * 1024);
+                const imagesReclaimed = (data.images?.SpaceReclaimed || 0) / (1024 * 1024);
+                const volumesReclaimed = (data.volumes?.SpaceReclaimed || 0) / (1024 * 1024);
+                const totalReclaimed = (containersReclaimed + imagesReclaimed + volumesReclaimed).toFixed(2);
+                alert(`System prune completed successfully! Reclaimed ${totalReclaimed} MB of space.`)
                 fetchStats()
             }
         } catch (error) {
@@ -113,6 +120,31 @@ export function SuperAdminDashboard() {
                     </Button>
                 </div>
             </div>
+
+            {/* Malware Alert Banner */}
+            {stats?.active_malware_alerts ? (
+                <Card className="p-4 bg-red-50 border border-red-200">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-red-100 rounded-lg shrink-0">
+                            <Shield className="w-5 h-5 text-red-600" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-medium text-red-900">
+                                🚨 Malware Alert!
+                            </h3>
+                            <p className="text-sm text-red-700">
+                                ClamAV discovered infected files and moved them to the root quarantine folder.
+                                ({stats.active_malware_alerts} unresolved alert(s)). Check global audit logs immediately.
+                            </p>
+                        </div>
+                        <Link to="/admin/audit-logs">
+                            <Button size="sm" variant="outline" className="text-red-700 border-red-200 hover:bg-red-100">
+                                View Logs
+                            </Button>
+                        </Link>
+                    </div>
+                </Card>
+            ) : null}
 
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -207,12 +239,14 @@ export function SuperAdminDashboard() {
                         <div>
                             <div className="flex justify-between mb-2">
                                 <span className="text-sm font-medium text-gray-600">Disk Usage (Root)</span>
-                                <span className="text-sm font-medium text-gray-900">{stats?.server_disk_usage_gb} GB Used</span>
+                                <span className="text-sm font-medium text-gray-900">{stats?.server_disk_usage_gb} GB Used ({stats?.server_disk_percent}%)</span>
                             </div>
                             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-gray-500 rounded-full"
-                                    style={{ width: '40%' }} // Conceptual - would need total disk size
+                                    className={`h-full rounded-full transition-all duration-500 ${(stats?.server_disk_percent || 0) > 80 ? 'bg-red-500' :
+                                        (stats?.server_disk_percent || 0) > 60 ? 'bg-orange-500' : 'bg-gray-500'
+                                        }`}
+                                    style={{ width: `${stats?.server_disk_percent || 0}%` }}
                                 />
                             </div>
                         </div>

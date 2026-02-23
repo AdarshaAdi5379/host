@@ -53,9 +53,10 @@ export function SiteOwnerDashboard() {
     )
 
     // Calculate quota usage
-    const projectLimit = user?.project_quota || 5
+    const isUnlimited = user?.platform_role === 'super_admin' || user?.project_quota === 0
+    const projectLimit = isUnlimited ? Infinity : (user?.project_quota ?? 5)
     const projectsUsed = sites.length
-    const usagePercentage = Math.min((projectsUsed / projectLimit) * 100, 100)
+    const usagePercentage = isUnlimited ? 0 : Math.min((projectsUsed / projectLimit) * 100, 100)
 
     return (
         <div className="space-y-8">
@@ -70,7 +71,7 @@ export function SiteOwnerDashboard() {
                 <div className="flex items-center gap-4">
                     <div className="hidden md:block w-48">
                         <div className="flex justify-between text-xs mb-1">
-                            <span className="text-gray-500">{projectsUsed} of {projectLimit} projects</span>
+                            <span className="text-gray-500">{projectsUsed} of {isUnlimited ? 'Unlimited' : projectLimit} projects</span>
                             <span className="font-medium text-brand-purple">{Math.round(usagePercentage)}%</span>
                         </div>
                         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -84,7 +85,7 @@ export function SiteOwnerDashboard() {
                     <Button
                         onClick={() => navigate('/hosting/create')}
                         className="bg-brand-purple hover:bg-brand-purple/90"
-                        disabled={projectsUsed >= projectLimit}
+                        disabled={!isUnlimited && projectsUsed >= projectLimit}
                     >
                         <Plus className="w-4 h-4 mr-2" />
                         New Project

@@ -13,6 +13,19 @@ class KnoxTokenSerializer(serializers.Serializer):
 
     def get_user(self, obj):
         user = obj.user
+        
+        # Get profile data safely
+        project_quota = 5
+        platform_role = 'super_admin' if getattr(user, 'is_superuser', False) else 'user'
+        
+        if hasattr(user, 'profile'):
+            if user.is_superuser:
+               project_quota = 0
+               platform_role = 'super_admin'
+            else:
+               project_quota = user.profile.project_quota
+               platform_role = user.profile.platform_role
+            
         return {
             'id': user.id,
             'email': user.email,
@@ -21,4 +34,6 @@ class KnoxTokenSerializer(serializers.Serializer):
             'first_name': user.first_name,
             'last_name': user.last_name,
             'role': 'owner' if user.is_staff else 'user',
+            'project_quota': project_quota,
+            'platform_role': platform_role,
         }

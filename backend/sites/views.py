@@ -1126,6 +1126,9 @@ class SuperAdminViewSet(viewsets.ViewSet):
         total_users = User.objects.count()
         total_projects = WordPressSite.objects.count()
         
+        # Count unresolved malware alerts
+        active_malware_alerts = AuditLog.objects.filter(action='malware_detected').count()
+        
         # Calculate total storage used
         total_storage = 0
         for site in WordPressSite.objects.all():
@@ -1145,11 +1148,41 @@ class SuperAdminViewSet(viewsets.ViewSet):
             'server_cpu_percent': cpu_percent,
             'server_memory_percent': memory.percent,
             'server_disk_usage_gb': round(disk.used / (1024**3), 2),
-            'total_storage_used_gb': round(total_storage / (1024**3), 2)
+            'server_disk_percent': disk.percent,
+            'total_storage_used_gb': round(total_storage / (1024**3), 2),
+            'active_malware_alerts': active_malware_alerts,
         }
         
         serializer = ServerStatsSerializer(stats)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], permission_classes=[])
+    def malware_alert(self, request):
+        """
+        Receive alerts from the local ClamAV bash script.
+        Restricted to localhost (127.0.0.1) requests only.
+        """
+        client_ip = request.META.get('REMOTE_ADDR')
+        if client_ip not in ['127.0.0.1', 'localhost', '::1']:
+            return Response({'error': 'Unauthorized origin'}, status=status.HTTP_403_FORBIDDEN)
+            
+        message = request.data.get('message', 'Malware detected')
+        infected_count = request.data.get('infected_count', 1)
+        
+        # Find the first superuser to attribute the system alert to
+        superuser = User.objects.filter(is_superuser=True).first()
+        
+        if superuser:
+            AuditLog.objects.create(
+                user=superuser,
+                action='malware_detected',
+                description=f"{message} - {infected_count} files moved to quarantine.",
+                ip_address=client_ip,
+                metadata={'infected_count': infected_count}
+            )
+            
+        return Response({'status': 'Alert received and logged.'})
+
     
     @action(detail=False, methods=['get'])
     def all_users(self, request):
@@ -1262,20 +1295,41 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def me(self, request):
         """Get current user's profile"""
+        defaults = {'platform_role': 'user', 'project_quota': 5}
+        if request.user.is_superuser:
+            defaults = {'platform_role': 'super_admin', 'project_quota': 0}
+            
         profile, created = UserProfile.objects.get_or_create(
             user=request.user,
-            defaults={'platform_role': 'user', 'project_quota': 5}
+            defaults=defaults
         )
+        
+        # Enforce superuser status if profile already existed with wrong values
+        if request.user.is_superuser and (profile.platform_role != 'super_admin' or profile.project_quota != 0):
+            profile.platform_role = 'super_admin'
+            profile.project_quota = 0
+            profile.save()
+            
         serializer = UserProfileSerializer(profile)
         return Response(serializer.data)
     
     @action(detail=False, methods=['patch'])
     def update_me(self, request):
         """Update current user's profile"""
+        defaults = {'platform_role': 'user', 'project_quota': 5}
+        if request.user.is_superuser:
+            defaults = {'platform_role': 'super_admin', 'project_quota': 0}
+            
         profile, created = UserProfile.objects.get_or_create(
             user=request.user,
-            defaults={'platform_role': 'user', 'project_quota': 5}
+            defaults=defaults
         )
+        
+        # Enforce superuser status if profile already existed with wrong values
+        if request.user.is_superuser and (profile.platform_role != 'super_admin' or profile.project_quota != 0):
+            profile.platform_role = 'super_admin'
+            profile.project_quota = 0
+            # will be saved below
         
         # Only allow updating certain fields
         allowed_fields = ['email_notifications']
