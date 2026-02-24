@@ -1,6 +1,7 @@
 # Project Host: WordPress Hosting Platform Documentation
 
-**Last Updated:** February 10, 2026
+**Last Updated:** February 24, 2026
+**Last Updated:** March 1, 2026
 
 ## 1. Project Overview
 "Project Host" is a local-first WordPress hosting platform designed for professional hosting environments on a local machine. It allows users to:
@@ -8,6 +9,7 @@
 -   Access sites via custom local domains (e.g., `mysite.local`) or direct ports (e.g., `localhost:9005`).
 -   **Secure User Authentication**: Email/Password and Google OAuth2 login.
 -   Monitor real-time CPU and RAM usage for each site.
+-   **ClamAV Malware Scanning**: Nightly automated malware scans with Super Admin alerting on the dashboard.
 -   Manage site lifecycle (Start, Stop, Terminate) via a modern React dashboard.
 -   Enable public access via Cloudflare Tunnels with one-click subdomain provisioning.
 -   Automated disaster recovery with AWS S3 encrypted backups.
@@ -337,8 +339,23 @@ graph TD
 
 **Problem**: Orphaned containers (Running but not in database)
 -   **Cause**: Failed site creation or manual deletion without cleanup
-    ./cleanup_orphaned_containers.sh
+-   **Solution**:
+    ```bash
+    bash backend/cleanup_orphaned_containers.sh
     ```
+
+**Problem**: WordPress sites show as "Running" in the UI but `localhost:PORT` is inaccessible / "Connection refused"
+-   **Cause**: Docker containers were stopped after a Docker daemon restart or system reboot, but the database status was not updated to reflect this. The `restart: unless-stopped` policy does not survive a full Docker engine stop.
+-   **Solution**: Run the container sync management command to auto-detect and restart any stopped containers:
+    ```bash
+    cd backend
+    python manage.py sync_containers
+    ```
+    Alternatively, use the helper shell script for a one-shot restart of all tracked sites:
+    ```bash
+    bash backend/restart_all_sites.sh
+    ```
+-   **Prevention**: After any Docker daemon restart or system reboot, run `python manage.py sync_containers` before expecting sites to be accessible.
 
 **Problem**: Cloudflare Tunnel 530 Error (DNS/Connection Refused)
 -   **Cause**: Docker container IP changed after restart, breaking the static configuration in `cloudflared_config.yml`.
@@ -353,6 +370,28 @@ graph TD
     -   Data is now stored in `backend/wordpress_sites/{site}/html/`.
     -   Users can see and edit all files directly.
 
+### ClamAV Issues
+
+**Problem**: ClamAV daemon fails to start or crashes (Out of Memory)
+-   **Cause**: ClamAV requires significant RAM (~1.5GB) for its signature database. Insufficient RAM can cause crashes.
+-   **Solution**:
+    1.  **Check RAM**: `free -h` to see available memory.
+    2.  **Increase RAM**: If on a VM, allocate more RAM.
+    3.  **Switch to `clamscan`**: If RAM is limited, consider using `clamscan` (non-daemonized) for scheduled scans, which loads signatures per scan. Edit `nightly_malware_scan.sh` accordingly.
+    4.  **Restart**: `sudo systemctl restart clamav-daemon`
+
+**Problem**: ClamAV scan reports "Permission denied" or misses files
+-   **Cause**: Incorrect permissions for the `clamav` user or the scan target.
+-   **Solution**:
+    1.  **Check target directory permissions**: Ensure `/var/lib/docker/volumes/` and its contents are readable by the `clamav` user. You might need to adjust Docker volume permissions or add `clamav` user to the `docker` group (use with caution).
+    2.  **Quarantine directory**: Ensure `/var/quarantine` exists and is owned by `clamav:clamav` with `700` permissions. `sudo chown clamav:clamav /var/quarantine && sudo chmod 700 /var/quarantine`
+
+**Problem**: Malware alerts are not showing on the Super Admin dashboard
+-   **Cause**: The `curl` POST request from the CRON script might be failing, or the Django API endpoint is not processing the alert correctly.
+-   **Solution**:
+    1.  **Test `curl`**: Manually run the `curl` command from `nightly_malware_scan.sh` to the Django API endpoint. Check for network issues or API errors.
+    2.  **Check Django logs**: Review Django backend logs for errors when the `/api/admin/malware_alert/` endpoint is hit.
+    3.  **Verify Super Admin status**: Ensure the user logged into the dashboard is a Super Admin.
 
 ---
 
@@ -781,4 +820,44 @@ The system uses **Adminer**, a lightweight database management tool, running in 
 -   **Outcome**:
     -   Successfully deploys 3-tier custom applications.
     -   Stable deployment pipeline with automatic dependency handling and error logging.
+    -   **Status**: 🟢 Completed (Verified).
+
+### Phase 21: ClamAV Malware Security (Nightly Scanning & Dashboard Alerting)
+-   **Objective**: Protect the hosting platform from malicious code injected into tenant WordPress sites via a lightweight, Docker-aware antivirus scanning pipeline.
+-   **Tech**: ClamAV (`clamav-daemon`, `clamdscan`), Bash CRON script, Django REST API.
+-   **Architecture Considerations**:
+    -   **Targeted Scanning** — Only `/var/lib/docker/volumes/` is scanned (tenant files), not the full disk. Docker volumes for databases (MariaDB/MySQL) are explicitly excluded via regex `--exclude-dir=".*(db|mysql|mariadb|redis).*"` to prevent database corruption.
+    -   **Daemonized Scanning** — Uses `clamdscan --fdpass` to push file descriptors to the background daemon, keeping CPU spikes minimal.
+    -   **Secure Quarantine** — Infected files are moved to `/var/quarantine` (owned `clamav:clamav`, mode `700`), preventing execution.
+    -   **Memory Management** — The ClamAV daemon loads ~1.5 GB of signatures into RAM. Servers with less than 2 GB free RAM should use `clamscan` with daily scheduling instead.
+-   **Implementation**:
+    -   **File Locations**:
+        -   Quarantine Directory: `/var/quarantine`
+        -   Nightly Scan Script: `/usr/local/bin/nightly_malware_scan.sh`
+        -   Scan Log: `/var/log/clamav/nightly_scan.log`
+        -   ClamAV Daemon Config: `/etc/clamav/clamd.conf`
+        -   Freshclam (Updater) Config: `/etc/clamav/freshclam.conf`
+    -   **CRON Job**: Nightly scan runs automatically. On detection, a `curl` POST fires to the Django malware alert API.
+    -   **Django API Endpoint** (`sites/views.py`):
+        -   `POST /api/admin/malware_alert/` — Receives alert payload and stores it as a `MalwareAlert` record.
+        -   Super Admins see an active **alert banner** on their dashboard (dismissible).
+    -   **Service Management**:
+        ```bash
+        sudo systemctl status clamav-daemon         # Check scanner
+        sudo systemctl restart clamav-daemon         # Restart (takes 1–3 min)
+        sudo systemctl stop clamav-freshclam         # Stop updater
+        sudo freshclam                               # Force manual signature update
+        sudo systemctl start clamav-freshclam        # Restart updater
+        ```
+    -   **Manual Scan**:
+        ```bash
+        sudo /usr/local/bin/nightly_malware_scan.sh  # Trigger nightly script manually
+        sudo clamdscan /path/to/dir --move=/var/quarantine --multiscan --fdpass  # Targeted scan
+        cat /var/log/clamav/nightly_scan.log         # View scan history
+        ```
+-   **Troubleshooting Reference**: See `clamav.md` in the project root for full troubleshooting guide (quarantine permission errors, OOM crashes, database corruption risk, dashboard alert debugging).
+-   **Outcome**:
+    -   Nightly automated malware detection with zero manual intervention.
+    -   Infected files quarantined immediately, site remains accessible.
+    -   Super Admin dashboard alert on any detection.
     -   **Status**: 🟢 Completed (Verified).

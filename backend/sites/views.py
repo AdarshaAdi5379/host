@@ -1372,15 +1372,15 @@ def run_fullstack_build_task(site_id):
                 site.build_status = 'building'
                 site.save()
                 
-                # Run Docker Compose Up --Build
-                log("Running docker-compose up --build...")
-                cmd = ['docker-compose', '-f', site.docker_compose_path, 'up', '-d', '--build']
+                # Run Docker Compose Up --Build (using docker compose v2)
+                log("Running docker compose up --build...")
+                cmd = ['docker', 'compose', '-f', site.docker_compose_path, 'up', '-d', '--build']
                 
                 process = subprocess.Popen(
                     cmd, 
                     cwd=site.site_directory, 
                     stdout=log_file, 
-                    stderr=log_file,
+                    stderr=subprocess.STDOUT,
                     text=True
                 )
                 

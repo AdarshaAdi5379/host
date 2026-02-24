@@ -410,24 +410,39 @@ def detect_and_inject_dockerfiles(site_path):
     
     for relative_dir in possible_frontend_dirs:
         check_path = os.path.join(site_path, relative_dir)
-        if os.path.exists(os.path.join(check_path, 'package.json')):
+        pkg_json_path = os.path.join(check_path, 'package.json')
+        if os.path.exists(pkg_json_path):
             frontend_path = relative_dir
-            # Inject React Dockerfile
-            dockerfile_content = """
-# Stage 1: Build the React app
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
-COPY --from=builder /app/build /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-"""
+            
+            # --- Detect build tool: Vite outputs 'dist', CRA outputs 'build' ---
+            build_output_dir = 'build'  # CRA default
+            try:
+                import json as _json
+                with open(pkg_json_path, 'r', encoding='utf-8', errors='ignore') as _pj:
+                    _pkg = _json.load(_pj)
+                _deps = {**_pkg.get('dependencies', {}), **_pkg.get('devDependencies', {})}
+                if 'vite' in _deps or os.path.exists(os.path.join(check_path, 'vite.config.js')) or \
+                   os.path.exists(os.path.join(check_path, 'vite.config.ts')):
+                    build_output_dir = 'dist'
+            except Exception:
+                pass
+            
+            # Inject React Dockerfile with correct build output dir
+            dockerfile_content = (
+                '# Stage 1: Build the React app\n'
+                'FROM node:18-alpine AS builder\n'
+                'WORKDIR /app\n'
+                'COPY package.json ./\n'
+                'RUN npm install\n'
+                'COPY . .\n'
+                'RUN npm run build\n'
+                '\n'
+                '# Stage 2: Serve with Nginx\n'
+                'FROM nginx:alpine\n'
+                'COPY --from=builder /app/' + build_output_dir + ' /usr/share/nginx/html\n'
+                'EXPOSE 80\n'
+                'CMD ["nginx", "-g", "daemon off;"]\n'
+            )
             with open(os.path.join(check_path, 'Dockerfile'), 'w') as f:
                 f.write(dockerfile_content.strip())
             break
@@ -442,23 +457,45 @@ CMD ["nginx", "-g", "daemon off;"]
             continue
             
         check_path = os.path.join(site_path, relative_dir)
-        if os.path.exists(os.path.join(check_path, 'manage.py')):
+        manage_py_path = os.path.join(check_path, 'manage.py')
+        if os.path.exists(manage_py_path):
             backend_path = relative_dir
-            # Inject Django Dockerfile
-            dockerfile_content = """
-FROM python:3.10
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-RUN pip install gunicorn
-COPY . .
-EXPOSE 8000
-# Run the app using Gunicorn
-CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000"]
-"""
-            # Note: We assume 'core.wsgi' exists. Real implementation might need to parse manage.py to find project name.
-            # Only simplistic injection for now.
             
+            # --- Auto-detect Django project name from manage.py ---
+            wsgi_module = 'core.wsgi:application'  # sensible default
+            try:
+                import re as _re
+                with open(manage_py_path, 'r', encoding='utf-8', errors='ignore') as mpy:
+                    for _line in mpy:
+                        if 'DJANGO_SETTINGS_MODULE' in _line and '.' in _line:
+                            # Extract project name from e.g. 'myproject.settings'
+                            _pat = r'''['"]([\w]+)\.settings['"]'''
+                            _m = _re.search(_pat, _line)
+                            if _m:
+                                _project_name = _m.group(1)
+                                wsgi_module = _project_name + '.wsgi:application'
+                                break
+            except Exception:
+                pass  # Fall back to default
+            
+            # --- Sanitize requirements.txt (fix non-existent Django versions) ---
+            req_path = os.path.join(check_path, 'requirements.txt')
+            if os.path.exists(req_path):
+                _sanitize_requirements(req_path)
+            
+            # Inject Django Dockerfile with detected WSGI module
+            # Use string concatenation to avoid f-string issues with CMD brackets
+            gunicorn_cmd = 'CMD ["gunicorn", "' + wsgi_module + '", "--bind", "0.0.0.0:8000"]'
+            dockerfile_content = (
+                'FROM python:3.10\n'
+                'WORKDIR /app\n'
+                'COPY requirements.txt .\n'
+                'RUN pip install --upgrade pip && pip install -r requirements.txt\n'
+                'RUN pip install gunicorn\n'
+                'COPY . .\n'
+                'EXPOSE 8000\n'
+                + gunicorn_cmd + '\n'
+            )
             with open(os.path.join(check_path, 'Dockerfile'), 'w') as f:
                 f.write(dockerfile_content.strip())
             break
@@ -467,3 +504,50 @@ CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000"]
         'frontend_path': frontend_path,
         'backend_path': backend_path
     }
+
+
+def _sanitize_requirements(req_path: str):
+    """
+    Sanitize a requirements.txt to fix common issues:
+    - Non-existent Django versions (e.g. Django==6.x.x) → latest stable
+    - Non-existent DRF versions
+    Reads the file, fixes invalid pins, and writes it back.
+    """
+    import re
+    DJANGO_LATEST = '5.2'          # Highest stable at time of writing
+    DRF_LATEST = '3.15.2'
+    
+    lines = []
+    try:
+        with open(req_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+    except Exception:
+        return
+    
+    fixed_lines = []
+    changed = False
+    for line in lines:
+        stripped = line.strip()
+        # Fix invalid Django versions (>= 6.x which doesn't exist)
+        m = re.match(r'^(Django)==(\d+)\.(\d+)', stripped, re.IGNORECASE)
+        if m:
+            major = int(m.group(2))
+            if major >= 6:
+                new_line = f'Django=={DJANGO_LATEST}\n'
+                fixed_lines.append(new_line)
+                changed = True
+                continue
+        # Fix invalid djangorestframework versions (> 3.15.x)
+        m = re.match(r'^(djangorestframework)==(\d+)\.(\d+)', stripped, re.IGNORECASE)
+        if m:
+            major, minor = int(m.group(2)), int(m.group(3))
+            if major > 3 or (major == 3 and minor > 15):
+                new_line = f'djangorestframework=={DRF_LATEST}\n'
+                fixed_lines.append(new_line)
+                changed = True
+                continue
+        fixed_lines.append(line)
+    
+    if changed:
+        with open(req_path, 'w', encoding='utf-8') as f:
+            f.writelines(fixed_lines)
