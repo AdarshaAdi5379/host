@@ -17,4 +17,8 @@ ingress:
   service: http://localhost:9003
 - hostname: test4.edubricz.online
   service: http://localhost:9005
+- hostname: student-crud.edubricz.online
+  service: http://localhost:9007
+- hostname: dfewrg.edubricz.online
+  service: http://localhost:9012
 - service: http_status:404

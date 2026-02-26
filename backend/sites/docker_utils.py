@@ -195,3 +195,45 @@ def get_container_stats(container_name: str) -> dict:
     except Exception as e:
         print(f"Error fetching stats for {container_name}: {e}")
         return None
+
+
+def scale_backend_service(site_directory: str, service_name: str, replica_count: int) -> tuple[bool, str]:
+    """
+    Scale a specific service in a docker-compose project to ``replica_count`` instances.
+
+    Uses ``docker compose up -d --scale {service}={count} --no-recreate`` so that
+    only the target service is scaled — the frontend and DB containers are untouched.
+
+    Args:
+        site_directory: Absolute path to the directory containing docker-compose.yml.
+        service_name:   Compose service name to scale (e.g. ``mysite_backend``).
+        replica_count:  Desired number of replicas (1–10).
+
+    Returns:
+        tuple: (success: bool, output: str)
+    """
+    if not 1 <= replica_count <= 10:
+        return False, f"replica_count must be between 1 and 10, got {replica_count}"
+
+    try:
+        result = subprocess.run(
+            [
+                "docker", "compose", "up", "-d",
+                f"--scale={service_name}={replica_count}",
+                "--no-recreate",  # don't restart already-running containers for other services
+            ],
+            cwd=site_directory,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if result.returncode == 0:
+            return True, result.stdout or f"Scaled {service_name} to {replica_count} replicas"
+        return False, result.stderr or "docker compose scale returned non-zero exit code"
+
+    except subprocess.TimeoutExpired:
+        return False, "docker compose scale timed out after 5 minutes"
+    except FileNotFoundError:
+        return False, "docker command not found — is Docker installed?"
+    except Exception as exc:
+        return False, f"Unexpected error during scale: {exc}"

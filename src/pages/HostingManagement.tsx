@@ -3,7 +3,7 @@ import { Breadcrumbs } from '@/components/layout/Breadcrumbs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Server, Plus, Play, Square, Trash2, ExternalLink, Loader2, Globe, Copy, Check, FolderOpen, Users, Code } from 'lucide-react'
+import { Server, Plus, Play, Square, Trash2, ExternalLink, Loader2, Globe, Copy, Check, FolderOpen, Users, Code, Network } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
 import { ResourceMonitor } from '@/components/hosting/ResourceMonitor'
@@ -416,15 +416,13 @@ export function HostingManagement() {
                                             <FolderOpen className="w-4 h-4" />
                                         </Button>
                                     ) : (
-                                        // TODO: Add Build Logs or Env Vars button here for React+Django
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            // onClick={() => ...}
-                                            title="Build Logs (Coming Soon)"
-                                            disabled
+                                            onClick={() => navigate(`/hosting/${site.id}/settings`)}
+                                            title="Load Balancing Settings"
                                         >
-                                            <Code className="w-4 h-4" />
+                                            <Network className="w-4 h-4" />
                                         </Button>
                                     )}
 

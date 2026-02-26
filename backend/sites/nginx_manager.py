@@ -1,330 +1,351 @@
 """
 Nginx Configuration Manager for WordPress Orchestrator
-Manages Nginx reverse proxy configurations for .local domains
+Manages Nginx reverse proxy configurations — Linux implementation.
 """
 import os
 import subprocess
 from pathlib import Path
 
 
-def get_nginx_path():
+# ---------------------------------------------------------------------------
+# Path Discovery
+# ---------------------------------------------------------------------------
+
+def get_nginx_executable() -> str | None:
     """
-    Find Nginx installation directory
-    
+    Locate the nginx binary on Linux.
+
     Returns:
-        Path or None: Nginx installation path
+        str: Absolute path to the nginx executable, or None if not found.
     """
-    # Common Nginx installation paths on Windows
-    possible_paths = [
-        Path("C:/nginx"),
-        Path("C:/Program Files/nginx"),
-        Path("C:/tools/nginx"),
-        Path(os.environ.get("ProgramData", "C:/ProgramData")) / "chocolatey/lib/nginx/tools",
+    known_paths = [
+        "/usr/sbin/nginx",
+        "/usr/bin/nginx",
+        "/usr/local/sbin/nginx",
+        "/usr/local/bin/nginx",
     ]
-    
-    for path in possible_paths:
-        if path.exists() and (path / "nginx.exe").exists():
+    for path in known_paths:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
             return path
-    
-    # Try to find via PATH
+
+    # Fall back to PATH lookup
     try:
         result = subprocess.run(
-            ["where", "nginx"],
+            ["which", "nginx"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         if result.returncode == 0:
-            nginx_exe = Path(result.stdout.strip().split('\n')[0])
-            return nginx_exe.parent
-    except:
+            return result.stdout.strip()
+    except Exception:
         pass
-    
+
     return None
 
 
-def get_nginx_conf_dir():
-    """Get Nginx configuration directory"""
-    nginx_path = get_nginx_path()
-    if not nginx_path:
-        return None
-    
-    conf_dir = nginx_path / "conf"
-    if not conf_dir.exists():
-        return None
-    
-    # Create sites directory if it doesn't exist
-    sites_dir = conf_dir / "sites"
-    sites_dir.mkdir(exist_ok=True)
-    
-    return sites_dir
-
-
-def write_site_config(site_name, domain, port):
+def get_nginx_conf_dir() -> Path | None:
     """
-    Generate and write Nginx configuration for a WordPress site
-    
-    Args:
-        site_name: Name of the site (e.g., 'mysite')
-        domain: Domain name (e.g., 'mysite.local')
-        port: Port where WordPress is running (e.g., 9001)
-    
+    Return the Nginx sites-enabled directory, creating it if necessary.
+
     Returns:
-        tuple: (success: bool, message: str, config_path: str)
+        Path | None: sites-enabled directory, or None if base conf dir missing.
+    """
+    base_dirs = [
+        Path("/etc/nginx"),
+        Path("/usr/local/etc/nginx"),
+    ]
+    for base in base_dirs:
+        if base.exists():
+            sites_dir = base / "sites-enabled"
+            sites_dir.mkdir(parents=True, exist_ok=True)
+            return sites_dir
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Config Writing / Reading
+# ---------------------------------------------------------------------------
+
+def write_site_config(site_name: str, domain: str, port: int) -> tuple[bool, str, str | None]:
+    """
+    Write a simple (single-backend) Nginx server block for a site.
+
+    Args:
+        site_name: Unique site identifier.
+        domain:    Virtual host name (e.g., ``mysite.local``).
+        port:      Host port the container is listening on.
+
+    Returns:
+        tuple: (success, message, config_path_or_None)
     """
     sites_dir = get_nginx_conf_dir()
     if not sites_dir:
-        return False, "Nginx not found or conf directory missing", None
-    
-    config_content = f"""# WordPress Orchestrator - {site_name}
+        return False, "Nginx conf directory not found (/etc/nginx/sites-enabled)", None
+
+    config_content = f"""# WordPress Orchestrator — {site_name}
 server {{
     listen 80;
     listen [::]:80;
     server_name {domain};
-    
+
     location / {{
         proxy_pass http://127.0.0.1:{port};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # WebSocket support (for WordPress admin)
+
+        # WebSocket support
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
     }}
 }}
 """
-    
     config_path = sites_dir / f"{site_name}.conf"
-    
     try:
-        with open(config_path, 'w') as f:
-            f.write(config_content)
-        return True, f"Nginx config created: {config_path}", str(config_path)
-    except Exception as e:
-        return False, f"Failed to write Nginx config: {str(e)}", None
+        config_path.write_text(config_content)
+        return True, f"Nginx config written: {config_path}", str(config_path)
+    except PermissionError:
+        return False, f"Permission denied writing {config_path}. Run Django with sudo or fix /etc/nginx ownership.", None
+    except Exception as exc:
+        return False, f"Failed to write Nginx config: {exc}", None
 
 
-def remove_site_config(site_name):
+def write_lb_site_config(
+    site_name: str,
+    domain: str,
+    upstream_block: str,
+    upstream_name: str,
+) -> tuple[bool, str, str | None]:
     """
-    Remove Nginx configuration for a site
-    
+    Write a load-balanced Nginx server block (uses an upstream pool).
+
     Args:
-        site_name: Name of the site
-    
+        site_name:      Unique site identifier.
+        domain:         Virtual host name.
+        upstream_block: Full ``upstream { ... }`` block text.
+        upstream_name:  Name of the upstream pool to proxy to.
+
     Returns:
-        tuple: (success: bool, message: str)
+        tuple: (success, message, config_path_or_None)
     """
     sites_dir = get_nginx_conf_dir()
     if not sites_dir:
-        return False, "Nginx not found or conf directory missing"
-    
+        return False, "Nginx conf directory not found", None
+
+    config_content = f"""# WordPress Orchestrator — {site_name} (Load Balanced)
+{upstream_block}
+
+server {{
+    listen 80;
+    listen [::]:80;
+    server_name {domain};
+
+    location / {{
+        proxy_pass http://{upstream_name};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }}
+}}
+"""
     config_path = sites_dir / f"{site_name}.conf"
-    
+    try:
+        config_path.write_text(config_content)
+        return True, f"LB Nginx config written: {config_path}", str(config_path)
+    except PermissionError:
+        return False, f"Permission denied writing {config_path}. Run Django with sudo or fix /etc/nginx ownership.", None
+    except Exception as exc:
+        return False, f"Failed to write LB Nginx config: {exc}", None
+
+
+def remove_site_config(site_name: str) -> tuple[bool, str]:
+    """Remove the Nginx config file for a site."""
+    sites_dir = get_nginx_conf_dir()
+    if not sites_dir:
+        return False, "Nginx conf directory not found"
+
+    config_path = sites_dir / f"{site_name}.conf"
     try:
         if config_path.exists():
             config_path.unlink()
             return True, f"Nginx config removed: {config_path}"
-        else:
-            return True, "Config file not found (already removed)"
-    except Exception as e:
-        return False, f"Failed to remove Nginx config: {str(e)}"
+        return True, "Config file not found (already removed)"
+    except Exception as exc:
+        return False, f"Failed to remove Nginx config: {exc}"
 
 
-def test_nginx_config():
-    """
-    Test Nginx configuration for syntax errors
-    
-    Returns:
-        tuple: (success: bool, output: str)
-    """
-    nginx_path = get_nginx_path()
-    if not nginx_path:
-        return False, "Nginx not found"
-    
-    nginx_exe = nginx_path / "nginx.exe"
-    
+# ---------------------------------------------------------------------------
+# Nginx Process Control
+# ---------------------------------------------------------------------------
+
+def test_nginx_config() -> tuple[bool, str]:
+    """Run ``nginx -t`` to validate configuration syntax."""
+    nginx = get_nginx_executable()
+    if not nginx:
+        return False, "nginx binary not found on this system"
     try:
         result = subprocess.run(
-            [str(nginx_exe), "-t"],
+            [nginx, "-t"],
             capture_output=True,
             text=True,
             timeout=10,
-            cwd=str(nginx_path)
         )
-        
         output = result.stdout + result.stderr
         return result.returncode == 0, output
-    except Exception as e:
-        return False, f"Failed to test config: {str(e)}"
+    except Exception as exc:
+        return False, f"Failed to test nginx config: {exc}"
 
 
-def reload_nginx():
+def reload_nginx() -> tuple[bool, str]:
     """
-    Reload Nginx to apply configuration changes
-    
-    Returns:
-        tuple: (success: bool, message: str)
+    Gracefully reload Nginx using ``nginx -s reload``.
+    Tests config first — never reloads with a broken config.
     """
-    nginx_path = get_nginx_path()
-    if not nginx_path:
-        return False, "Nginx not found. Please install Nginx first."
-    
-    nginx_exe = nginx_path / "nginx.exe"
-    
-    # First, test the configuration
-    test_success, test_output = test_nginx_config()
-    if not test_success:
-        return False, f"Nginx config test failed:\n{test_output}"
-    
+    nginx = get_nginx_executable()
+    if not nginx:
+        return False, "nginx binary not found. Install nginx: sudo apt install nginx"
+
+    ok, test_out = test_nginx_config()
+    if not ok:
+        return False, f"Nginx config test failed — NOT reloading:\n{test_out}"
+
     try:
-        # Reload Nginx
         result = subprocess.run(
-            [str(nginx_exe), "-s", "reload"],
+            [nginx, "-s", "reload"],
             capture_output=True,
             text=True,
             timeout=10,
-            cwd=str(nginx_path)
         )
-        
         if result.returncode == 0:
-            return True, "Nginx reloaded successfully"
-        else:
-            # If reload fails, Nginx might not be running - try to start it
-            return start_nginx()
-    except Exception as e:
-        return False, f"Failed to reload Nginx: {str(e)}"
+            return True, "Nginx reloaded successfully (graceful — no dropped connections)"
+        # May fail if nginx isn't yet running — try starting it
+        return start_nginx()
+    except Exception as exc:
+        return False, f"Failed to reload Nginx: {exc}"
 
 
-def start_nginx():
-    """
-    Start Nginx server
-    
-    Returns:
-        tuple: (success: bool, message: str)
-    """
-    nginx_path = get_nginx_path()
-    if not nginx_path:
-        return False, "Nginx not found. Please install Nginx first."
-    
-    nginx_exe = nginx_path / "nginx.exe"
-    
-    try:
-        # Start Nginx in background
-        subprocess.Popen(
-            [str(nginx_exe)],
-            cwd=str(nginx_path),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        
-        return True, "Nginx started successfully"
-    except Exception as e:
-        return False, f"Failed to start Nginx: {str(e)}"
-
-
-def stop_nginx():
-    """
-    Stop Nginx server
-    
-    Returns:
-        tuple: (success: bool, message: str)
-    """
-    nginx_path = get_nginx_path()
-    if not nginx_path:
-        return False, "Nginx not found"
-    
-    nginx_exe = nginx_path / "nginx.exe"
-    
+def start_nginx() -> tuple[bool, str]:
+    """Start the Nginx service."""
+    nginx = get_nginx_executable()
+    if not nginx:
+        return False, "nginx binary not found"
     try:
         result = subprocess.run(
-            [str(nginx_exe), "-s", "stop"],
+            [nginx],
             capture_output=True,
             text=True,
             timeout=10,
-            cwd=str(nginx_path)
         )
-        
-        return True, "Nginx stopped"
-    except Exception as e:
-        return False, f"Failed to stop Nginx: {str(e)}"
+        if result.returncode == 0:
+            return True, "Nginx started successfully"
+        return False, result.stderr or "Nginx failed to start"
+    except Exception as exc:
+        return False, f"Failed to start Nginx: {exc}"
 
 
-def is_nginx_running():
-    """
-    Check if Nginx is currently running
-    
-    Returns:
-        bool: True if Nginx is running
-    """
+def stop_nginx() -> tuple[bool, str]:
+    """Stop the Nginx service gracefully."""
+    nginx = get_nginx_executable()
+    if not nginx:
+        return False, "nginx binary not found"
     try:
         result = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq nginx.exe"],
+            [nginx, "-s", "quit"],  # graceful shutdown (vs "stop" = immediate)
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=10,
         )
-        return "nginx.exe" in result.stdout
-    except:
+        return True, "Nginx stopped"
+    except Exception as exc:
+        return False, f"Failed to stop Nginx: {exc}"
+
+
+def is_nginx_running() -> bool:
+    """Return True if an nginx process is currently running."""
+    try:
+        result = subprocess.run(
+            ["pgrep", "nginx"],
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except Exception:
         return False
 
 
-def ensure_nginx_main_config():
+# ---------------------------------------------------------------------------
+# Main Config Bootstrap
+# ---------------------------------------------------------------------------
+
+def ensure_nginx_main_config() -> tuple[bool, str]:
     """
-    Ensure Nginx main config is properly configured for WordPress Orchestrator
-    
-    Returns:
-        tuple: (success: bool, message: str)
+    Write the top-level nginx.conf that includes sites-enabled/*.conf.
+    Backs up the original before overwriting.
     """
-    nginx_path = get_nginx_path()
+    base_dirs = [Path("/etc/nginx"), Path("/usr/local/etc/nginx")]
+    nginx_path = next((p for p in base_dirs if p.exists()), None)
+
     if not nginx_path:
-        return False, "Nginx not found"
-    
-    main_conf = nginx_path / "conf" / "nginx.conf"
-    
-    # We'll maintain a managed config file to avoid parsing complexity
-    # This overwrites the default config with our verified structure
-    config_content = """
-worker_processes 1;
+        return False, "Could not find Nginx base directory (/etc/nginx)"
+
+    main_conf = nginx_path / "nginx.conf"
+    backup_conf = nginx_path / "nginx.conf.original"
+
+    config_content = """\
+worker_processes auto;
 
 events {
     worker_connections 1024;
+    multi_accept on;
 }
 
 http {
     include       mime.types;
     default_type  application/octet-stream;
     sendfile        on;
-    keepalive_timeout  65;
+    tcp_nopush      on;
+    tcp_nodelay     on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
 
-    # Default server to catch unmatched requests (prevents Welcome Page fallback)
+    # Logging
+    access_log /var/log/nginx/access.log;
+    error_log  /var/log/nginx/error.log;
+
+    # Default server — catches unmatched requests
     server {
         listen 80 default_server;
         listen [::]:80 default_server;
         server_name _;
-        
+
         location / {
             add_header Content-Type text/plain;
-            return 200 "Nginx is working (Default Server). If you see this, the site config is missing or domain mismatch.";
+            return 200 "Nginx is working. If you see this, the domain is not configured.";
         }
     }
 
     # WordPress Orchestrator sites
-    include sites/*.conf;
+    include sites-enabled/*.conf;
 }
 """
     try:
-        # Create backup if it doesn't exist
-        if main_conf.exists() and not (nginx_path / "conf" / "nginx.conf.original").exists():
+        # Back up original only once
+        if main_conf.exists() and not backup_conf.exists():
             import shutil
-            shutil.copy2(main_conf, nginx_path / "conf" / "nginx.conf.original")
-            
-        with open(main_conf, 'w') as f:
-            f.write(config_content)
-            
+            shutil.copy2(main_conf, backup_conf)
+
+        main_conf.write_text(config_content)
         return True, "nginx.conf updated to managed configuration"
-            
-    except Exception as e:
-        return False, f"Failed to update nginx.conf: {str(e)}"
+    except PermissionError:
+        return False, "Permission denied writing nginx.conf — run with sudo or fix ownership"
+    except Exception as exc:
+        return False, f"Failed to update nginx.conf: {exc}"

@@ -81,7 +81,9 @@ class WordPressSite(models.Model):
     env_vars = models.JSONField(default=dict, blank=True)  # Encrypted environment variables
     build_status = models.CharField(max_length=20, choices=BUILD_STATUS_CHOICES, default='idle')
     api_port = models.IntegerField(unique=True, null=True, blank=True)  # Second port for Backend API (React+Django)
-    
+    replica_count = models.IntegerField(default=1)  # Number of backend replicas (react_django only; 1 = no LB)
+    backend_ports = models.JSONField(default=list, blank=True)  # Host ports for each backend replica e.g. [9001, 9002, 9003]
+
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'WordPress Site'

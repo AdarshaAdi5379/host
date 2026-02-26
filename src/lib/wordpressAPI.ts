@@ -36,6 +36,8 @@ export interface WordPressSite {
     build_status?: 'idle' | 'building' | 'deploying' | 'failed' | 'running';
     api_port?: number;
     env_vars?: Record<string, string>;
+    replica_count?: number;
+    backend_ports?: number[];
 }
 
 export interface CreateSiteRequest {
@@ -58,13 +60,29 @@ class WordPressAPI {
     }
 
     /** Throw on error; trigger logout+redirect on 401 */
+    private async checkOkWithBody(response: Response, message: string) {
+        if (response.status === 401) {
+            handleUnauthorized();
+            throw new Error('Session expired. Please log in again.');
+        }
+        if (!response.ok) {
+            let detail = '';
+            try {
+                const body = await response.clone().json();
+                detail = body.detail || body.error || JSON.stringify(body);
+            } catch (_) { }
+            throw new Error(detail ? `${message}: ${detail}` : `${message} (HTTP ${response.status})`);
+        }
+    }
+
+    /** Simple sync check for backward compat */
     private checkOk(response: Response, message: string) {
         if (response.status === 401) {
             handleUnauthorized();
             throw new Error('Session expired. Please log in again.');
         }
         if (!response.ok) {
-            throw new Error(message);
+            throw new Error(`${message} (HTTP ${response.status})`);
         }
     }
 
@@ -77,6 +95,18 @@ class WordPressAPI {
             headers: this.getHeaders(),
         });
         this.checkOk(response, 'Failed to fetch sites');
+        return response.json();
+    }
+
+    /**
+     * Fetch a single site by ID
+     */
+    async getSite(id: number): Promise<WordPressSite> {
+        const response = await fetch(`${API_BASE_URL}/sites/${id}/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+        await this.checkOkWithBody(response, `Failed to fetch site ${id}`);
         return response.json();
     }
 
@@ -228,6 +258,31 @@ class WordPressAPI {
 
         if (!response.ok) {
             throw new Error('Failed to fetch build logs');
+        }
+
+        return response.json();
+    }
+    /**
+     * Scale the Django backend replicas for a react_django site
+     */
+    async scaleSite(id: number, replicaCount: number): Promise<{
+        replica_count: number;
+        backend_ports: number[];
+        status: string;
+        algorithm: string;
+        nginx_reload: string;
+        nginx_config_path: string | null;
+        docker_output: string | null;
+    }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${id}/scale/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify({ replica_count: replicaCount }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to scale site');
         }
 
         return response.json();

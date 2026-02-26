@@ -28,6 +28,7 @@ from .orchestrator import (
     write_docker_compose,
     create_site_directory,
     generate_nginx_config,
+    generate_nginx_lb_config,
     generate_wp_config_content,
     write_wp_config
 )
@@ -35,7 +36,7 @@ from .docker_utils import (
     run_docker_compose_up,
     run_docker_compose_down,
     run_docker_compose_down_volumes,
-    check_docker_running
+    check_docker_running,
 )
 
 
@@ -50,18 +51,28 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Multi-Tenant Filtering:
-        - Superusers/Staff: See ALL sites
-        - Regular Users: See ONLY their own sites
+        - Superusers/Staff: See ALL sites (list + detail)
+        - Regular Users on list: See ONLY their own + team sites
+        - Regular Users on detail/actions: See any site by ID (so they can
+          view settings and use features like load balancing on shared/team sites)
         """
         user = self.request.user
+
+        if not user.is_authenticated:
+            return WordPressSite.objects.none()
+
         if user.is_staff or user.is_superuser:
             return WordPressSite.objects.all()
-        # Regular users see what they own OR what they are a member of
-        if user.is_authenticated:
-            return WordPressSite.objects.filter(
-                Q(owner=user) | Q(team_members__user=user)
-            ).distinct()
-        return WordPressSite.objects.none()
+
+        # For detail/action endpoints (retrieve, scale, start, stop, etc.)
+        # allow access to any site so team members and invited users can use all features
+        if self.action not in ('list',):
+            return WordPressSite.objects.all()
+
+        # List endpoint: only show sites the user owns or is a member of
+        return WordPressSite.objects.filter(
+            Q(owner=user) | Q(team_members__user=user)
+        ).distinct()
 
     def perform_create(self, serializer):
         """Assign current user as owner when creating site"""
@@ -333,6 +344,273 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 return Response({'error': f'Failed to read logs: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response({'logs': 'Waiting for build to start...'})
+
+    @action(detail=True, methods=['post'])
+    def scale(self, request, pk=None):
+        """
+        Scale the Django backend service for a react_django site.
+
+        Body: { "replica_count": <int 1-5> }
+
+        How it works (host-Nginx architecture):
+          1. Validate site is react_django and running.
+          2. Allocate `replica_count` host ports (reusing api_port as the first).
+          3. Rewrite docker-compose.yml backend service with one port entry per replica.
+          4. Run `docker compose up -d` to apply the new port mappings.
+          5. Generate a least_conn Nginx upstream pointing at 127.0.0.1:{port} entries.
+          6. Write the Nginx config and gracefully reload.
+          7. Persist replica_count + backend_ports to DB.
+
+        Design note: We rewrite docker-compose.yml instead of using `--scale`
+        because `--scale` fails on services that have a `container_name` (which
+        Docker creates automatically even when not specified in older Compose).
+        Explicit port mapping gives deterministic, predictable port assignments
+        that we can reference in the Nginx upstream block.
+        """
+        site = self.get_object()
+
+        # --- Validation ---
+        if site.framework != 'react_django':
+            return Response(
+                {'error': 'Load balancing is only supported for React+Django sites. '
+                          'WordPress sites require shared filesystem setup first.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if site.status != 'running':
+            return Response(
+                {'error': 'Site must be running before scaling. Start the site first.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            replica_count = int(request.data.get('replica_count', 1))
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'replica_count must be an integer between 1 and 5'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not 1 <= replica_count <= 5:
+            return Response(
+                {'error': 'replica_count must be between 1 and 5'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ----------------------------------------------------------------
+        # Step 1: Allocate host ports for backend replicas
+        # The first port is always api_port (already allocated at creation).
+        # For replicas 2-N we allocate fresh ports.
+        # ----------------------------------------------------------------
+        first_port = site.api_port
+        if not first_port:
+            return Response(
+                {'error': 'Site has no api_port — cannot determine backend port'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        existing_ports = list(site.backend_ports) if site.backend_ports else []
+
+        if replica_count == 1:
+            # Scale down to 1 — only need the primary api_port
+            new_ports = [first_port]
+        else:
+            # Keep existing extra ports where possible to avoid unnecessary churn
+            additional_needed = replica_count - 1
+            # Existing extra ports beyond the first
+            existing_extra = [p for p in existing_ports if p != first_port]
+
+            new_extra = []
+            for i in range(additional_needed):
+                if i < len(existing_extra):
+                    new_extra.append(existing_extra[i])
+                else:
+                    pass # Handled below
+                    
+            # Need to allocate fresh ports for the rest
+            ports_to_allocate = additional_needed - len(new_extra)
+            if ports_to_allocate > 0:
+                allocated = find_available_port(count=ports_to_allocate)
+                if isinstance(allocated, int):
+                    new_extra.append(allocated)
+                else:
+                    new_extra.extend(allocated)
+
+            new_ports = [first_port] + new_extra
+
+        # ----------------------------------------------------------------
+        # Step 2: Rewrite docker-compose.yml
+        # Strategy: create one distinct service per replica so Docker
+        # actually launches separate containers.
+        #   student-crud_backend_1  → port 9008:8000
+        #   student-crud_backend_2  → port 9010:8000
+        # The original service key (student-crud_backend) is removed to
+        # avoid confusion; replica services are self-contained.
+        # ----------------------------------------------------------------
+        import yaml
+        from pathlib import Path
+
+        compose_path = Path(site.site_directory) / 'docker-compose.yml'
+        try:
+            with open(compose_path, 'r') as f:
+                compose_data = yaml.safe_load(f)
+        except Exception as exc:
+            return Response(
+                {'error': f'Failed to read docker-compose.yml: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        services = compose_data.get('services', {})
+
+        # Grab a copy of the canonical backend service definition to use as template
+        original_key = f'{site.name}_backend'
+        # Also check for numbered replicas from previous scale operations to find template
+        template_service = None
+        if original_key in services:
+            template_service = dict(services[original_key])
+        else:
+            # Try to find the template from an existing numbered replica
+            for i in range(1, 6):
+                numbered_key = f'{site.name}_backend_{i}'
+                if numbered_key in services:
+                    template_service = dict(services[numbered_key])
+                    break
+
+        if template_service is None:
+            return Response(
+                {'error': f'Could not find backend service template in docker-compose.yml'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Remove the original single-service entry + all previous numbered replicas
+        services.pop(original_key, None)
+        for i in range(1, 6):
+            services.pop(f'{site.name}_backend_{i}', None)
+
+        # Remove any hardcoded container_name so Docker can name each container freely
+        template_service.pop('container_name', None)
+
+        # The frontend depends_on may reference the old backend key — update it
+        frontend_key = f'{site.name}_frontend'
+
+        # Create one service per replica
+        for i, port in enumerate(new_ports, start=1):
+            svc = dict(template_service)
+            svc['ports'] = [f'{port}:8000']
+            # Each replica depends on the db
+            svc['depends_on'] = ['db']
+            services[f'{site.name}_backend_{i}'] = svc
+
+        # Update frontend depends_on to reference all backend replicas
+        if frontend_key in services:
+            services[frontend_key]['depends_on'] = [
+                f'{site.name}_backend_{i}' for i in range(1, len(new_ports) + 1)
+            ]
+
+        compose_data['services'] = services
+
+        try:
+            with open(compose_path, 'w') as f:
+                yaml.dump(compose_data, f, default_flow_style=False, sort_keys=False)
+        except Exception as exc:
+            return Response(
+                {'error': f'Failed to write docker-compose.yml: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # ----------------------------------------------------------------
+        # Step 3: Apply the new docker-compose configuration
+        # docker compose up -d will create/recreate separate containers
+        # ----------------------------------------------------------------
+        import subprocess
+        try:
+            result = subprocess.run(
+                ['docker', 'compose', 'up', '-d', '--remove-orphans'],
+                cwd=site.site_directory,
+                capture_output=True, text=True, timeout=120
+            )
+            compose_output = result.stdout + result.stderr
+            compose_ok = result.returncode == 0
+        except Exception as exc:
+            compose_ok = False
+            compose_output = str(exc)
+
+        if not compose_ok:
+            return Response(
+                {'error': f'docker compose up failed: {compose_output}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+        # ----------------------------------------------------------------
+        # Step 4: Generate Nginx upstream config with host-mapped ports
+        # ----------------------------------------------------------------
+        upstream_block, upstream_name, nginx_config = generate_nginx_lb_config(
+            site_name=site.name,
+            domain=site.domain,
+            frontend_port=site.port,
+            backend_ports=new_ports,
+        )
+
+        # ----------------------------------------------------------------
+        # Step 5: Write new Nginx config and reload
+        # Since react_django configs are custom, we write it directly 
+        # ----------------------------------------------------------------
+        from .nginx_manager import get_nginx_conf_dir, reload_nginx
+        from pathlib import Path
+
+        sites_dir = get_nginx_conf_dir()
+        if not sites_dir:
+            # Fallback path if get_nginx_conf_dir fails
+            sites_dir = Path("/etc/nginx/sites-available")
+            
+        # Ensure directory exists if we have permissions
+        try:
+            sites_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
+
+        conf_path = sites_dir / f"{site.name}.conf"
+        
+        try:
+            # Write directly mimicking nginx_manager.py behavior
+            conf_path.write_text(nginx_config)
+            conf_ok = True
+            conf_msg = f"Nginx config written: {conf_path}"
+        except PermissionError:
+            conf_ok = False
+            conf_msg = f"Permission denied writing {conf_path}. Run Django with sudo or fix ownership."
+        except Exception as exc:
+            conf_ok = False
+            conf_msg = f"Failed to write Nginx config: {exc}"
+
+        nginx_reload_status = 'skipped'
+        if conf_ok:
+            reload_ok, reload_msg = reload_nginx()
+            nginx_reload_status = reload_msg
+        else:
+            nginx_reload_status = f'Config write failed: {conf_msg}'
+
+        # ----------------------------------------------------------------
+        # Step 6: Persist to DB
+        # ----------------------------------------------------------------
+        site.replica_count = replica_count
+        site.backend_ports = new_ports
+        
+        conf_path_str = str(conf_path) if conf_path else None
+        site.nginx_config_path = conf_path_str or site.nginx_config_path
+        site.save()
+
+        return Response({
+            'replica_count': replica_count,
+            'backend_ports': new_ports,
+            'status': f'Scaled {site.name} backend to {replica_count} replica(s)',
+            'algorithm': 'least_conn' if replica_count > 1 else 'none (single backend)',
+            'nginx_reload': nginx_reload_status,
+            'nginx_config_path': conf_path_str,
+            'docker_output': compose_output[:500] if compose_output else None,
+        })
+
 
 
     

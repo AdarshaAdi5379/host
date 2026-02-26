@@ -23,10 +23,17 @@ def find_available_port(start_port=9000, end_port=9999, count=1):
     from .models import WordPressSite
     
     # Get all ports already assigned in database
-    # We need to check both 'port' and 'api_port'
+    # We need to check 'port', 'api_port', and 'backend_ports'
     assigned_ports = set(WordPressSite.objects.values_list('port', flat=True))
     assigned_api_ports = set(WordPressSite.objects.filter(api_port__isnull=False).values_list('api_port', flat=True))
-    all_assigned = assigned_ports.union(assigned_api_ports)
+    
+    # Extract backend_ports which is a JSON list
+    assigned_backend_ports = set()
+    for bp_list in WordPressSite.objects.filter(backend_ports__isnull=False).values_list('backend_ports', flat=True):
+        if isinstance(bp_list, list):
+            assigned_backend_ports.update(bp_list)
+
+    all_assigned = assigned_ports.union(assigned_api_ports).union(assigned_backend_ports)
     
     found_ports = []
     
@@ -132,7 +139,9 @@ def generate_docker_compose(site_name, db_config, port, site_type='wordpress', a
             
         services[f'{site_name}_backend'] = {
             'build': backend_build,
-            'container_name': f'{site_name}_backend',
+            # NOTE: container_name is intentionally OMITTED so that
+            # `docker compose up --scale` can create multiple replicas.
+            # Docker refuses to scale services with a hardcoded container_name.
             'restart': 'unless-stopped',
             'ports': [f'{api_port}:8000'],
             'environment': backend_env,
@@ -364,7 +373,112 @@ def generate_nginx_config(site_name, domain, port):
     return config
 
 
+def generate_nginx_lb_config(
+    site_name: str,
+    domain: str,
+    frontend_port: int,
+    backend_ports: list,
+) -> tuple[str, str, str]:
+    """
+    Generate Nginx config for a react_django site (single or load-balanced).
+
+    Since Nginx runs on the HOST (not inside Docker), upstream entries must
+    reference host-mapped ports (``127.0.0.1:{port}``), not container DNS names.
+
+    Args:
+        site_name:     Site identifier (used as upstream pool name prefix).
+        domain:        Virtual host domain (e.g. mysite.local).
+        frontend_port: Host port the React/Nginx frontend container maps to.
+        backend_ports: List of host ports mapped to the Django backend replicas.
+                       Pass a single-element list for a non-load-balanced setup.
+
+    Returns:
+        tuple: (upstream_block, upstream_name, full_nginx_config_string)
+               upstream_block is empty string when only one backend port.
+    """
+    upstream_name = f"{site_name}_cluster"
+    replica_count = len(backend_ports)
+
+    if replica_count <= 1:
+        # ----------------------------------------------------------------
+        # Single backend — simple proxy, no upstream block
+        # ----------------------------------------------------------------
+        single_port = backend_ports[0] if backend_ports else frontend_port
+        upstream_block = ""
+        nginx_config = f"""# Orchestrator — {site_name} (single backend)
+server {{
+    listen 80;
+    listen [::]:80;
+    server_name {domain};
+
+    # React frontend
+    location / {{
+        proxy_pass http://127.0.0.1:{frontend_port};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }}
+
+    # Django API
+    location /api/ {{
+        proxy_pass http://127.0.0.1:{single_port};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }}
+}}
+"""
+    else:
+        # ----------------------------------------------------------------
+        # Multi-replica — least_conn upstream with host-mapped ports
+        # Each port in backend_ports corresponds to one replica container.
+        # ----------------------------------------------------------------
+        server_lines = "\n".join(
+            f"    server 127.0.0.1:{port};  # replica {i + 1}"
+            for i, port in enumerate(backend_ports)
+        )
+        upstream_block = f"""upstream {upstream_name} {{
+    least_conn;
+{server_lines}
+}}"""
+
+        nginx_config = f"""# Orchestrator — {site_name} (load balanced — {replica_count} replicas)
+{upstream_block}
+
+server {{
+    listen 80;
+    listen [::]:80;
+    server_name {domain};
+
+    # React frontend (single instance — static files, no LB needed)
+    location / {{
+        proxy_pass http://127.0.0.1:{frontend_port};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }}
+
+    # Django API — load balanced across {replica_count} replicas
+    location /api/ {{
+        proxy_pass http://{upstream_name};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }}
+}}
+"""
+
+    return upstream_block, upstream_name, nginx_config
+
+
 def create_site_directory(site_name):
+
     """Create directory structure for a WordPress site"""
     sites_dir = settings.WORDPRESS_SITES_DIR
     site_dir = sites_dir / site_name
@@ -378,57 +492,81 @@ def create_site_directory(site_name):
 
 def clone_repository(repo_url, branch, destination):
     """
-    Clone a git repository to a destination folder
+    Clone a git repository to a destination folder.
+    If the specified branch doesn't exist, falls back to cloning the
+    remote's default branch (auto-detected).
     """
     import subprocess
-    
+
     # Ensure destination exists
     if not os.path.exists(destination):
         os.makedirs(destination)
-        
+
     try:
-        # Securely clone using subprocess
-        # Note: In production, handle SSH keys or Auth Tokens for private repos
+        # First attempt: clone the specific branch
         cmd = ['git', 'clone', '--branch', branch, '--depth', '1', repo_url, destination]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return True, "Repository cloned successfully"
+        return True, f"Repository cloned successfully (branch: {branch})"
     except subprocess.CalledProcessError as e:
-        return False, f"Failed to clone repository: {e.stderr}"
+        stderr = e.stderr or ''
+        # If the branch was not found, retry without --branch to use the default
+        if 'not found' in stderr or 'Remote branch' in stderr:
+            # Clean up the failed partial clone if any
+            import shutil
+            if os.path.exists(destination):
+                shutil.rmtree(destination)
+                os.makedirs(destination)
+            try:
+                fallback_cmd = ['git', 'clone', '--depth', '1', repo_url, destination]
+                subprocess.run(fallback_cmd, capture_output=True, text=True, check=True)
+                return True, f"Repository cloned successfully (branch '{branch}' not found — used default branch)"
+            except subprocess.CalledProcessError as e2:
+                return False, f"Failed to clone repository: {e2.stderr}"
+        return False, f"Failed to clone repository: {stderr}"
 
 
 def detect_and_inject_dockerfiles(site_path):
     """
-    Detect the project structure and inject appropriate Dockerfiles
-    Returns a dict with 'frontend_path' and 'backend_path' relative to site_path
+    Detect the project structure and inject appropriate Dockerfiles.
+    Returns a dict with 'frontend_path' and 'backend_path'.
+
+    Each value is either:
+      - a string like '.'  or 'frontend'  (dir, Dockerfile auto-detected)
+      - a dict  {'context': '.', 'dockerfile': 'Dockerfile.frontend'}
+        when both services live in the same directory.
     """
     frontend_path = None
     backend_path = None
-    
+
+    frontend_dockerfile_content = None
+    backend_dockerfile_content = None
+    frontend_dir_abs = None
+    backend_dir_abs = None
+
     # 1. Search for Frontend (package.json)
-    # Strategy: Look in root, then in 'frontend', 'client', 'ui' folders
     possible_frontend_dirs = ['.', 'frontend', 'client', 'ui', 'web']
-    
+
     for relative_dir in possible_frontend_dirs:
         check_path = os.path.join(site_path, relative_dir)
         pkg_json_path = os.path.join(check_path, 'package.json')
         if os.path.exists(pkg_json_path):
-            frontend_path = relative_dir
-            
-            # --- Detect build tool: Vite outputs 'dist', CRA outputs 'build' ---
-            build_output_dir = 'build'  # CRA default
+            frontend_dir_abs = check_path
+
+            # Detect build tool
+            build_output_dir = 'build'
             try:
                 import json as _json
                 with open(pkg_json_path, 'r', encoding='utf-8', errors='ignore') as _pj:
                     _pkg = _json.load(_pj)
                 _deps = {**_pkg.get('dependencies', {}), **_pkg.get('devDependencies', {})}
-                if 'vite' in _deps or os.path.exists(os.path.join(check_path, 'vite.config.js')) or \
+                if 'vite' in _deps or \
+                   os.path.exists(os.path.join(check_path, 'vite.config.js')) or \
                    os.path.exists(os.path.join(check_path, 'vite.config.ts')):
                     build_output_dir = 'dist'
             except Exception:
                 pass
-            
-            # Inject React Dockerfile with correct build output dir
-            dockerfile_content = (
+
+            frontend_dockerfile_content = (
                 '# Stage 1: Build the React app\n'
                 'FROM node:18-alpine AS builder\n'
                 'WORKDIR /app\n'
@@ -443,50 +581,43 @@ def detect_and_inject_dockerfiles(site_path):
                 'EXPOSE 80\n'
                 'CMD ["nginx", "-g", "daemon off;"]\n'
             )
-            with open(os.path.join(check_path, 'Dockerfile'), 'w') as f:
-                f.write(dockerfile_content.strip())
+            frontend_path = relative_dir
             break
-            
+
     # 2. Search for Backend (manage.py for Django)
-    # Strategy: Look in root, then 'backend', 'server', 'api' folders
     possible_backend_dirs = ['.', 'backend', 'server', 'api']
-    
+
     for relative_dir in possible_backend_dirs:
-        # Don't confuse frontend with backend if they are in same dir (unlikely but possible)
         if relative_dir == frontend_path and relative_dir != '.':
             continue
-            
+
         check_path = os.path.join(site_path, relative_dir)
         manage_py_path = os.path.join(check_path, 'manage.py')
         if os.path.exists(manage_py_path):
-            backend_path = relative_dir
-            
-            # --- Auto-detect Django project name from manage.py ---
-            wsgi_module = 'core.wsgi:application'  # sensible default
+            backend_dir_abs = check_path
+
+            # Auto-detect Django project name
+            wsgi_module = 'core.wsgi:application'
             try:
                 import re as _re
                 with open(manage_py_path, 'r', encoding='utf-8', errors='ignore') as mpy:
                     for _line in mpy:
                         if 'DJANGO_SETTINGS_MODULE' in _line and '.' in _line:
-                            # Extract project name from e.g. 'myproject.settings'
-                            _pat = r'''['"]([\w]+)\.settings['"]'''
+                            _pat = r'''['\"]([\w]+)\.settings['\"]\s*'''
                             _m = _re.search(_pat, _line)
                             if _m:
-                                _project_name = _m.group(1)
-                                wsgi_module = _project_name + '.wsgi:application'
+                                wsgi_module = _m.group(1) + '.wsgi:application'
                                 break
             except Exception:
-                pass  # Fall back to default
-            
-            # --- Sanitize requirements.txt (fix non-existent Django versions) ---
+                pass
+
+            # Sanitize requirements.txt
             req_path = os.path.join(check_path, 'requirements.txt')
             if os.path.exists(req_path):
                 _sanitize_requirements(req_path)
-            
-            # Inject Django Dockerfile with detected WSGI module
-            # Use string concatenation to avoid f-string issues with CMD brackets
+
             gunicorn_cmd = 'CMD ["gunicorn", "' + wsgi_module + '", "--bind", "0.0.0.0:8000"]'
-            dockerfile_content = (
+            backend_dockerfile_content = (
                 'FROM python:3.10\n'
                 'WORKDIR /app\n'
                 'COPY requirements.txt .\n'
@@ -496,13 +627,38 @@ def detect_and_inject_dockerfiles(site_path):
                 'EXPOSE 8000\n'
                 + gunicorn_cmd + '\n'
             )
-            with open(os.path.join(check_path, 'Dockerfile'), 'w') as f:
-                f.write(dockerfile_content.strip())
+            backend_path = relative_dir
             break
-            
+
+    # 3. Write Dockerfiles
+    # If both services share the SAME directory, write named Dockerfiles so
+    # docker-compose can distinguish them via the `dockerfile:` key.
+    if frontend_dir_abs and backend_dir_abs and frontend_dir_abs == backend_dir_abs:
+        # Monorepo / single-dir case
+        fe_dockerfile_name = 'Dockerfile.frontend'
+        be_dockerfile_name = 'Dockerfile.backend'
+
+        with open(os.path.join(frontend_dir_abs, fe_dockerfile_name), 'w') as f:
+            f.write(frontend_dockerfile_content.strip())
+        with open(os.path.join(backend_dir_abs, be_dockerfile_name), 'w') as f:
+            f.write(backend_dockerfile_content.strip())
+
+        # Return build dicts instead of plain strings so the compose generator
+        # can use `{'context': '.', 'dockerfile': 'Dockerfile.frontend'}`
+        frontend_path = {'context': frontend_path, 'dockerfile': fe_dockerfile_name}
+        backend_path = {'context': backend_path, 'dockerfile': be_dockerfile_name}
+    else:
+        # Separate directories — write standard Dockerfiles
+        if frontend_dir_abs and frontend_dockerfile_content:
+            with open(os.path.join(frontend_dir_abs, 'Dockerfile'), 'w') as f:
+                f.write(frontend_dockerfile_content.strip())
+        if backend_dir_abs and backend_dockerfile_content:
+            with open(os.path.join(backend_dir_abs, 'Dockerfile'), 'w') as f:
+                f.write(backend_dockerfile_content.strip())
+
     return {
         'frontend_path': frontend_path,
-        'backend_path': backend_path
+        'backend_path': backend_path,
     }
 
 

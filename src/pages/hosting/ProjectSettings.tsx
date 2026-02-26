@@ -7,49 +7,29 @@ import { TeamManagement } from '@/components/team/TeamManagement'
 import { AuditLogViewer } from '@/components/audit/AuditLogViewer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
-import { Loader2, Terminal } from 'lucide-react'
+import { Loader2, Zap, AlertTriangle, CheckCircle2, Server, Minus, Plus, Network } from 'lucide-react'
 
 export function ProjectSettings() {
     const { id } = useParams<{ id: string }>()
     const [site, setSite] = useState<WordPressSite | null>(null)
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         const fetchSite = async () => {
             if (!id) return
             try {
-                const sites = await wordpressAPI.getSites()
-                const found = sites.find(s => s.id === parseInt(id))
-                if (found) setSite(found)
-            } catch (error) {
+                const site = await wordpressAPI.getSite(parseInt(id))
+                setSite(site)
+            } catch (error: any) {
                 console.error('Failed to fetch site', error)
+                setError(error?.message || 'Failed to load site')
             } finally {
                 setLoading(false)
             }
         }
         fetchSite()
     }, [id])
-
-    const [logs, setLogs] = useState<string>('')
-    const [activeTab, setActiveTab] = useState('general')
-
-    useEffect(() => {
-        let interval: any
-        if (activeTab === 'builds' && site?.framework === 'react_django') {
-            const fetchLogs = async () => {
-                if (!site) return
-                try {
-                    const data = await wordpressAPI.getBuildLogs(site.id)
-                    setLogs(data.logs)
-                } catch (e) {
-                    console.error('Failed to fetch logs', e)
-                }
-            }
-            fetchLogs()
-            interval = setInterval(fetchLogs, 3000)
-        }
-        return () => clearInterval(interval)
-    }, [activeTab, site])
 
     if (!id) return null
 
@@ -61,7 +41,12 @@ export function ProjectSettings() {
         )
     }
 
-    if (!site) return <div>Site not found</div>
+    if (!site) return (
+        <div className="p-8 text-center">
+            <p className="text-red-600 font-semibold text-lg">Failed to load site</p>
+            {error && <p className="text-gray-500 text-sm mt-2 font-mono">{error}</p>}
+        </div>
+    )
 
     const isFullStack = site.framework === 'react_django'
 
@@ -80,12 +65,16 @@ export function ProjectSettings() {
                 <p className="text-gray-600 mt-1">Configuration for {site.name}</p>
             </div>
 
-            <Tabs defaultValue="general" className="w-full" onValueChange={setActiveTab}>
-                <TabsList className="mb-4">
+            <Tabs defaultValue="general" className="w-full">
+                <TabsList className="mb-4 flex flex-wrap h-auto">
                     <TabsTrigger value="general">General</TabsTrigger>
                     <TabsTrigger value="team">Team Members</TabsTrigger>
-                    {isFullStack && <TabsTrigger value="env">Environment Variables</TabsTrigger>}
-                    {isFullStack && <TabsTrigger value="builds">Build Logs</TabsTrigger>}
+                    {isFullStack && (
+                        <TabsTrigger value="lb" className="gap-2">
+                            <Network className="w-4 h-4" />
+                            Load Balancing
+                        </TabsTrigger>
+                    )}
                     <TabsTrigger value="audit">Audit Logs</TabsTrigger>
                 </TabsList>
 
@@ -126,49 +115,8 @@ export function ProjectSettings() {
                 </TabsContent>
 
                 {isFullStack && (
-                    <TabsContent value="env">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Environment Variables</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="p-4 bg-gray-50 rounded-md border text-sm font-mono">
-                                    {site.env_vars ? (
-                                        Object.entries(site.env_vars).map(([key, val]) => (
-                                            <div key={key} className="flex gap-2">
-                                                <span className="font-bold">{key}=</span>
-                                                <span>{val ? '********' : ''}</span>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p className="text-gray-500 italic">No environment variables set.</p>
-                                    )}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-2">
-                                    Variables are hidden for security. Updates coming soon.
-                                </p>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                )}
-
-                {isFullStack && (
-                    <TabsContent value="builds">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Build Logs</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="h-96 bg-black text-green-400 p-4 rounded-md font-mono text-xs overflow-y-auto whitespace-pre-wrap">
-                                    <div className="flex items-center gap-2 mb-2 border-b border-gray-800 pb-2">
-                                        <Terminal className="w-4 h-4" />
-                                        <span>Live Build Output</span>
-                                    </div>
-                                    {logs || 'Waiting for logs...'}
-                                    <p className="animate-pulse mt-2">_</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                    <TabsContent value="lb">
+                        <LoadBalancingPanel site={site} onUpdated={setSite} />
                     </TabsContent>
                 )}
 
@@ -176,6 +124,213 @@ export function ProjectSettings() {
                     <AuditLogViewer projectId={id} />
                 </TabsContent>
             </Tabs>
+        </div>
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Load Balancing Panel (react_django only)
+// ---------------------------------------------------------------------------
+
+interface LoadBalancingPanelProps {
+    site: WordPressSite
+    onUpdated: (site: WordPressSite) => void
+}
+
+function LoadBalancingPanel({ site, onUpdated }: LoadBalancingPanelProps) {
+    const [targetReplicas, setTargetReplicas] = useState(site.replica_count ?? 1)
+    const [scaling, setScaling] = useState(false)
+    const [result, setResult] = useState<{
+        success: boolean
+        message: string
+        nginxStatus?: string
+        ports?: number[]
+    } | null>(null)
+
+    const currentReplicas = site.replica_count ?? 1
+    const isRunning = site.status === 'running'
+
+    const handleScale = async () => {
+        setScaling(true)
+        setResult(null)
+        try {
+            const data = await wordpressAPI.scaleSite(site.id, targetReplicas)
+            setResult({
+                success: true,
+                message: data.status,
+                nginxStatus: data.nginx_reload,
+                ports: data.backend_ports,
+            })
+            // Refresh site data locally
+            onUpdated({
+                ...site,
+                replica_count: data.replica_count,
+                backend_ports: data.backend_ports,
+            })
+        } catch (err: any) {
+            setResult({ success: false, message: err.message || 'Scale operation failed' })
+        } finally {
+            setScaling(false)
+        }
+    }
+
+    return (
+        <div className="space-y-5">
+            {/* Status Overview */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Zap className="w-5 h-5 text-indigo-500" />
+                        Load Balancing — Django Backend
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-3 gap-4 text-center mb-6">
+                        <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                            <p className="text-3xl font-bold text-indigo-700">{currentReplicas}</p>
+                            <p className="text-xs text-gray-500 mt-1">Current Replicas</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-xl border">
+                            <p className="text-sm font-semibold text-gray-700 mt-2">
+                                {currentReplicas > 1 ? 'least_conn' : 'none'}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">Algorithm</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-xl border">
+                            <p className="text-sm font-semibold text-gray-700 mt-1">
+                                {isRunning ? (
+                                    <span className="flex items-center justify-center gap-1 text-green-600">
+                                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                                        Running
+                                    </span>
+                                ) : (
+                                    <span className="text-amber-600">Stopped</span>
+                                )}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">Site Status</p>
+                        </div>
+                    </div>
+
+                    {/* Backend Port List */}
+                    {site.backend_ports && site.backend_ports.length > 0 && (
+                        <div className="mb-5">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Active Backend Ports</p>
+                            <div className="flex flex-wrap gap-2">
+                                {site.backend_ports.map((port, i) => (
+                                    <span key={port} className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-mono">
+                                        <Server className="w-3 h-3" />
+                                        :{port} — replica {i + 1}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Replica Selector */}
+                    <div className="border rounded-xl p-5 bg-gray-50">
+                        <p className="text-sm font-semibold text-gray-700 mb-4">Set Replica Count</p>
+                        <div className="flex items-center justify-center gap-6">
+                            <button
+                                onClick={() => setTargetReplicas(Math.max(1, targetReplicas - 1))}
+                                disabled={targetReplicas <= 1}
+                                className="w-10 h-10 rounded-full border-2 border-indigo-200 flex items-center justify-center text-indigo-600 hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <Minus className="w-4 h-4" />
+                            </button>
+
+                            <div className="flex gap-2">
+                                {[1, 2, 3, 4, 5].map(n => (
+                                    <button
+                                        key={n}
+                                        onClick={() => setTargetReplicas(n)}
+                                        className={`w-10 h-10 rounded-full text-sm font-bold transition-all border-2 ${targetReplicas === n
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg scale-110'
+                                            : 'border-gray-200 text-gray-600 hover:border-indigo-300 hover:bg-indigo-50'
+                                            }`}
+                                    >
+                                        {n}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={() => setTargetReplicas(Math.min(5, targetReplicas + 1))}
+                                disabled={targetReplicas >= 5}
+                                className="w-10 h-10 rounded-full border-2 border-indigo-200 flex items-center justify-center text-indigo-600 hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <Plus className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <p className="text-center text-xs text-gray-500 mt-3">
+                            {targetReplicas === 1
+                                ? 'Single backend — no load balancing'
+                                : `${targetReplicas} replicas → least_conn algorithm`}
+                        </p>
+                    </div>
+
+                    {/* Scale Button */}
+                    <div className="mt-5 flex items-center gap-3">
+                        <button
+                            onClick={handleScale}
+                            disabled={scaling || !isRunning || targetReplicas === currentReplicas}
+                            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold text-sm
+                                       hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        >
+                            {scaling ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> Scaling...</>
+                            ) : (
+                                <><Zap className="w-4 h-4" /> Apply Scale</>
+                            )}
+                        </button>
+                        {!isRunning && (
+                            <p className="text-xs text-amber-600 flex items-center gap-1">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                Site must be running to scale
+                            </p>
+                        )}
+                        {targetReplicas === currentReplicas && isRunning && (
+                            <p className="text-xs text-gray-500">Already at {currentReplicas} replica(s)</p>
+                        )}
+                    </div>
+
+                    {/* Result Feedback */}
+                    {result && (
+                        <div className={`mt-4 p-4 rounded-lg border text-sm flex items-start gap-3 ${result.success
+                            ? 'bg-green-50 border-green-200 text-green-800'
+                            : 'bg-red-50 border-red-200 text-red-800'
+                            }`}>
+                            {result.success
+                                ? <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" />
+                                : <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-600" />}
+                            <div className="space-y-1">
+                                <p className="font-medium">{result.message}</p>
+                                {result.nginxStatus && (
+                                    <p className="text-xs opacity-75">Nginx: {result.nginxStatus}</p>
+                                )}
+                                {result.ports && result.ports.length > 0 && (
+                                    <p className="text-xs opacity-75 font-mono">
+                                        Ports: {result.ports.join(', ')}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Info box */}
+            <div className="flex gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                <div>
+                    <p className="font-semibold mb-1">Only the Django API is load balanced</p>
+                    <p className="text-xs leading-relaxed">
+                        The React frontend is a single container serving pre-built static files — it doesn't need replicas.
+                        WordPress sites are excluded because they require a shared filesystem (NFS) and centralized session
+                        store (Redis) before horizontal scaling is safe.
+                    </p>
+                </div>
+            </div>
         </div>
     )
 }
