@@ -149,6 +149,7 @@ function LoadBalancingPanel({ site, onUpdated }: LoadBalancingPanelProps) {
 
     const currentReplicas = site.replica_count ?? 1
     const isRunning = site.status === 'running'
+    const lbApiUrl = site.port ? `http://localhost:${site.port}/api/` : null
 
     const handleScale = async () => {
         setScaling(true)
@@ -210,6 +211,26 @@ function LoadBalancingPanel({ site, onUpdated }: LoadBalancingPanelProps) {
                             <p className="text-xs text-gray-500 mt-1">Site Status</p>
                         </div>
                     </div>
+
+                    {/* Load Balanced API Link */}
+                    {lbApiUrl && (
+                        <div className="mb-5">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Load Balanced API</p>
+                            <p className="text-xs text-gray-400 mb-3">
+                                This endpoint routes <code className="bg-gray-100 px-1 rounded">/api/</code> through the load balancer.
+                            </p>
+                            <a
+                                href={lbApiUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-xs font-mono hover:bg-green-200 hover:text-green-900 transition-colors cursor-pointer"
+                                title={`Open load balanced API at ${lbApiUrl}`}
+                            >
+                                <Server className="w-3 h-3" />
+                                {lbApiUrl}
+                            </a>
+                        </div>
+                    )}
 
                     {/* Backend Port List */}
                     {site.backend_ports && site.backend_ports.length > 0 && (

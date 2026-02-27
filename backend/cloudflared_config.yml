@@ -23,4 +23,6 @@ ingress:
   service: http://localhost:9012
 - hostname: ad.edubricz.online
   service: http://localhost:9003
+- hostname: kll.edubricz.online
+  service: http://localhost:9012
 - service: http_status:404

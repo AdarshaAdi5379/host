@@ -155,6 +155,9 @@ def generate_docker_compose(site_name, db_config, port, site_type='wordpress', a
             'container_name': f'{site_name}_frontend',
             'restart': 'unless-stopped',
             'ports': [f'{port}:80'],
+            'volumes': [
+                './frontend_nginx.conf:/etc/nginx/conf.d/default.conf:ro'
+            ],
             'networks': ['vpc_public_web'],
             'depends_on': [f'{site_name}_backend']
         }
@@ -477,6 +480,60 @@ server {{
     return upstream_block, upstream_name, nginx_config
 
 
+def generate_frontend_nginx_conf(
+    site_name: str,
+    backend_services: list[str],
+) -> str:
+    """
+    Generate Nginx config for the FRONTEND container to proxy /api/ to backend
+    replicas via Docker service DNS (no host Nginx required).
+    """
+    if not backend_services:
+        raise ValueError("backend_services is required")
+
+    if len(backend_services) == 1:
+        upstream_block = ""
+        upstream_target = f"http://{backend_services[0]}:8000"
+    else:
+        upstream_name = f"{site_name}_api"
+        server_lines = "\n".join(
+            f"    server {svc}:8000;  # replica {i + 1}"
+            for i, svc in enumerate(backend_services)
+        )
+        upstream_block = f"""upstream {upstream_name} {{
+    least_conn;
+{server_lines}
+}}"""
+        upstream_target = f"http://{upstream_name}"
+
+    config = f"""# Frontend Nginx — {site_name}
+{upstream_block}
+
+server {{
+    listen 80;
+    listen [::]:80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location /api/ {{
+        proxy_pass {upstream_target};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }}
+
+    location / {{
+        try_files $uri /index.html;
+    }}
+}}
+"""
+    return config
+
 def create_site_directory(site_name):
 
     """Create directory structure for a WordPress site"""
@@ -566,15 +623,34 @@ def detect_and_inject_dockerfiles(site_path):
             except Exception:
                 pass
 
+            # Choose package manager based on lockfile
+            yarn_lock = os.path.exists(os.path.join(check_path, 'yarn.lock'))
+            pkg_lock = os.path.exists(os.path.join(check_path, 'package-lock.json'))
+
+            if yarn_lock:
+                install_lines = (
+                    'COPY package.json yarn.lock ./\n'
+                    'RUN corepack enable\n'
+                    'RUN yarn install --frozen-lockfile\n'
+                )
+            else:
+                install_lines = (
+                    'COPY package*.json ./\n'
+                    'RUN npm ci --prefer-offline || npm install\n'
+                )
+
             frontend_dockerfile_content = (
                 '# Stage 1: Build the React app\n'
                 'FROM node:18-alpine AS builder\n'
                 'WORKDIR /app\n'
-                # FIX 1: Copy package-lock.json for deterministic installs
-                'COPY package*.json ./\n'
-                'RUN npm ci --prefer-offline || npm install\n'
+                + install_lines +
                 'COPY . .\n'
-                'RUN npm run build\n'
+                + (
+                    'RUN yarn build\n' if yarn_lock else
+                    # CRA (webpack 4) needs legacy OpenSSL on Node 17+
+                    'ENV NODE_OPTIONS=--openssl-legacy-provider\n'
+                    'RUN npm run build\n'
+                ) +
                 '\n'
                 '# Stage 2: Serve with Nginx\n'
                 'FROM nginx:alpine\n'
@@ -720,8 +796,13 @@ def _sanitize_requirements(req_path: str):
     
     lines = []
     try:
-        with open(req_path, 'r', encoding='utf-8', errors='ignore') as f:
-            lines = f.readlines()
+        raw = Path(req_path).read_bytes()
+        if b'\x00' in raw:
+            # Likely UTF-16 encoded requirements.txt
+            text = raw.decode('utf-16', errors='ignore')
+        else:
+            text = raw.decode('utf-8', errors='ignore')
+        lines = text.splitlines(keepends=True)
     except Exception:
         return
     
@@ -729,6 +810,10 @@ def _sanitize_requirements(req_path: str):
     changed = False
     for line in lines:
         stripped = line.strip()
+        # Drop backports.zoneinfo on Python 3.9+ (not needed, often fails to build)
+        if re.match(r'^backports\.zoneinfo==', stripped, re.IGNORECASE):
+            changed = True
+            continue
         # Fix invalid Django versions (>= 6.x which doesn't exist)
         m = re.match(r'^(Django)==(\d+)\.(\d+)', stripped, re.IGNORECASE)
         if m:
@@ -749,6 +834,6 @@ def _sanitize_requirements(req_path: str):
                 continue
         fixed_lines.append(line)
     
-    if changed:
+    if changed or b'\x00' in locals().get('raw', b''):
         with open(req_path, 'w', encoding='utf-8') as f:
             f.writelines(fixed_lines)

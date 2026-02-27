@@ -29,6 +29,7 @@ from .orchestrator import (
     create_site_directory,
     generate_nginx_config,
     generate_nginx_lb_config,
+    generate_frontend_nginx_conf,
     generate_wp_config_content,
     write_wp_config
 )
@@ -283,6 +284,20 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     env_vars=env_vars
                 )
                 compose_path = write_docker_compose(site_dir, compose_config)
+
+                # Step 5.5: Write frontend Nginx config (proxy /api to backend)
+                try:
+                    import os as _os
+                    frontend_conf = generate_frontend_nginx_conf(
+                        site_name=site_name,
+                        backend_services=[f"{site_name}_backend"]
+                    )
+                    conf_path = _os.path.join(site_dir, 'frontend_nginx.conf')
+                    with open(conf_path, 'w') as f:
+                        f.write(frontend_conf)
+                except Exception as e:
+                    return Response({'error': f'Failed to write frontend Nginx config: {e}'},
+                                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
                 # Step 6: Save to DB
                 site = WordPressSite.objects.create(
@@ -543,51 +558,41 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
 
 
         # ----------------------------------------------------------------
-        # Step 4: Generate Nginx upstream config with host-mapped ports
+        # Step 4: Write frontend Nginx config (Docker LB, no host nginx)
         # ----------------------------------------------------------------
-        upstream_block, upstream_name, nginx_config = generate_nginx_lb_config(
-            site_name=site.name,
-            domain=site.domain,
-            frontend_port=site.port,
-            backend_ports=new_ports,
-        )
-
-        # ----------------------------------------------------------------
-        # Step 5: Write new Nginx config and reload
-        # Since react_django configs are custom, we write it directly 
-        # ----------------------------------------------------------------
-        from .nginx_manager import get_nginx_conf_dir, reload_nginx
         from pathlib import Path
+        import subprocess
 
-        sites_dir = get_nginx_conf_dir()
-        if not sites_dir:
-            # Fallback path if get_nginx_conf_dir fails
-            sites_dir = Path("/etc/nginx/sites-available")
-            
-        # Ensure directory exists if we have permissions
+        backend_services = [
+            f'{site.name}_backend_{i}' for i in range(1, len(new_ports) + 1)
+        ]
+        frontend_conf = generate_frontend_nginx_conf(
+            site_name=site.name,
+            backend_services=backend_services,
+        )
+        conf_path = Path(site.site_directory) / 'frontend_nginx.conf'
         try:
-            sites_dir.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            pass
-
-        conf_path = sites_dir / f"{site.name}.conf"
-        
-        try:
-            # Write directly mimicking nginx_manager.py behavior
-            conf_path.write_text(nginx_config)
+            conf_path.write_text(frontend_conf)
             conf_ok = True
-            conf_msg = f"Nginx config written: {conf_path}"
-        except PermissionError:
-            conf_ok = False
-            conf_msg = f"Permission denied writing {conf_path}. Run Django with sudo or fix ownership."
+            conf_msg = f"Frontend Nginx config written: {conf_path}"
         except Exception as exc:
             conf_ok = False
-            conf_msg = f"Failed to write Nginx config: {exc}"
+            conf_msg = f"Failed to write frontend Nginx config: {exc}"
 
+        # Reload nginx inside the frontend container (if running)
         nginx_reload_status = 'skipped'
         if conf_ok:
-            reload_ok, reload_msg = reload_nginx()
-            nginx_reload_status = reload_msg
+            try:
+                result = subprocess.run(
+                    ['docker', 'exec', f'{site.name}_frontend', 'nginx', '-s', 'reload'],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0:
+                    nginx_reload_status = 'Frontend nginx reloaded'
+                else:
+                    nginx_reload_status = f'Frontend nginx reload failed: {result.stderr or result.stdout}'
+            except Exception as exc:
+                nginx_reload_status = f'Frontend nginx reload failed: {exc}'
         else:
             nginx_reload_status = f'Config write failed: {conf_msg}'
 
