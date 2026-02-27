@@ -570,8 +570,9 @@ def detect_and_inject_dockerfiles(site_path):
                 '# Stage 1: Build the React app\n'
                 'FROM node:18-alpine AS builder\n'
                 'WORKDIR /app\n'
-                'COPY package.json ./\n'
-                'RUN npm install\n'
+                # FIX 1: Copy package-lock.json for deterministic installs
+                'COPY package*.json ./\n'
+                'RUN npm ci --prefer-offline || npm install\n'
                 'COPY . .\n'
                 'RUN npm run build\n'
                 '\n'
@@ -596,36 +597,80 @@ def detect_and_inject_dockerfiles(site_path):
         if os.path.exists(manage_py_path):
             backend_dir_abs = check_path
 
-            # Auto-detect Django project name
-            wsgi_module = 'core.wsgi:application'
+            # FIX 4: Auto-detect Django project name — more robust detection
+            wsgi_module = None
+            django_project_name = None
             try:
                 import re as _re
                 with open(manage_py_path, 'r', encoding='utf-8', errors='ignore') as mpy:
                     for _line in mpy:
                         if 'DJANGO_SETTINGS_MODULE' in _line and '.' in _line:
-                            _pat = r'''['\"]([\w]+)\.settings['\"]\s*'''
+                            _pat = r"""['\"]([\w]+)\.settings['\"]"""
                             _m = _re.search(_pat, _line)
                             if _m:
-                                wsgi_module = _m.group(1) + '.wsgi:application'
+                                django_project_name = _m.group(1)
+                                wsgi_module = django_project_name + '.wsgi:application'
                                 break
             except Exception:
                 pass
 
-            # Sanitize requirements.txt
+            # Fallback: scan for wsgi.py in the backend directory tree
+            if not wsgi_module:
+                for root, dirs, files in os.walk(check_path):
+                    if 'wsgi.py' in files:
+                        # Derive module path relative to backend dir
+                        rel = os.path.relpath(root, check_path)
+                        if rel == '.':
+                            wsgi_module = 'wsgi:application'
+                            django_project_name = None
+                        else:
+                            pkg = rel.replace(os.sep, '.')
+                            wsgi_module = pkg + '.wsgi:application'
+                            django_project_name = rel.split(os.sep)[0]
+                        break
+
+            # Final fallback
+            if not wsgi_module:
+                wsgi_module = 'core.wsgi:application'
+                django_project_name = 'core'
+
+            # FIX 3: Find requirements.txt relative to the build context
             req_path = os.path.join(check_path, 'requirements.txt')
+            req_copy_line = ''
             if os.path.exists(req_path):
                 _sanitize_requirements(req_path)
+                req_copy_line = (
+                    'COPY requirements.txt .\n'
+                    'RUN pip install --upgrade pip && pip install -r requirements.txt\n'
+                    'RUN pip install gunicorn\n'
+                )
+            else:
+                # requirements.txt may not exist — install gunicorn only
+                req_copy_line = (
+                    'RUN pip install --upgrade pip gunicorn\n'
+                )
 
-            gunicorn_cmd = 'CMD ["gunicorn", "' + wsgi_module + '", "--bind", "0.0.0.0:8000"]'
+            # FIX 2: Set DJANGO_SETTINGS_MODULE env var
+            settings_env_line = ''
+            if django_project_name:
+                settings_env_line = f'ENV DJANGO_SETTINGS_MODULE={django_project_name}.settings\n'
+
+            # FIX 5: Add gunicorn timeout and multiple workers
+            gunicorn_cmd = (
+                'CMD ["gunicorn", "' + wsgi_module + '", '
+                '"--bind", "0.0.0.0:8000", '
+                '"--workers", "2", '
+                '"--timeout", "120"]\n'
+            )
+
             backend_dockerfile_content = (
                 'FROM python:3.10\n'
                 'WORKDIR /app\n'
-                'COPY requirements.txt .\n'
-                'RUN pip install --upgrade pip && pip install -r requirements.txt\n'
-                'RUN pip install gunicorn\n'
-                'COPY . .\n'
+                + settings_env_line
+                + req_copy_line
+                + 'COPY . .\n'
                 'EXPOSE 8000\n'
-                + gunicorn_cmd + '\n'
+                + gunicorn_cmd
             )
             backend_path = relative_dir
             break
