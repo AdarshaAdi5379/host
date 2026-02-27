@@ -214,13 +214,22 @@ function LoadBalancingPanel({ site, onUpdated }: LoadBalancingPanelProps) {
                     {/* Backend Port List */}
                     {site.backend_ports && site.backend_ports.length > 0 && (
                         <div className="mb-5">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Active Backend Ports</p>
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Active Backend Replicas</p>
+                            <p className="text-xs text-gray-400 mb-3">These are Django API backends — click to open <code className="bg-gray-100 px-1 rounded">/api/</code> on each replica</p>
                             <div className="flex flex-wrap gap-2">
                                 {site.backend_ports.map((port, i) => (
-                                    <span key={port} className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-mono">
+                                    <a
+                                        key={port}
+                                        href={`http://localhost:${port}/api/`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-100 text-indigo-800 rounded-full text-xs font-mono hover:bg-indigo-200 hover:text-indigo-900 transition-colors cursor-pointer"
+                                        title={`Open replica ${i + 1} API at http://localhost:${port}/api/`}
+                                    >
                                         <Server className="w-3 h-3" />
-                                        :{port} — replica {i + 1}
-                                    </span>
+                                        localhost:{port}/api/
+                                        <span className="text-indigo-500 opacity-70 ml-1">— replica {i + 1}</span>
+                                    </a>
                                 ))}
                             </div>
                         </div>
