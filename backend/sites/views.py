@@ -104,6 +104,88 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             return True
         return site.owner_id == user.id
 
+    def _discover_running_project_containers(self, site: WordPressSite):
+        """
+        Discover currently running Docker containers for this project.
+        """
+        try:
+            client = docker.from_env()
+            containers = client.containers.list(
+                filters={'label': f'com.docker.compose.project={site.name}'}
+            )
+        except Exception as exc:
+            return False, None, f'Failed to query Docker daemon: {exc}'
+
+        registered_names = set(
+            ProjectService.objects.filter(site=site).values_list('container_name', flat=True)
+        )
+        registered_targets = set(
+            ProjectService.objects.filter(site=site).values_list('container_name', 'internal_port')
+        )
+
+        rows = []
+        for container in containers:
+            labels = container.labels or {}
+            compose_service = labels.get('com.docker.compose.service') or container.name
+
+            ports = (container.attrs.get('NetworkSettings', {}).get('Ports', {}) or {})
+            internal_ports = []
+            for key in ports.keys():
+                try:
+                    port_str, proto = key.split('/', 1)
+                except ValueError:
+                    continue
+                if proto != 'tcp':
+                    continue
+                if port_str.isdigit():
+                    internal_ports.append(int(port_str))
+
+            default_port = None
+            if 8000 in internal_ports:
+                default_port = 8000
+            elif 3000 in internal_ports:
+                default_port = 3000
+            elif internal_ports:
+                default_port = internal_ports[0]
+
+            service_token = compose_service.lower()
+            container_token = container.name.lower()
+            recommended = not (
+                any(word in service_token for word in ['db', 'mysql', 'mariadb', 'redis']) or
+                any(word in container_token for word in ['_db', '-db', 'mysql', 'mariadb', 'redis']) or
+                ('frontend' in service_token) or
+                ('wordpress' in service_token)
+            )
+
+            suggested_name = compose_service
+            site_prefix = f'{site.name}_'
+            if suggested_name.startswith(site_prefix):
+                suggested_name = suggested_name[len(site_prefix):]
+            suggested_name = suggested_name.replace('_', '-')
+            if suggested_name.endswith('-1'):
+                suggested_name = suggested_name[:-2]
+            if not suggested_name:
+                suggested_name = 'service'
+
+            rows.append({
+                'container_name': container.name,
+                'compose_service': compose_service,
+                'suggested_service_name': suggested_name[:100],
+                'default_internal_port': default_port,
+                'recommended_for_api': recommended,
+                'already_registered': container.name in registered_names,
+                'already_registered_for_port': (
+                    default_port is not None and (container.name, default_port) in registered_targets
+                ),
+            })
+
+        rows.sort(key=lambda r: (
+            not r['recommended_for_api'],
+            r['already_registered'],
+            r['container_name'],
+        ))
+        return True, rows, None
+
     def perform_create(self, serializer):
         """Assign current user as owner when creating site"""
         serializer.save(owner=self.request.user)
@@ -423,6 +505,28 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         response_data['gateway_status'] = 'queued'
         response_data['gateway_job'] = GatewayApplyJobSerializer(job).data
         return Response(response_data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['get'], url_path='api-gateway-discovery')
+    def api_gateway_discovery(self, request, pk=None):
+        """
+        List running project containers that can be selected as route targets.
+        """
+        site = self.get_object()
+
+        if site.framework != 'react_django':
+            return Response(
+                {'error': 'API gateway routes are only supported for react_django sites.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not self._can_access_site(request.user, site):
+            return Response({'error': 'You do not have access to this project.'}, status=status.HTTP_403_FORBIDDEN)
+
+        ok, containers, error = self._discover_running_project_containers(site)
+        if not ok:
+            return Response({'error': error}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({'containers': containers})
 
     @action(detail=True, methods=['patch', 'delete'], url_path='api-services/(?P<service_id>[^/.]+)')
     def api_service_detail(self, request, pk=None, service_id=None):

@@ -79,6 +79,16 @@ export interface GatewayApplyJob {
     updated_at: string;
 }
 
+export interface GatewayDiscoveryContainer {
+    container_name: string;
+    compose_service: string;
+    suggested_service_name: string;
+    default_internal_port: number | null;
+    recommended_for_api: boolean;
+    already_registered: boolean;
+    already_registered_for_port: boolean;
+}
+
 export interface CreateSiteRequest {
     name: string;
     admin_username?: string;
@@ -334,6 +344,16 @@ class WordPressAPI {
         });
 
         await this.checkOkWithBody(response, 'Failed to fetch API services');
+        return response.json();
+    }
+
+    async getApiGatewayDiscovery(siteId: number): Promise<{ containers: GatewayDiscoveryContainer[] }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-gateway-discovery/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to fetch running project containers');
         return response.json();
     }
 

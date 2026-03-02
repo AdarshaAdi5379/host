@@ -6,7 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TeamManagement } from '@/components/team/TeamManagement'
 import { AuditLogViewer } from '@/components/audit/AuditLogViewer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { wordpressAPI, type WordPressSite, type ProjectService, type ApiRoute, type GatewayApplyJob } from '@/lib/wordpressAPI'
+import {
+    wordpressAPI,
+    type WordPressSite,
+    type ProjectService,
+    type ApiRoute,
+    type GatewayApplyJob,
+    type GatewayDiscoveryContainer,
+} from '@/lib/wordpressAPI'
 import { Loader2, Zap, AlertTriangle, CheckCircle2, Server, Minus, Plus, Network, Route, Trash2, RefreshCcw } from 'lucide-react'
 
 export function ProjectSettings() {
@@ -390,6 +397,7 @@ function ApiGatewayPanel({ site }: ApiGatewayPanelProps) {
     const [saving, setSaving] = useState(false)
     const [services, setServices] = useState<ProjectService[]>([])
     const [routes, setRoutes] = useState<ApiRoute[]>([])
+    const [containerOptions, setContainerOptions] = useState<GatewayDiscoveryContainer[]>([])
     const [gatewayStatus, setGatewayStatus] = useState<{
         last_synced_at: string | null;
         last_error: string;
@@ -405,18 +413,24 @@ function ApiGatewayPanel({ site }: ApiGatewayPanelProps) {
     const [routePath, setRoutePath] = useState('')
     const [routeServiceId, setRouteServiceId] = useState<number | null>(null)
     const [stripPrefix, setStripPrefix] = useState(true)
+    const selectedContainer = containerOptions.find((row) => row.container_name === containerName) || null
 
     const refreshAll = async () => {
         try {
             setError(null)
-            const [serviceRows, routeRows, statusRow] = await Promise.all([
+            const [serviceRows, routeRows, statusRow, discoveryRow] = await Promise.all([
                 wordpressAPI.getApiServices(site.id),
                 wordpressAPI.getApiRoutes(site.id),
                 wordpressAPI.getApiGatewayStatus(site.id),
+                wordpressAPI.getApiGatewayDiscovery(site.id),
             ])
             setServices(serviceRows)
             setRoutes(routeRows)
             setGatewayStatus(statusRow)
+            setContainerOptions(discoveryRow.containers)
+            if (discoveryRow.containers.length > 0 && !discoveryRow.containers.some((row) => row.container_name === containerName)) {
+                setContainerName('')
+            }
             if (!routeServiceId && serviceRows.length > 0) {
                 setRouteServiceId(serviceRows[0].id)
             }
@@ -457,6 +471,19 @@ function ApiGatewayPanel({ site }: ApiGatewayPanelProps) {
             setError(err?.message || 'Failed to create API service')
         } finally {
             setSaving(false)
+        }
+    }
+
+    const handleContainerSelect = (value: string) => {
+        setContainerName(value)
+        const option = containerOptions.find((row) => row.container_name === value)
+        if (!option) return
+
+        if (!serviceName.trim()) {
+            setServiceName(option.suggested_service_name)
+        }
+        if (option.default_internal_port) {
+            setInternalPort(option.default_internal_port)
         }
     }
 
@@ -609,16 +636,28 @@ function ApiGatewayPanel({ site }: ApiGatewayPanelProps) {
                         <div className="grid md:grid-cols-4 gap-2">
                             <input
                                 className="border rounded-md px-3 py-2 text-sm"
-                                placeholder="Service name"
+                                placeholder="users, payments, inventory"
                                 value={serviceName}
                                 onChange={(e) => setServiceName(e.target.value)}
                             />
-                            <input
+                            <select
                                 className="border rounded-md px-3 py-2 text-sm"
-                                placeholder="Container name"
                                 value={containerName}
-                                onChange={(e) => setContainerName(e.target.value)}
-                            />
+                                onChange={(e) => handleContainerSelect(e.target.value)}
+                            >
+                                <option value="" disabled>Select running container</option>
+                                {containerOptions.map((container) => (
+                                    <option
+                                        key={container.container_name}
+                                        value={container.container_name}
+                                        disabled={container.already_registered}
+                                    >
+                                        {container.container_name}
+                                        {container.recommended_for_api ? '' : ' (not recommended)'}
+                                        {container.already_registered ? ' (already used)' : ''}
+                                    </option>
+                                ))}
+                            </select>
                             <input
                                 type="number"
                                 min={1}
@@ -630,12 +669,26 @@ function ApiGatewayPanel({ site }: ApiGatewayPanelProps) {
                             />
                             <button
                                 onClick={handleCreateService}
-                                disabled={saving}
+                                disabled={saving || !containerName}
                                 className="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
                             >
                                 {saving ? 'Saving...' : 'Add Service'}
                             </button>
                         </div>
+                        <p className="text-xs text-gray-500">
+                            Service name should be a business label the owner understands, like <code className="bg-gray-100 px-1 rounded">users</code>, <code className="bg-gray-100 px-1 rounded">payments</code>, or <code className="bg-gray-100 px-1 rounded">orders</code>.
+                        </p>
+                        {selectedContainer && (
+                            <p className="text-xs text-gray-500">
+                                Selected container: <span className="font-mono">{selectedContainer.container_name}</span>
+                                {selectedContainer.default_internal_port ? ` (default port ${selectedContainer.default_internal_port})` : ''}
+                            </p>
+                        )}
+                        {containerOptions.length === 0 && (
+                            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+                                No running containers discovered for this project. Start the project first.
+                            </p>
+                        )}
 
                         {services.length === 0 ? (
                             <p className="text-xs text-gray-500">No API services yet.</p>
