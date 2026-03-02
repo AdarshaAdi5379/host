@@ -714,11 +714,11 @@ function ApiGatewayPanel({ site }: ApiGatewayPanelProps) {
                     </div>
 
                     <div className="border rounded-xl p-4 space-y-3">
-                        <p className="text-sm font-semibold">2. Add Route (only /api/&lt;something&gt;)</p>
+                        <p className="text-sm font-semibold">2. Add Route (supports nested paths like /api/v1/products)</p>
                         <div className="grid md:grid-cols-4 gap-2">
                             <input
                                 className="border rounded-md px-3 py-2 text-sm"
-                                placeholder="payments"
+                                placeholder="v1/products"
                                 value={routePath}
                                 onChange={(e) => setRoutePath(e.target.value)}
                             />

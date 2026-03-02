@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 
 
-_API_ROUTE_PATTERN = re.compile(r"^/api/([a-zA-Z0-9][a-zA-Z0-9_-]*)/?$")
+_API_ROUTE_SEGMENT_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,8 @@ def normalize_api_route_path(raw_path: str) -> str:
     Accepted inputs:
       - "payments"
       - "/api/payments"
-      - "/api/payments/"
+      - "/api/v1/products"
+      - "/api/v1/products/"
     """
     if raw_path is None:
         raise ValueError("Route path is required")
@@ -36,12 +37,34 @@ def normalize_api_route_path(raw_path: str) -> str:
     if not path.startswith("/"):
         path = f"/api/{path.lstrip('/')}"
 
-    match = _API_ROUTE_PATTERN.match(path)
-    if not match:
+    if '//' in path:
+        raise ValueError("Path cannot contain empty segments")
+
+    # Must begin under /api/ namespace only.
+    if path == '/api' or path == '/api/':
+        raise ValueError("Path must be in /api/<something> format")
+    if not path.startswith('/api/'):
+        raise ValueError("Path must start with /api/")
+
+    remainder = path[len('/api/'):]
+    if remainder.endswith('/'):
+        remainder = remainder[:-1]
+
+    if not remainder:
         raise ValueError("Path must be in /api/<something> format")
 
-    segment = match.group(1).lower()
-    return f"/api/{segment}/"
+    segments = remainder.split('/')
+    normalized_segments: list[str] = []
+    for segment in segments:
+        if not segment:
+            raise ValueError("Path cannot contain empty segments")
+        if not _API_ROUTE_SEGMENT_PATTERN.match(segment):
+            raise ValueError(
+                "Path segments can only contain letters, numbers, hyphens, and underscores."
+            )
+        normalized_segments.append(segment.lower())
+
+    return f"/api/{'/'.join(normalized_segments)}/"
 
 
 def _proxy_header_block() -> str:

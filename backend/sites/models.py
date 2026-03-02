@@ -297,7 +297,7 @@ class ProjectService(models.Model):
 
 class ApiRoute(models.Model):
     """
-    Maps a project API path (/api/<something>/) to a ProjectService.
+    Maps a project API path (/api/<something>/ or nested /api/v1/products/) to a ProjectService.
     """
     site = models.ForeignKey(
         WordPressSite,
@@ -309,7 +309,7 @@ class ApiRoute(models.Model):
         on_delete=models.CASCADE,
         related_name='routes'
     )
-    path = models.CharField(max_length=255)  # Canonical form: /api/<segment>/
+    path = models.CharField(max_length=255)  # Canonical form: /api/<segment...>/
     strip_prefix = models.BooleanField(default=True)
     is_enabled = models.BooleanField(default=True)
     created_by = models.ForeignKey(

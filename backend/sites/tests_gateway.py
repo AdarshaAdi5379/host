@@ -8,13 +8,27 @@ class NormalizeApiRoutePathTests(SimpleTestCase):
         self.assertEqual(normalize_api_route_path('payments'), '/api/payments/')
         self.assertEqual(normalize_api_route_path('/api/PAYMENTS'), '/api/payments/')
         self.assertEqual(normalize_api_route_path('/api/payments/'), '/api/payments/')
+        self.assertEqual(normalize_api_route_path('/api/v1/products'), '/api/v1/products/')
+        self.assertEqual(normalize_api_route_path('/api/V1/Products/'), '/api/v1/products/')
 
     def test_rejects_invalid_format(self):
         with self.assertRaises(ValueError):
             normalize_api_route_path('/api/')
 
         with self.assertRaises(ValueError):
-            normalize_api_route_path('/api/v1/users')
+            normalize_api_route_path('/api')
+
+        with self.assertRaises(ValueError):
+            normalize_api_route_path('/v1/products')
+
+        with self.assertRaises(ValueError):
+            normalize_api_route_path('/api/v1//products')
+
+        with self.assertRaises(ValueError):
+            normalize_api_route_path('/api/v1/products$')
+
+        with self.assertRaises(ValueError):
+            normalize_api_route_path('/api/v1/../users')
 
 
 class RenderFrontendGatewayNginxTests(SimpleTestCase):
