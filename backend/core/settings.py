@@ -301,6 +301,9 @@ BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', 7))
 TENANT_DB_IMAGE = os.getenv('TENANT_DB_IMAGE', 'mysql:8.0')
 TENANT_DB_NETWORK = os.getenv('TENANT_DB_NETWORK', 'tenant_isolated')
 
+# API Gateway worker
+GATEWAY_RELOAD_DEBOUNCE_SECONDS = float(os.getenv('GATEWAY_RELOAD_DEBOUNCE_SECONDS', '0.5'))
+
 # AWS S3 / MinIO Configuration
 MAX_UPLOAD_SIZE = 5242880
 AWS_ACCESS_KEY_ID = os.getenv('MINIO_ROOT_USER')

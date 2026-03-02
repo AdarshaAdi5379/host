@@ -14,7 +14,8 @@ python manage.py runserver 8000
 
 ### 3. API Endpoints
 
-**Base URL:** `http://localhost:8000/api/`
+**Base URL (direct Django):** `http://localhost:8000/api/`
+**Base URL (API gateway, routing-only phase):** `http://localhost:8088/api/`
 
 #### List all WordPress sites
 ```
@@ -52,6 +53,89 @@ POST /api/sites/{id}/stop/
 ```
 DELETE /api/sites/{id}/terminate/
 ```
+
+## API Gateway Worker (required for dynamic `/api/<something>/` routes)
+
+Gateway config applies are queued in the database and executed by a separate worker process.
+
+Apply migrations first:
+
+```bash
+python manage.py migrate
+```
+
+Run the worker in a separate terminal:
+
+```bash
+python manage.py run_gateway_worker
+```
+
+Process one ready job and exit:
+
+```bash
+python manage.py run_gateway_worker --once
+```
+
+### Enable Auto-Start On Boot (systemd)
+
+Install and start the worker service:
+
+```bash
+cd /home/adarsha/Desktop/projects/HOST/host/backend
+sudo ./scripts/install_gateway_worker_service.sh
+```
+
+Install and start the Django API service:
+
+```bash
+cd /home/adarsha/Desktop/projects/HOST/host/backend
+sudo ./scripts/install_django_api_service.sh
+```
+
+Install both Django API + Gateway Worker services together:
+
+```bash
+cd /home/adarsha/Desktop/projects/HOST/host/backend
+sudo ./scripts/install_platform_services.sh
+```
+
+If services restart-loop with `ModuleNotFoundError: No module named 'django'`, reinstall with explicit interpreter:
+
+```bash
+sudo PYTHON_BIN="$(python3 -c 'import sys; print(sys.executable)')" ./scripts/install_platform_services.sh
+```
+
+Service management:
+
+```bash
+sudo systemctl status host-django-api.service --no-pager
+sudo systemctl status host-gateway-worker.service --no-pager
+sudo systemctl restart host-django-api.service
+sudo systemctl restart host-gateway-worker.service
+sudo journalctl -u host-django-api.service -f
+sudo journalctl -u host-gateway-worker.service -f
+```
+
+### Fallback (no systemd)
+
+```bash
+cd /home/adarsha/Desktop/projects/HOST/host/backend
+./scripts/gateway_worker_ctl.sh start
+./scripts/gateway_worker_ctl.sh status
+./scripts/gateway_worker_ctl.sh logs
+```
+
+### Django API Runtime Mode
+
+The Django service runs through:
+
+- [start_django_api.sh](/home/adarsha/Desktop/projects/HOST/host/backend/scripts/start_django_api.sh)
+
+Behavior:
+
+1. Uses `gunicorn` automatically if installed.
+2. Falls back to `manage.py runserver` when `gunicorn` is unavailable.
+3. Can force fallback mode with `DJANGO_USE_RUNSERVER=1` in the service environment.
 
 ## Project Structure
 

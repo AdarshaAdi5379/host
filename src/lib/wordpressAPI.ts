@@ -38,6 +38,45 @@ export interface WordPressSite {
     env_vars?: Record<string, string>;
     replica_count?: number;
     backend_ports?: number[];
+    gateway_last_synced_at?: string | null;
+    gateway_last_error?: string;
+}
+
+export interface ProjectService {
+    id: number;
+    name: string;
+    container_name: string;
+    internal_port: number;
+    protocol: 'http';
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ApiRoute {
+    id: number;
+    service: number;
+    service_name: string;
+    container_name: string;
+    internal_port: number;
+    path: string;
+    strip_prefix: boolean;
+    is_enabled: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface GatewayApplyJob {
+    id: number;
+    status: 'pending' | 'running' | 'success' | 'failed' | 'superseded';
+    reason: string;
+    error: string;
+    worker_id: string;
+    scheduled_for: string;
+    started_at: string | null;
+    finished_at: string | null;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface CreateSiteRequest {
@@ -285,6 +324,136 @@ class WordPressAPI {
             throw new Error(error.error || 'Failed to scale site');
         }
 
+        return response.json();
+    }
+
+    async getApiServices(siteId: number): Promise<ProjectService[]> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-services/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to fetch API services');
+        return response.json();
+    }
+
+    async createApiService(siteId: number, payload: {
+        name: string;
+        container_name: string;
+        internal_port: number;
+        protocol?: 'http';
+        is_active?: boolean;
+    }): Promise<ProjectService> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-services/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to create API service');
+        return response.json();
+    }
+
+    async updateApiService(siteId: number, serviceId: number, payload: Partial<{
+        name: string;
+        container_name: string;
+        internal_port: number;
+        is_active: boolean;
+    }>): Promise<ProjectService> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-services/${serviceId}/`, {
+            method: 'PATCH',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to update API service');
+        return response.json();
+    }
+
+    async deleteApiService(siteId: number, serviceId: number): Promise<{ status: string; gateway_status?: string }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-services/${serviceId}/`, {
+            method: 'DELETE',
+            headers: this.getHeaders(),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to delete API service');
+        return response.json();
+    }
+
+    async getApiRoutes(siteId: number): Promise<ApiRoute[]> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-routes/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to fetch API routes');
+        return response.json();
+    }
+
+    async createApiRoute(siteId: number, payload: {
+        service: number;
+        path: string;
+        strip_prefix?: boolean;
+        is_enabled?: boolean;
+    }): Promise<ApiRoute> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-routes/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to create API route');
+        return response.json();
+    }
+
+    async updateApiRoute(siteId: number, routeId: number, payload: Partial<{
+        service: number;
+        path: string;
+        strip_prefix: boolean;
+        is_enabled: boolean;
+    }>): Promise<ApiRoute> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-routes/${routeId}/`, {
+            method: 'PATCH',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to update API route');
+        return response.json();
+    }
+
+    async deleteApiRoute(siteId: number, routeId: number): Promise<{ status: string; gateway_status?: string }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-routes/${routeId}/`, {
+            method: 'DELETE',
+            headers: this.getHeaders(),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to delete API route');
+        return response.json();
+    }
+
+    async getApiGatewayStatus(siteId: number): Promise<{
+        last_synced_at: string | null;
+        last_error: string;
+        config_hash: string;
+        latest_job: GatewayApplyJob | null;
+    }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-gateway-status/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to fetch API gateway status');
+        return response.json();
+    }
+
+    async applyApiGateway(siteId: number): Promise<{ status: string; job: GatewayApplyJob }> {
+        const response = await fetch(`${API_BASE_URL}/sites/${siteId}/api-gateway-apply/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+        });
+
+        await this.checkOkWithBody(response, 'Failed to queue API gateway apply');
         return response.json();
     }
 }

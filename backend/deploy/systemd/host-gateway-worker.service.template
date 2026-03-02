@@ -1,0 +1,19 @@
+[Unit]
+Description=HOST API Gateway Worker
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User={{RUN_AS_USER}}
+WorkingDirectory={{BACKEND_DIR}}
+Environment=PYTHONUNBUFFERED=1
+ExecStart={{PYTHON_BIN}} manage.py run_gateway_worker --sleep-seconds 1
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

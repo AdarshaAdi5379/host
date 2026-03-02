@@ -4,7 +4,7 @@ ingress:
 - hostname: dashboard.edubricz.online
   service: http://localhost:5173
 - hostname: api.edubricz.online
-  service: http://localhost:8000
+  service: http://localhost:8088
 - hostname: db.edubricz.online
   service: http://172.27.0.11:8080
 - hostname: files.edubricz.online

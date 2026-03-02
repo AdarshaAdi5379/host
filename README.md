@@ -316,6 +316,13 @@ data/
 <p>Launch the Vite development server:</p>
 <code>npm run dev</code>
 
+<h3>3. API Gateway (Routing-Only Phase)</h3>
+<p>Start the API gateway container (Nginx):</p>
+<code>docker compose up -d api_gateway</code>
+<p>Gateway routes all <code>/api/*</code> traffic to Django and listens on <code>http://localhost:8088</code>.</p>
+<p>Health check:</p>
+<code>curl http://localhost:8088/healthz</code>
+
 <hr />
 
 <div align="center">

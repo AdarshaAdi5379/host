@@ -525,6 +525,8 @@ server {{
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
+        add_header X-Upstream $upstream_addr always;
+        add_header X-Upstream-Status $upstream_status always;
     }}
 
     location / {{

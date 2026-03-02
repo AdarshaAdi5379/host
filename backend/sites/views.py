@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings as django_settings
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.db.models import Q
 import secrets
 import string
@@ -11,11 +12,20 @@ import time
 import psutil
 import docker
 
-from .models import WordPressSite, CustomDomain, ProjectMembership, AuditLog, UserProfile
+from .models import (
+    WordPressSite,
+    CustomDomain,
+    ProjectMembership,
+    AuditLog,
+    UserProfile,
+    ProjectService,
+    ApiRoute,
+)
 from .serializers import (
     WordPressSiteSerializer, WordPressSiteCreateSerializer, CustomDomainSerializer,
     ProjectMembershipSerializer, InviteMemberSerializer, AuditLogSerializer,
-    UserProfileSerializer, ServerStatsSerializer, UserSerializer
+    UserProfileSerializer, ServerStatsSerializer, UserSerializer,
+    ProjectServiceSerializer, ApiRouteSerializer, GatewayApplyJobSerializer
 )
 from .permissions import (
     IsSuperAdmin, IsSiteOwner, IsProjectMember, CanManageTeam,
@@ -27,8 +37,6 @@ from .orchestrator import (
     generate_docker_compose,
     write_docker_compose,
     create_site_directory,
-    generate_nginx_config,
-    generate_nginx_lb_config,
     generate_frontend_nginx_conf,
     generate_wp_config_content,
     write_wp_config
@@ -39,6 +47,7 @@ from .docker_utils import (
     run_docker_compose_down_volumes,
     check_docker_running,
 )
+from .gateway_jobs import enqueue_gateway_apply, latest_gateway_job
 
 
 
@@ -48,6 +57,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
     """
     queryset = WordPressSite.objects.all()
     serializer_class = WordPressSiteSerializer
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         """
@@ -74,6 +84,25 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         return WordPressSite.objects.filter(
             Q(owner=user) | Q(team_members__user=user)
         ).distinct()
+
+    def _is_admin_user(self, user) -> bool:
+        if not user.is_authenticated:
+            return False
+        if user.is_staff or user.is_superuser:
+            return True
+        return hasattr(user, 'profile') and user.profile.is_super_admin
+
+    def _can_access_site(self, user, site: WordPressSite) -> bool:
+        if self._is_admin_user(user):
+            return True
+        if site.owner_id == user.id:
+            return True
+        return ProjectMembership.objects.filter(project=site, user=user).exists()
+
+    def _can_manage_gateway(self, user, site: WordPressSite) -> bool:
+        if self._is_admin_user(user):
+            return True
+        return site.owner_id == user.id
 
     def perform_create(self, serializer):
         """Assign current user as owner when creating site"""
@@ -360,6 +389,206 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         
         return Response({'logs': 'Waiting for build to start...'})
 
+    @action(detail=True, methods=['get', 'post'], url_path='api-services')
+    def api_services(self, request, pk=None):
+        """
+        List or create routable API services for a project gateway.
+        """
+        site = self.get_object()
+
+        if site.framework != 'react_django':
+            return Response(
+                {'error': 'API gateway routes are only supported for react_django sites.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not self._can_access_site(request.user, site):
+            return Response({'error': 'You do not have access to this project.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if request.method == 'GET':
+            services = ProjectService.objects.filter(site=site).order_by('name')
+            return Response(ProjectServiceSerializer(services, many=True).data)
+
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can modify API gateway services.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ProjectServiceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            service = serializer.save(site=site)
+            job = enqueue_gateway_apply(site, requested_by=request.user, reason='service_created')
+
+        response_data = ProjectServiceSerializer(service).data
+        response_data['gateway_status'] = 'queued'
+        response_data['gateway_job'] = GatewayApplyJobSerializer(job).data
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch', 'delete'], url_path='api-services/(?P<service_id>[^/.]+)')
+    def api_service_detail(self, request, pk=None, service_id=None):
+        """
+        Update or delete a routable project service.
+        """
+        site = self.get_object()
+
+        if site.framework != 'react_django':
+            return Response(
+                {'error': 'API gateway routes are only supported for react_django sites.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can modify API gateway services.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            service = ProjectService.objects.get(site=site, id=service_id)
+        except ProjectService.DoesNotExist:
+            return Response({'error': 'Service not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method == 'DELETE':
+            if service.routes.exists():
+                return Response(
+                    {'error': 'Service is used by one or more routes. Delete routes first.'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            with transaction.atomic():
+                service.delete()
+                job = enqueue_gateway_apply(site, requested_by=request.user, reason='service_deleted')
+
+            return Response({
+                'status': 'Service deleted.',
+                'gateway_status': 'queued',
+                'gateway_job': GatewayApplyJobSerializer(job).data,
+            })
+
+        serializer = ProjectServiceSerializer(service, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            updated_service = serializer.save()
+            job = enqueue_gateway_apply(site, requested_by=request.user, reason='service_updated')
+
+        response_data = ProjectServiceSerializer(updated_service).data
+        response_data['gateway_status'] = 'queued'
+        response_data['gateway_job'] = GatewayApplyJobSerializer(job).data
+        return Response(response_data)
+
+    @action(detail=True, methods=['get', 'post'], url_path='api-routes')
+    def api_routes(self, request, pk=None):
+        """
+        List or create /api/<something>/ routes.
+        """
+        site = self.get_object()
+
+        if site.framework != 'react_django':
+            return Response(
+                {'error': 'API gateway routes are only supported for react_django sites.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not self._can_access_site(request.user, site):
+            return Response({'error': 'You do not have access to this project.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if request.method == 'GET':
+            routes = ApiRoute.objects.filter(site=site).select_related('service').order_by('path')
+            return Response(ApiRouteSerializer(routes, many=True).data)
+
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can modify API gateway routes.'}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = ApiRouteSerializer(data=request.data, context={'site': site})
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            route = serializer.save(site=site, created_by=request.user)
+            job = enqueue_gateway_apply(site, requested_by=request.user, reason='route_created')
+
+        response_data = ApiRouteSerializer(route).data
+        response_data['gateway_status'] = 'queued'
+        response_data['gateway_job'] = GatewayApplyJobSerializer(job).data
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch', 'delete'], url_path='api-routes/(?P<route_id>[^/.]+)')
+    def api_route_detail(self, request, pk=None, route_id=None):
+        """
+        Update or delete a project API route.
+        """
+        site = self.get_object()
+
+        if site.framework != 'react_django':
+            return Response(
+                {'error': 'API gateway routes are only supported for react_django sites.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can modify API gateway routes.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            route = ApiRoute.objects.select_related('service').get(site=site, id=route_id)
+        except ApiRoute.DoesNotExist:
+            return Response({'error': 'Route not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.method == 'DELETE':
+            with transaction.atomic():
+                route.delete()
+                job = enqueue_gateway_apply(site, requested_by=request.user, reason='route_deleted')
+            return Response({
+                'status': 'Route deleted.',
+                'gateway_status': 'queued',
+                'gateway_job': GatewayApplyJobSerializer(job).data,
+            })
+
+        serializer = ApiRouteSerializer(route, data=request.data, partial=True, context={'site': site})
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            updated_route = serializer.save()
+            job = enqueue_gateway_apply(site, requested_by=request.user, reason='route_updated')
+
+        response_data = ApiRouteSerializer(updated_route).data
+        response_data['gateway_status'] = 'queued'
+        response_data['gateway_job'] = GatewayApplyJobSerializer(job).data
+        return Response(response_data)
+
+    @action(detail=True, methods=['get'], url_path='api-gateway-status')
+    def api_gateway_status(self, request, pk=None):
+        """
+        Return last gateway apply status for this project.
+        """
+        site = self.get_object()
+        if not self._can_access_site(request.user, site):
+            return Response({'error': 'You do not have access to this project.'}, status=status.HTTP_403_FORBIDDEN)
+        job = latest_gateway_job(site)
+
+        return Response({
+            'last_synced_at': site.gateway_last_synced_at,
+            'last_error': site.gateway_last_error,
+            'config_hash': site.gateway_config_hash,
+            'latest_job': GatewayApplyJobSerializer(job).data if job else None,
+        })
+
+    @action(detail=True, methods=['post'], url_path='api-gateway-apply')
+    def api_gateway_apply(self, request, pk=None):
+        """
+        Queue a gateway apply job manually.
+        """
+        site = self.get_object()
+        if site.framework != 'react_django':
+            return Response(
+                {'error': 'API gateway routes are only supported for react_django sites.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can apply API gateway config.'}, status=status.HTTP_403_FORBIDDEN)
+
+        job = enqueue_gateway_apply(site, requested_by=request.user, reason='manual_apply')
+        return Response({
+            'status': 'queued',
+            'job': GatewayApplyJobSerializer(job).data,
+        }, status=status.HTTP_202_ACCEPTED)
+
     @action(detail=True, methods=['post'])
     def scale(self, request, pk=None):
         """
@@ -372,9 +601,8 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
           2. Allocate `replica_count` host ports (reusing api_port as the first).
           3. Rewrite docker-compose.yml backend service with one port entry per replica.
           4. Run `docker compose up -d` to apply the new port mappings.
-          5. Generate a least_conn Nginx upstream pointing at 127.0.0.1:{port} entries.
-          6. Write the Nginx config and gracefully reload.
-          7. Persist replica_count + backend_ports to DB.
+          5. Persist replica_count + backend_ports to DB.
+          6. Queue async gateway apply for worker execution (nginx -t + reload).
 
         Design note: We rewrite docker-compose.yml instead of using `--scale`
         because `--scale` fails on services that have a `container_name` (which
@@ -558,60 +786,23 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
 
 
         # ----------------------------------------------------------------
-        # Step 4: Write frontend Nginx config (Docker LB, no host nginx)
-        # ----------------------------------------------------------------
-        from pathlib import Path
-        import subprocess
-
-        backend_services = [
-            f'{site.name}_backend_{i}' for i in range(1, len(new_ports) + 1)
-        ]
-        frontend_conf = generate_frontend_nginx_conf(
-            site_name=site.name,
-            backend_services=backend_services,
-        )
-        conf_path = Path(site.site_directory) / 'frontend_nginx.conf'
-        try:
-            conf_path.write_text(frontend_conf)
-            conf_ok = True
-            conf_msg = f"Frontend Nginx config written: {conf_path}"
-        except Exception as exc:
-            conf_ok = False
-            conf_msg = f"Failed to write frontend Nginx config: {exc}"
-
-        # Reload nginx inside the frontend container (if running)
-        nginx_reload_status = 'skipped'
-        if conf_ok:
-            try:
-                result = subprocess.run(
-                    ['docker', 'exec', f'{site.name}_frontend', 'nginx', '-s', 'reload'],
-                    capture_output=True, text=True, timeout=10
-                )
-                if result.returncode == 0:
-                    nginx_reload_status = 'Frontend nginx reloaded'
-                else:
-                    nginx_reload_status = f'Frontend nginx reload failed: {result.stderr or result.stdout}'
-            except Exception as exc:
-                nginx_reload_status = f'Frontend nginx reload failed: {exc}'
-        else:
-            nginx_reload_status = f'Config write failed: {conf_msg}'
-
-        # ----------------------------------------------------------------
-        # Step 6: Persist to DB
+        # Step 4: Persist scaling state and queue gateway apply
+        # (this keeps both default /api/ LB and custom /api/<something>/ routes)
         # ----------------------------------------------------------------
         site.replica_count = replica_count
         site.backend_ports = new_ports
-        
-        conf_path_str = str(conf_path) if conf_path else None
-        site.nginx_config_path = conf_path_str or site.nginx_config_path
         site.save()
+
+        conf_path_str = str(Path(site.site_directory) / 'frontend_nginx.conf')
+        gateway_job = enqueue_gateway_apply(site, requested_by=request.user, reason='scaled')
 
         return Response({
             'replica_count': replica_count,
             'backend_ports': new_ports,
             'status': f'Scaled {site.name} backend to {replica_count} replica(s)',
             'algorithm': 'least_conn' if replica_count > 1 else 'none (single backend)',
-            'nginx_reload': nginx_reload_status,
+            'nginx_reload': 'queued',
+            'gateway_job': GatewayApplyJobSerializer(gateway_job).data,
             'nginx_config_path': conf_path_str,
             'docker_output': compose_output[:500] if compose_output else None,
         })
@@ -637,9 +828,16 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         if success:
             site.status = 'running'
             site.save()
-            
 
-                
+            # Queue gateway config apply in case routes were edited while stopped.
+            if site.framework == 'react_django':
+                job = enqueue_gateway_apply(site, requested_by=request.user, reason='site_started')
+                return Response({
+                    'status': 'Site started successfully',
+                    'gateway_status': 'queued',
+                    'gateway_job': GatewayApplyJobSerializer(job).data,
+                })
+
             return Response({'status': 'Site started successfully'})
         else:
             site.status = 'error'

@@ -1,6 +1,16 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import WordPressSite, CustomDomain, ProjectMembership, AuditLog, UserProfile
+from .models import (
+    WordPressSite,
+    CustomDomain,
+    ProjectMembership,
+    AuditLog,
+    UserProfile,
+    ProjectService,
+    ApiRoute,
+    GatewayApplyJob,
+)
+from .gateway_routing import normalize_api_route_path
 
 
 class WordPressSiteSerializer(serializers.ModelSerializer):
@@ -15,6 +25,7 @@ class WordPressSiteSerializer(serializers.ModelSerializer):
             'owner',
             # Full-stack / LB fields
             'framework', 'api_port', 'replica_count', 'backend_ports', 'build_status',
+            'gateway_last_synced_at', 'gateway_last_error',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'port', 'domain', 'owner']
     
@@ -162,3 +173,99 @@ class ServerStatsSerializer(serializers.Serializer):
     server_disk_percent = serializers.FloatField()
     total_storage_used_gb = serializers.FloatField()
     active_malware_alerts = serializers.IntegerField()
+
+
+class ProjectServiceSerializer(serializers.ModelSerializer):
+    """Serializer for routable project services."""
+
+    class Meta:
+        model = ProjectService
+        fields = [
+            'id',
+            'site',
+            'name',
+            'container_name',
+            'internal_port',
+            'protocol',
+            'is_active',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'site']
+
+    def validate_container_name(self, value: str):
+        import re
+        if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]*$', value):
+            raise serializers.ValidationError(
+                "Container name can only contain letters, numbers, dots, underscores, and hyphens."
+            )
+        return value
+
+    def validate_internal_port(self, value: int):
+        if not 1 <= int(value) <= 65535:
+            raise serializers.ValidationError("internal_port must be between 1 and 65535.")
+        return value
+
+
+class ApiRouteSerializer(serializers.ModelSerializer):
+    """Serializer for project API routes."""
+
+    service_name = serializers.CharField(source='service.name', read_only=True)
+    container_name = serializers.CharField(source='service.container_name', read_only=True)
+    internal_port = serializers.IntegerField(source='service.internal_port', read_only=True)
+
+    class Meta:
+        model = ApiRoute
+        fields = [
+            'id',
+            'site',
+            'service',
+            'service_name',
+            'container_name',
+            'internal_port',
+            'path',
+            'strip_prefix',
+            'is_enabled',
+            'created_by',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'site', 'created_by']
+
+    def validate_path(self, value: str):
+        try:
+            return normalize_api_route_path(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        site = self.context.get('site')
+        service = attrs.get('service') or getattr(self.instance, 'service', None)
+
+        if site is not None and service is not None and service.site_id != site.id:
+            raise serializers.ValidationError({'service': 'Service must belong to the same project.'})
+
+        return attrs
+
+
+class GatewayApplyJobSerializer(serializers.ModelSerializer):
+    requested_by_username = serializers.CharField(source='requested_by.username', read_only=True)
+
+    class Meta:
+        model = GatewayApplyJob
+        fields = [
+            'id',
+            'status',
+            'reason',
+            'error',
+            'worker_id',
+            'requested_by',
+            'requested_by_username',
+            'scheduled_for',
+            'started_at',
+            'finished_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = fields

@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 
 class WordPressSite(models.Model):
@@ -83,6 +85,9 @@ class WordPressSite(models.Model):
     api_port = models.IntegerField(unique=True, null=True, blank=True)  # Second port for Backend API (React+Django)
     replica_count = models.IntegerField(default=1)  # Number of backend replicas (react_django only; 1 = no LB)
     backend_ports = models.JSONField(default=list, blank=True)  # Host ports for each backend replica e.g. [9001, 9002, 9003]
+    gateway_config_hash = models.CharField(max_length=64, blank=True, default='')
+    gateway_last_synced_at = models.DateTimeField(blank=True, null=True)
+    gateway_last_error = models.TextField(blank=True, default='')
 
     class Meta:
         ordering = ['-created_at']
@@ -251,6 +256,145 @@ class AuditLog(models.Model):
     
     def __str__(self):
         return f"{self.user.email} - {self.action} at {self.timestamp}"
+
+
+class ProjectService(models.Model):
+    """
+    Represents a routable service reachable from the project's gateway container.
+    """
+    PROTOCOL_CHOICES = [
+        ('http', 'HTTP'),
+    ]
+
+    site = models.ForeignKey(
+        WordPressSite,
+        on_delete=models.CASCADE,
+        related_name='project_services'
+    )
+    name = models.CharField(max_length=100)
+    container_name = models.CharField(max_length=120)
+    internal_port = models.PositiveIntegerField(default=8000)
+    protocol = models.CharField(max_length=10, choices=PROTOCOL_CHOICES, default='http')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Project Service'
+        verbose_name_plural = 'Project Services'
+        constraints = [
+            models.UniqueConstraint(fields=['site', 'name'], name='uniq_project_service_name'),
+            models.UniqueConstraint(
+                fields=['site', 'container_name', 'internal_port'],
+                name='uniq_project_service_target'
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.site.name}:{self.name} -> {self.container_name}:{self.internal_port}"
+
+
+class ApiRoute(models.Model):
+    """
+    Maps a project API path (/api/<something>/) to a ProjectService.
+    """
+    site = models.ForeignKey(
+        WordPressSite,
+        on_delete=models.CASCADE,
+        related_name='api_routes'
+    )
+    service = models.ForeignKey(
+        ProjectService,
+        on_delete=models.CASCADE,
+        related_name='routes'
+    )
+    path = models.CharField(max_length=255)  # Canonical form: /api/<segment>/
+    strip_prefix = models.BooleanField(default=True)
+    is_enabled = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='created_api_routes',
+        null=True,
+        blank=True
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['path']
+        verbose_name = 'API Route'
+        verbose_name_plural = 'API Routes'
+        constraints = [
+            models.UniqueConstraint(fields=['site', 'path'], name='uniq_project_api_path'),
+            models.CheckConstraint(
+                check=Q(path__startswith='/api/'),
+                name='api_route_must_start_with_api_prefix'
+            ),
+        ]
+
+    def clean(self):
+        from .gateway_routing import normalize_api_route_path
+
+        self.path = normalize_api_route_path(self.path)
+
+        if self.service_id and self.site_id and self.service.site_id != self.site_id:
+            raise ValidationError({'service': 'Service must belong to the same project.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.site.name}: {self.path} -> {self.service.name}"
+
+
+class GatewayApplyJob(models.Model):
+    """
+    Asynchronous gateway apply job executed by a privileged worker process.
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('running', 'Running'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('superseded', 'Superseded'),
+    ]
+
+    site = models.ForeignKey(
+        WordPressSite,
+        on_delete=models.CASCADE,
+        related_name='gateway_apply_jobs'
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='gateway_apply_jobs',
+        null=True,
+        blank=True
+    )
+    reason = models.CharField(max_length=120, blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    error = models.TextField(blank=True, default='')
+    worker_id = models.CharField(max_length=120, blank=True, default='')
+    scheduled_for = models.DateTimeField(default=timezone.now)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Gateway Apply Job'
+        verbose_name_plural = 'Gateway Apply Jobs'
+        indexes = [
+            models.Index(fields=['status', 'scheduled_for']),
+            models.Index(fields=['site', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"gateway:{self.site.name}:{self.status}:{self.id}"
 
 
 class UserProfile(models.Model):

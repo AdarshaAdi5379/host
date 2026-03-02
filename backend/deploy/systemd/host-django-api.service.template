@@ -1,0 +1,20 @@
+[Unit]
+Description=HOST Django API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{RUN_AS_USER}}
+WorkingDirectory={{BACKEND_DIR}}
+Environment=PYTHONUNBUFFERED=1
+Environment=DJANGO_SETTINGS_MODULE=core.settings
+Environment=PYTHON_BIN={{PYTHON_BIN}}
+ExecStart={{BACKEND_DIR}}/scripts/start_django_api.sh
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

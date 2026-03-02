@@ -6,8 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TeamManagement } from '@/components/team/TeamManagement'
 import { AuditLogViewer } from '@/components/audit/AuditLogViewer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { wordpressAPI, type WordPressSite } from '@/lib/wordpressAPI'
-import { Loader2, Zap, AlertTriangle, CheckCircle2, Server, Minus, Plus, Network } from 'lucide-react'
+import { wordpressAPI, type WordPressSite, type ProjectService, type ApiRoute, type GatewayApplyJob } from '@/lib/wordpressAPI'
+import { Loader2, Zap, AlertTriangle, CheckCircle2, Server, Minus, Plus, Network, Route, Trash2, RefreshCcw } from 'lucide-react'
 
 export function ProjectSettings() {
     const { id } = useParams<{ id: string }>()
@@ -75,6 +75,12 @@ export function ProjectSettings() {
                             Load Balancing
                         </TabsTrigger>
                     )}
+                    {isFullStack && (
+                        <TabsTrigger value="api-gateway" className="gap-2">
+                            <Route className="w-4 h-4" />
+                            API Gateway
+                        </TabsTrigger>
+                    )}
                     <TabsTrigger value="audit">Audit Logs</TabsTrigger>
                 </TabsList>
 
@@ -117,6 +123,12 @@ export function ProjectSettings() {
                 {isFullStack && (
                     <TabsContent value="lb">
                         <LoadBalancingPanel site={site} onUpdated={setSite} />
+                    </TabsContent>
+                )}
+
+                {isFullStack && (
+                    <TabsContent value="api-gateway">
+                        <ApiGatewayPanel site={site} />
                     </TabsContent>
                 )}
 
@@ -361,6 +373,355 @@ function LoadBalancingPanel({ site, onUpdated }: LoadBalancingPanelProps) {
                     </p>
                 </div>
             </div>
+        </div>
+    )
+}
+
+// ---------------------------------------------------------------------------
+// API Gateway Panel (react_django only)
+// ---------------------------------------------------------------------------
+
+interface ApiGatewayPanelProps {
+    site: WordPressSite
+}
+
+function ApiGatewayPanel({ site }: ApiGatewayPanelProps) {
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [services, setServices] = useState<ProjectService[]>([])
+    const [routes, setRoutes] = useState<ApiRoute[]>([])
+    const [gatewayStatus, setGatewayStatus] = useState<{
+        last_synced_at: string | null;
+        last_error: string;
+        config_hash: string;
+        latest_job: GatewayApplyJob | null;
+    } | null>(null)
+    const [error, setError] = useState<string | null>(null)
+
+    const [serviceName, setServiceName] = useState('')
+    const [containerName, setContainerName] = useState('')
+    const [internalPort, setInternalPort] = useState(8000)
+
+    const [routePath, setRoutePath] = useState('')
+    const [routeServiceId, setRouteServiceId] = useState<number | null>(null)
+    const [stripPrefix, setStripPrefix] = useState(true)
+
+    const refreshAll = async () => {
+        try {
+            setError(null)
+            const [serviceRows, routeRows, statusRow] = await Promise.all([
+                wordpressAPI.getApiServices(site.id),
+                wordpressAPI.getApiRoutes(site.id),
+                wordpressAPI.getApiGatewayStatus(site.id),
+            ])
+            setServices(serviceRows)
+            setRoutes(routeRows)
+            setGatewayStatus(statusRow)
+            if (!routeServiceId && serviceRows.length > 0) {
+                setRouteServiceId(serviceRows[0].id)
+            }
+        } catch (err: any) {
+            setError(err?.message || 'Failed to load gateway data')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        setLoading(true)
+        refreshAll()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [site.id])
+
+    const handleCreateService = async () => {
+        if (!serviceName.trim() || !containerName.trim()) {
+            setError('Service name and container name are required.')
+            return
+        }
+
+        setSaving(true)
+        setError(null)
+        try {
+            await wordpressAPI.createApiService(site.id, {
+                name: serviceName.trim(),
+                container_name: containerName.trim(),
+                internal_port: internalPort,
+                protocol: 'http',
+                is_active: true,
+            })
+            setServiceName('')
+            setContainerName('')
+            setInternalPort(8000)
+            await refreshAll()
+        } catch (err: any) {
+            setError(err?.message || 'Failed to create API service')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleDeleteService = async (serviceId: number) => {
+        setSaving(true)
+        setError(null)
+        try {
+            await wordpressAPI.deleteApiService(site.id, serviceId)
+            await refreshAll()
+        } catch (err: any) {
+            setError(err?.message || 'Failed to delete API service')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleCreateRoute = async () => {
+        if (!routeServiceId) {
+            setError('Select a target service for this route.')
+            return
+        }
+        if (!routePath.trim()) {
+            setError('Route path is required (for example: payments).')
+            return
+        }
+
+        setSaving(true)
+        setError(null)
+        try {
+            await wordpressAPI.createApiRoute(site.id, {
+                service: routeServiceId,
+                path: routePath.trim(),
+                strip_prefix: stripPrefix,
+                is_enabled: true,
+            })
+            setRoutePath('')
+            setStripPrefix(true)
+            await refreshAll()
+        } catch (err: any) {
+            setError(err?.message || 'Failed to create API route')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleDeleteRoute = async (routeId: number) => {
+        setSaving(true)
+        setError(null)
+        try {
+            await wordpressAPI.deleteApiRoute(site.id, routeId)
+            await refreshAll()
+        } catch (err: any) {
+            setError(err?.message || 'Failed to delete API route')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleManualApply = async () => {
+        setSaving(true)
+        setError(null)
+        try {
+            await wordpressAPI.applyApiGateway(site.id)
+            await refreshAll()
+        } catch (err: any) {
+            setError(err?.message || 'Failed to queue API gateway apply')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-48">
+                <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+            </div>
+        )
+    }
+
+    return (
+        <div className="space-y-5">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                            <Route className="w-5 h-5 text-indigo-600" />
+                            API Gateway Routes
+                        </span>
+                        <button
+                            onClick={refreshAll}
+                            disabled={saving}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium hover:bg-gray-50 disabled:opacity-50"
+                        >
+                            <RefreshCcw className="w-3.5 h-3.5" /> Refresh
+                        </button>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-3 gap-3 text-sm">
+                        <div className="border rounded-lg p-3 bg-gray-50">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider">Gateway Sync</p>
+                            <p className="font-medium mt-1">{gatewayStatus?.last_synced_at ? new Date(gatewayStatus.last_synced_at).toLocaleString() : 'Not synced yet'}</p>
+                        </div>
+                        <div className="border rounded-lg p-3 bg-gray-50 md:col-span-2">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider">Worker Status</p>
+                            {gatewayStatus?.latest_job ? (
+                                <p className="mt-1">
+                                    <span className="font-medium">Job #{gatewayStatus.latest_job.id}</span>
+                                    {' - '}
+                                    <span className={`font-semibold ${
+                                        gatewayStatus.latest_job.status === 'success'
+                                            ? 'text-green-700'
+                                            : gatewayStatus.latest_job.status === 'failed'
+                                                ? 'text-red-600'
+                                                : 'text-amber-600'
+                                    }`}>
+                                        {gatewayStatus.latest_job.status}
+                                    </span>
+                                </p>
+                            ) : (
+                                <p className="mt-1 text-gray-500">No jobs queued yet</p>
+                            )}
+                        </div>
+                        <div className="border rounded-lg p-3 bg-gray-50 md:col-span-3">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider">Last Error</p>
+                            <p className={`mt-1 ${gatewayStatus?.last_error ? 'text-red-600' : 'text-green-700'}`}>
+                                {gatewayStatus?.last_error || 'None'}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button
+                            onClick={handleManualApply}
+                            disabled={saving}
+                            className="px-3 py-2 rounded-md bg-slate-700 text-white text-xs font-medium hover:bg-slate-800 disabled:opacity-50"
+                        >
+                            {saving ? 'Queueing...' : 'Queue Apply Now'}
+                        </button>
+                    </div>
+
+                    {error && (
+                        <div className="rounded-md border border-red-200 bg-red-50 text-red-700 text-sm p-3">
+                            {error}
+                        </div>
+                    )}
+
+                    <div className="border rounded-xl p-4 space-y-3">
+                        <p className="text-sm font-semibold">1. Add Target Service</p>
+                        <div className="grid md:grid-cols-4 gap-2">
+                            <input
+                                className="border rounded-md px-3 py-2 text-sm"
+                                placeholder="Service name"
+                                value={serviceName}
+                                onChange={(e) => setServiceName(e.target.value)}
+                            />
+                            <input
+                                className="border rounded-md px-3 py-2 text-sm"
+                                placeholder="Container name"
+                                value={containerName}
+                                onChange={(e) => setContainerName(e.target.value)}
+                            />
+                            <input
+                                type="number"
+                                min={1}
+                                max={65535}
+                                className="border rounded-md px-3 py-2 text-sm"
+                                placeholder="Internal port"
+                                value={internalPort}
+                                onChange={(e) => setInternalPort(Number(e.target.value || 0))}
+                            />
+                            <button
+                                onClick={handleCreateService}
+                                disabled={saving}
+                                className="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                                {saving ? 'Saving...' : 'Add Service'}
+                            </button>
+                        </div>
+
+                        {services.length === 0 ? (
+                            <p className="text-xs text-gray-500">No API services yet.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {services.map((service) => (
+                                    <div key={service.id} className="flex items-center justify-between border rounded-md p-2 text-sm">
+                                        <div>
+                                            <p className="font-medium">{service.name}</p>
+                                            <p className="text-xs text-gray-500 font-mono">{service.container_name}:{service.internal_port}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDeleteService(service.id)}
+                                            disabled={saving}
+                                            className="inline-flex items-center gap-1 text-red-600 text-xs hover:text-red-700 disabled:opacity-40"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border rounded-xl p-4 space-y-3">
+                        <p className="text-sm font-semibold">2. Add Route (only /api/&lt;something&gt;)</p>
+                        <div className="grid md:grid-cols-4 gap-2">
+                            <input
+                                className="border rounded-md px-3 py-2 text-sm"
+                                placeholder="payments"
+                                value={routePath}
+                                onChange={(e) => setRoutePath(e.target.value)}
+                            />
+                            <select
+                                className="border rounded-md px-3 py-2 text-sm"
+                                value={routeServiceId ?? ''}
+                                onChange={(e) => setRouteServiceId(e.target.value ? Number(e.target.value) : null)}
+                            >
+                                <option value="" disabled>Select service</option>
+                                {services.map((service) => (
+                                    <option key={service.id} value={service.id}>{service.name}</option>
+                                ))}
+                            </select>
+                            <label className="inline-flex items-center gap-2 text-sm border rounded-md px-3 py-2">
+                                <input
+                                    type="checkbox"
+                                    checked={stripPrefix}
+                                    onChange={(e) => setStripPrefix(e.target.checked)}
+                                />
+                                Strip prefix
+                            </label>
+                            <button
+                                onClick={handleCreateRoute}
+                                disabled={saving || services.length === 0}
+                                className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                                {saving ? 'Saving...' : 'Add Route'}
+                            </button>
+                        </div>
+
+                        {routes.length === 0 ? (
+                            <p className="text-xs text-gray-500">No custom API routes yet.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {routes.map((route) => (
+                                    <div key={route.id} className="flex items-center justify-between border rounded-md p-2 text-sm">
+                                        <div>
+                                            <p className="font-medium font-mono">{route.path}</p>
+                                            <p className="text-xs text-gray-500">
+                                                → {route.service_name} ({route.container_name}:{route.internal_port})
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDeleteRoute(route.id)}
+                                            disabled={saving}
+                                            className="inline-flex items-center gap-1 text-red-600 text-xs hover:text-red-700 disabled:opacity-40"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     )
 }
