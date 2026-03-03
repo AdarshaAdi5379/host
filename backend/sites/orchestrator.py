@@ -4,6 +4,7 @@ WordPress Orchestrator - Core logic for provisioning WordPress instances
 import os
 import socket
 import yaml
+import zlib
 from pathlib import Path
 from django.conf import settings
 
@@ -99,10 +100,22 @@ def generate_docker_compose(site_name, db_config, port, site_type='wordpress', a
     # ----------------------------------------------------------------
     # 1. DATABASE SERVICE (Common for VPC)
     # ----------------------------------------------------------------
+    mysql_server_id = (zlib.crc32(site_name.encode("utf-8")) % 2147483000) + 1000
+    mysql_command = " ".join(
+        [
+            "--default-authentication-plugin=mysql_native_password",
+            f"--server-id={mysql_server_id}",
+            "--log-bin=mysql-bin",
+            "--binlog_format=ROW",
+            "--sync-binlog=1",
+            "--expire_logs_days=7",
+        ]
+    )
+
     db_service = {
         'image': 'mysql:8.0',
         'container_name': f'{site_name}_db',
-        'command': '--default-authentication-plugin=mysql_native_password',
+        'command': mysql_command,
         'restart': 'unless-stopped',
         'environment': {
             'MYSQL_ROOT_PASSWORD': db_config.get('root_password'),

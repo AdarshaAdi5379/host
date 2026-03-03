@@ -58,6 +58,7 @@ class WordPressSite(models.Model):
     db_user = models.CharField(max_length=100, default='wordpress')  # Database user
     db_password = models.CharField(max_length=255, blank=True, null=True)  # Database password (encrypted in production)
     db_root_password = models.CharField(max_length=255, blank=True, null=True)  # Root password for backups
+    db_dr_config = models.JSONField(default=dict, blank=True)  # RDS disaster recovery/failover settings
     
     # FileBrowser Credentials (Multi-tenant file access)
     filebrowser_username = models.CharField(max_length=100, blank=True, null=True)  # FileBrowser username

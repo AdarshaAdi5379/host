@@ -25,7 +25,8 @@ from .serializers import (
     WordPressSiteSerializer, WordPressSiteCreateSerializer, CustomDomainSerializer,
     ProjectMembershipSerializer, InviteMemberSerializer, AuditLogSerializer,
     UserProfileSerializer, ServerStatsSerializer, UserSerializer,
-    ProjectServiceSerializer, ApiRouteSerializer, GatewayApplyJobSerializer
+    ProjectServiceSerializer, ApiRouteSerializer, GatewayApplyJobSerializer,
+    RDSFailoverConfigSerializer
 )
 from .permissions import (
     IsSuperAdmin, IsSiteOwner, IsProjectMember, CanManageTeam,
@@ -48,6 +49,7 @@ from .docker_utils import (
     check_docker_running,
 )
 from .gateway_jobs import enqueue_gateway_apply, latest_gateway_job
+from .rds_failover_manager import RDSFailoverManager
 
 
 
@@ -1305,6 +1307,105 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             'adminer_url': 'https://db.edubricz.online',
             'container_name': site.db_container_name
         })
+
+    @action(detail=True, methods=['get', 'post'], url_path='rds-config')
+    def rds_config(self, request, pk=None):
+        """
+        Configure per-site RDS DR/failover settings.
+        """
+        site = self.get_object()
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can modify RDS failover settings.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        manager = RDSFailoverManager()
+        if request.method == 'GET':
+            config = manager.get_config(site, redact=True)
+            return Response(RDSFailoverConfigSerializer(config).data)
+
+        serializer = RDSFailoverConfigSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        config = manager.update_config(site, serializer.validated_data)
+        return Response(RDSFailoverConfigSerializer(config).data)
+
+    @action(detail=True, methods=['post'], url_path='rds-test')
+    def rds_test(self, request, pk=None):
+        """
+        Test TCP/auth connectivity from orchestrator host to configured RDS.
+        """
+        site = self.get_object()
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can test RDS connectivity.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        manager = RDSFailoverManager()
+        ok, message = manager.test_rds_connection(site)
+        return Response(
+            {'ok': ok, 'message': message},
+            status=status.HTTP_200_OK if ok else status.HTTP_400_BAD_REQUEST
+        )
+
+    @action(detail=True, methods=['get'], url_path='rds-replication-plan')
+    def rds_replication_plan(self, request, pk=None):
+        """
+        Return SQL/checklist template to bootstrap local->RDS replication.
+        """
+        site = self.get_object()
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can view replication setup details.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        manager = RDSFailoverManager()
+        plan = manager.get_replication_plan(site)
+        return Response(plan)
+
+    @action(detail=True, methods=['post'], url_path='failover-rds')
+    def failover_rds(self, request, pk=None):
+        """
+        Promote RDS and switch this project's app traffic from local DB to RDS.
+        """
+        site = self.get_object()
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can trigger RDS failover.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        manager = RDSFailoverManager()
+        ready, reason = manager.validate_failover_ready(site)
+        if not ready:
+            return Response({'error': reason}, status=status.HTTP_400_BAD_REQUEST)
+
+        promote_rds = request.data.get('promote_rds', True)
+        if isinstance(promote_rds, str):
+            promote_rds = promote_rds.strip().lower() not in ('0', 'false', 'no')
+
+        ok, message, docker_output = manager.failover_to_rds(site, promote_rds=bool(promote_rds))
+        body = {
+            'ok': ok,
+            'message': message,
+            'active_target': 'rds' if ok else 'local',
+            'docker_output': docker_output[:1000] if docker_output else None,
+        }
+        return Response(body, status=status.HTTP_200_OK if ok else status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], url_path='failback-local')
+    def failback_local(self, request, pk=None):
+        """
+        Switch this project's app traffic back to local DB container.
+        """
+        site = self.get_object()
+        if not self._can_manage_gateway(request.user, site):
+            return Response({'error': 'Only project owners can trigger DB failback.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        manager = RDSFailoverManager()
+        ok, message, docker_output = manager.failback_to_local(site)
+        body = {
+            'ok': ok,
+            'message': message,
+            'active_target': 'local' if ok else 'rds',
+            'docker_output': docker_output[:1000] if docker_output else None,
+        }
+        return Response(body, status=status.HTTP_200_OK if ok else status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['get'])
     def file_manager(self, request, pk=None):

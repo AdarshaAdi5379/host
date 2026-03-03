@@ -54,6 +54,16 @@ POST /api/sites/{id}/stop/
 DELETE /api/sites/{id}/terminate/
 ```
 
+#### Configure site RDS failover
+```
+GET  /api/sites/{id}/rds-config/
+POST /api/sites/{id}/rds-config/
+POST /api/sites/{id}/rds-test/
+GET  /api/sites/{id}/rds-replication-plan/
+POST /api/sites/{id}/failover-rds/
+POST /api/sites/{id}/failback-local/
+```
+
 ## API Gateway Worker (required for dynamic `/api/<something>/` routes)
 
 Gateway config applies are queued in the database and executed by a separate worker process.
@@ -68,6 +78,25 @@ Run the worker in a separate terminal:
 
 ```bash
 python manage.py run_gateway_worker
+```
+
+## RDS Failover CLI
+
+Use the command below from `backend/`:
+
+```bash
+python manage.py rds_failover --site <site_name> --action status
+python manage.py rds_failover --site <site_name> --action configure --enabled true --rds-endpoint <endpoint> --rds-username <user> --rds-password <password> --rds-database <db>
+python manage.py rds_failover --site <site_name> --action test
+python manage.py rds_failover --site <site_name> --action plan
+python manage.py rds_failover --site <site_name> --action failover
+python manage.py rds_failover --site <site_name> --action failback
+
+# Shared RDS instance for all sites (bulk configure)
+python manage.py rds_failover --action configure_shared --enabled true --rds-endpoint <endpoint> --rds-port 3306 --rds-username <user> --rds-password <password> --database-template wp_{site_name}
+
+# Generate SQL bootstrap plan for all site databases on shared RDS
+python manage.py rds_failover --action shared_plan --rds-endpoint <endpoint> --rds-username <user> --rds-password <password> --database-template wp_{site_name} --write-shared-plan-file ./shared_rds_bootstrap.sql
 ```
 
 Process one ready job and exit:

@@ -15,6 +15,9 @@ from .gateway_routing import normalize_api_route_path
 
 class WordPressSiteSerializer(serializers.ModelSerializer):
     """Serializer for WordPress site listing"""
+    db_active_target = serializers.SerializerMethodField()
+    db_failover_enabled = serializers.SerializerMethodField()
+    db_replication_state = serializers.SerializerMethodField()
     
     class Meta:
         model = WordPressSite
@@ -26,10 +29,27 @@ class WordPressSiteSerializer(serializers.ModelSerializer):
             # Full-stack / LB fields
             'framework', 'api_port', 'replica_count', 'backend_ports', 'build_status',
             'gateway_last_synced_at', 'gateway_last_error',
+            # DR fields
+            'db_active_target', 'db_failover_enabled', 'db_replication_state',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'port', 'domain', 'owner']
     
     owner = serializers.CharField(source='owner.username', read_only=True, allow_null=True, required=False)
+
+    def _dr_config(self, obj) -> dict:
+        cfg = obj.db_dr_config or {}
+        if isinstance(cfg, dict):
+            return cfg
+        return {}
+
+    def get_db_active_target(self, obj):
+        return self._dr_config(obj).get('active_target', 'local')
+
+    def get_db_failover_enabled(self, obj):
+        return bool(self._dr_config(obj).get('enabled', False))
+
+    def get_db_replication_state(self, obj):
+        return self._dr_config(obj).get('replication_state', 'not_configured')
 
 
 
@@ -92,6 +112,32 @@ class FileBrowserCredentialsSerializer(serializers.Serializer):
     username = serializers.CharField()
     password = serializers.CharField()
     url = serializers.URLField()
+
+
+class RDSFailoverConfigSerializer(serializers.Serializer):
+    """Serializer for site-level RDS DR/failover config."""
+
+    enabled = serializers.BooleanField(required=False)
+    active_target = serializers.ChoiceField(choices=['local', 'rds'], required=False, read_only=True)
+    rds_endpoint = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    rds_port = serializers.IntegerField(required=False, min_value=1, max_value=65535)
+    rds_database = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    rds_username = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    rds_password = serializers.CharField(max_length=255, required=False, allow_blank=True, write_only=True)
+    rds_password_set = serializers.BooleanField(required=False, read_only=True)
+    rds_ssl_required = serializers.BooleanField(required=False)
+    source_public_host = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    source_public_port = serializers.IntegerField(required=False, min_value=1, max_value=65535)
+    replication_user = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    replication_password = serializers.CharField(max_length=255, required=False, allow_blank=True, write_only=True)
+    replication_password_set = serializers.BooleanField(required=False, read_only=True)
+    replication_state = serializers.ChoiceField(
+        choices=['not_configured', 'configured', 'running', 'error', 'promoted'],
+        required=False,
+    )
+    replication_last_error = serializers.CharField(required=False, allow_blank=True)
+    last_failover_at = serializers.CharField(required=False, read_only=True)
+    last_failback_at = serializers.CharField(required=False, read_only=True)
 
 
 class UserSerializer(serializers.ModelSerializer):

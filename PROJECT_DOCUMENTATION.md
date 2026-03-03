@@ -861,3 +861,19 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   Infected files quarantined immediately, site remains accessible.
     -   Super Admin dashboard alert on any detection.
     -   **Status**: 🟢 Completed (Verified).
+
+### Phase 22: API Gateway & Load Balancing
+-   **Objective**: Implement a centralized API Gateway and dynamic load balancing for modern `react_django` applications.
+-   **Architecture**:
+    -   **API Gateway**: A host-level Nginx container (`hostinger_api_gateway` on port `8088`) that routes `/api/*` traffic to the Django control plane. Protects internal endpoints while serving as the primary ingress for platform API calls.
+    -   **Load Balancing**: Frontend containers (Nginx) act as reverse proxies, dynamically load-balancing traffic across multiple backend Django replica containers (`backend_1`, `backend_2`, etc.).
+-   **Implementation**:
+    -   **Gateway Config**: `gateway/nginx.conf` acts as Phase 1 routing, delegating platform API requests and rejecting undefined routes.
+    -   **Scaling Engine (`scale_backend_service`)**: Found in `docker_utils.py`, it scales backend Compose services without recreating stable components (like DB or frontend).
+    -   **Port Allocation**: The `scale` action in `views.py` allocates fresh host ports for each new backend replica and rewrites the `docker-compose.yml` dynamically.
+    -   **Dynamic Upstreams**: `generate_frontend_nginx_conf` creates Nginx upstream blocks to evenly distribute frontend API requests to the scaled backend replicas.
+-   **Outcome**:
+    -   Centralized API traffic management.
+    -   Zero-downtime horizontal scaling for React+Django workloads (up to 5 replicas).
+    -   High availability and improved request throughput for tenant applications.
+    -   **Status**: 🟢 Completed (Verified).

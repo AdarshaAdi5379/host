@@ -13,6 +13,7 @@
 - **One-click WordPress deployment** via Docker containers
 - **Real-time resource monitoring** (CPU/RAM usage)
 - **Public access via Cloudflare Tunnels** with custom subdomains
+- **API Gateway & Load Balancing** for centralized API routing and horizontal scaling of React+Django apps
 - **Custom domain support** via Cloudflare API integration
 - **Built-in file manager** (FileBrowser) for each site
 - **Database manager** (Adminer) for MySQL access
@@ -146,7 +147,8 @@ host/
 
 ### 4.1 Two-Tier Database Architecture
 
-**Control Plane (Django):**
+**Control Plane (Django & API Gateway):**
+- Host-level API Gateway (`hostinger_api_gateway` on Nginx port 8088) routing platform API traffic.
 - SQLite for development
 - PostgreSQL for production (users, sites metadata, billing)
 
@@ -192,7 +194,13 @@ host/
    - Sent in `Authorization: Token {token}` header
    - Zustand store persists to localStorage
 
-### 4.4 Site Creation Flow
+### 4.4 Load Balancing & Scaling Architecture (React+Django)
+
+- **Frontend proxying:** The tenant's frontend container runs Nginx, providing an `upstream` block pointing to multiple backend replica containers.
+- **Dynamic Port Allocation:** Scaling a site provisions unique host ports for each new backend replica (e.g. `9013`, `9014`).
+- **Compose rewriting:** The site's `docker-compose.yml` is rewritten on-the-fly to define separate replica services (`backend_1`, `backend_2`), ensuring Docker maintains strict isolation.
+
+### 4.5 Site Creation Flow
 
 1. User submits site name and admin credentials
 2. Backend generates:
