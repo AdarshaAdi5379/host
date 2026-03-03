@@ -1,7 +1,6 @@
 # Project Host: WordPress Hosting Platform Documentation
 
-**Last Updated:** February 24, 2026
-**Last Updated:** March 1, 2026
+**Last Updated:** March 3, 2026
 
 ## 1. Project Overview
 "Project Host" is a local-first WordPress hosting platform designed for professional hosting environments on a local machine. It allows users to:
@@ -877,3 +876,63 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   Zero-downtime horizontal scaling for React+Django workloads (up to 5 replicas).
     -   High availability and improved request throughput for tenant applications.
     -   **Status**: 🟢 Completed (Verified).
+
+### Phase 23: AWS RDS Hybrid DR (External Replication + Controlled Failover)
+-   **Objective**: Add a Disaster Recovery (DR) layer using AWS RDS MySQL as a backup target and provide controlled failover/failback operations per project.
+-   **Architecture**:
+    -   Local tenant MySQL container remains the primary write source.
+    -   AWS RDS MySQL acts as external replica/standby.
+    -   DR settings are stored per project in DB (`WordPressSite.db_dr_config`), not in global `.env`.
+-   **Implementation**:
+    -   **Data Model**:
+        -   Added `db_dr_config` JSON field to `WordPressSite` for per-site DR settings.
+        -   Migration: `backend/sites/migrations/0016_wordpresssite_db_dr_config.py`.
+    -   **Failover Manager** (`backend/sites/rds_failover_manager.py`):
+        -   Config CRUD with secret redaction (`rds_password_set`, `replication_password_set`).
+        -   RDS connectivity test (`SELECT 1`).
+        -   Replication bootstrap plan generation (`source_sql`, `rds_sql`, checklist).
+        -   Automated failover path:
+            1. Attempt RDS promotion procedures (`rds_stop_replication`, reset external source/master fallbacks).
+            2. Rewrite project `docker-compose.yml` DB target to RDS.
+            3. Rewrite `wp-config.php` DB constants for WordPress sites.
+            4. Restart project containers and update DR runtime state.
+        -   Automated failback path (switch application DB target back to local DB container and restart).
+    -   **New API Endpoints** (`WordPressSiteViewSet`):
+        -   `GET/POST /api/sites/{id}/rds-config/`
+        -   `POST /api/sites/{id}/rds-test/`
+        -   `GET /api/sites/{id}/rds-replication-plan/`
+        -   `POST /api/sites/{id}/failover-rds/`
+        -   `POST /api/sites/{id}/failback-local/`
+    -   **Serializer Enhancements**:
+        -   Site list now exposes DR summary fields:
+            -   `db_active_target`
+            -   `db_failover_enabled`
+            -   `db_replication_state`
+    -   **Management Command** (`backend/sites/management/commands/rds_failover.py`):
+        -   Single-site actions:
+            -   `status`, `configure`, `test`, `plan`, `failover`, `failback`
+        -   Shared-RDS bulk actions:
+            -   `configure_shared` (apply common endpoint/credentials to all sites)
+            -   `shared_plan` (generate SQL for creating per-site databases on one shared RDS instance)
+        -   Template placeholders for DB naming: `{site_name}`, `{site_id}`.
+    -   **Orchestrator Improvements**:
+        -   New site DB service generation now includes replication prerequisites:
+            -   `--server-id=<derived-id>`
+            -   `--log-bin=mysql-bin`
+            -   `--binlog_format=ROW`
+            -   `--sync-binlog=1`
+            -   `--expire_logs_days=7`
+    -   **Operational Verification Completed (shop)**:
+        -   RDS network access test from host succeeded (`nc ... 3306`).
+        -   `python manage.py rds_failover --site shop --action test` succeeded after DB creation on RDS.
+        -   External replication channel configured on RDS with source coordinates:
+            -   `mysql-bin.000001` / `873`
+        -   Current runtime state for `shop`:
+            -   `Replica_SQL_Running: Yes`
+            -   `Replica_IO_Running: Connecting`
+            -   Root blocker is inbound network reachability from AWS RDS to source host `49.207.247.210:13306`.
+-   **Security Notes**:
+    -   RDS DR flow currently supports MySQL/MariaDB engines only.
+    -   Passwords shown in terminal history/chats must be rotated immediately.
+    -   Keep source MySQL port tightly restricted (AWS source ranges or trusted ingress path only) once replication is stable.
+-   **Status**: 🟡 Implemented in code and partially validated; final external-source connectivity hardening still pending (see `TODO.md`).
