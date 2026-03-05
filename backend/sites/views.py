@@ -9,6 +9,7 @@ from django.db.models import Q
 import secrets
 import string
 import time
+import os
 import psutil
 import docker
 
@@ -105,6 +106,124 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         if self._is_admin_user(user):
             return True
         return site.owner_id == user.id
+
+    @staticmethod
+    def _render_shared_rds_db_name(site_name: str) -> str:
+        raw = f"wp_{site_name}"
+        cleaned = "".join(ch if (ch.isalnum() or ch == "_") else "_" for ch in raw.lower())
+        return cleaned[:64]
+
+    def _resolve_default_shared_rds_config(self):
+        """
+        Resolve default shared RDS config for new-site provisioning.
+        Priority:
+          1) explicit environment variables
+          2) first existing site-level DR config with credentials
+        """
+        endpoint = os.getenv("DEFAULT_RDS_ENDPOINT", "").strip()
+        username = os.getenv("DEFAULT_RDS_USERNAME", "").strip()
+        password = os.getenv("DEFAULT_RDS_PASSWORD", "").strip()
+        port_raw = os.getenv("DEFAULT_RDS_PORT", "3306").strip()
+        ssl_raw = os.getenv("DEFAULT_RDS_SSL_REQUIRED", "true").strip().lower()
+
+        if endpoint and username and password:
+            try:
+                port = int(port_raw or "3306")
+            except ValueError:
+                port = 3306
+            return {
+                "rds_endpoint": endpoint,
+                "rds_port": port,
+                "rds_username": username,
+                "rds_password": password,
+                "rds_ssl_required": ssl_raw not in ("0", "false", "no"),
+            }
+
+        for site in WordPressSite.objects.order_by("id"):
+            cfg = site.db_dr_config or {}
+            if not isinstance(cfg, dict):
+                continue
+            endpoint = str(cfg.get("rds_endpoint") or "").strip()
+            username = str(cfg.get("rds_username") or "").strip()
+            password = str(cfg.get("rds_password") or "").strip()
+            if endpoint and username and password:
+                try:
+                    port = int(cfg.get("rds_port") or 3306)
+                except (TypeError, ValueError):
+                    port = 3306
+                return {
+                    "rds_endpoint": endpoint,
+                    "rds_port": port,
+                    "rds_username": username,
+                    "rds_password": password,
+                    "rds_ssl_required": bool(cfg.get("rds_ssl_required", True)),
+                }
+        return None
+
+    @staticmethod
+    def _ensure_rds_database(rds_config: dict, database_name: str):
+        try:
+            import MySQLdb
+        except Exception as exc:
+            return False, f"mysqlclient/MySQLdb is unavailable: {exc}"
+
+        try:
+            conn = MySQLdb.connect(
+                host=rds_config["rds_endpoint"],
+                port=int(rds_config.get("rds_port", 3306)),
+                user=rds_config["rds_username"],
+                passwd=rds_config["rds_password"],
+                db="mysql",
+                connect_timeout=8,
+                autocommit=True,
+            )
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"CREATE DATABASE IF NOT EXISTS `{database_name}` "
+                        "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                    )
+            finally:
+                conn.close()
+            return True, None
+        except Exception as exc:
+            return False, f"Failed to ensure RDS database '{database_name}': {exc}"
+
+    @staticmethod
+    def _apply_rds_target_to_compose_config(compose_config: dict, site_name: str, framework: str, rds_config: dict, database_name: str):
+        services = compose_config.get("services", {}) or {}
+        if framework == "wordpress":
+            wp_key = f"{site_name}_wordpress"
+            wp_service = services.get(wp_key)
+            if not isinstance(wp_service, dict):
+                return False, f"WordPress service '{wp_key}' missing in compose config"
+            env = wp_service.get("environment", {}) or {}
+            env["WORDPRESS_DB_HOST"] = f"{rds_config['rds_endpoint']}:{int(rds_config.get('rds_port', 3306))}"
+            env["WORDPRESS_DB_USER"] = rds_config["rds_username"]
+            env["WORDPRESS_DB_PASSWORD"] = rds_config["rds_password"]
+            env["WORDPRESS_DB_NAME"] = database_name
+            wp_service["environment"] = env
+            services[wp_key] = wp_service
+        elif framework == "react_django":
+            backend_prefix = f"{site_name}_backend"
+            backend_keys = [key for key in services.keys() if key == backend_prefix or key.startswith(f"{backend_prefix}_")]
+            if not backend_keys:
+                return False, "No backend service definitions found for react_django site"
+            db_url = (
+                f"mysql://{rds_config['rds_username']}:{rds_config['rds_password']}"
+                f"@{rds_config['rds_endpoint']}:{int(rds_config.get('rds_port', 3306))}/{database_name}"
+            )
+            for key in backend_keys:
+                svc = services.get(key) or {}
+                env = svc.get("environment", {}) or {}
+                env["DATABASE_URL"] = db_url
+                svc["environment"] = env
+                services[key] = svc
+        else:
+            return False, f"Unsupported framework: {framework}"
+
+        compose_config["services"] = services
+        return True, None
 
     def _discover_running_project_containers(self, site: WordPressSite):
         """
@@ -221,6 +340,12 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 
                 db_manager = TenantDatabaseManager()
                 db_config = db_manager.generate_credentials(site_name)
+                default_rds = self._resolve_default_shared_rds_config()
+                rds_db_name = self._render_shared_rds_db_name(site_name) if default_rds else None
+                if default_rds and rds_db_name:
+                    ok, err = self._ensure_rds_database(default_rds, rds_db_name)
+                    if not ok:
+                        return Response({'error': err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
                 # Step 2: Generate configuration
                 port = find_available_port()
@@ -230,17 +355,51 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 site_dir = create_site_directory(site_name)
                 
                 # Step 4: Generate and write wp-config.php with tenant DB credentials
+                wp_db_host = f"{db_config['db_host']}:3306"
+                wp_db_name = db_config['db_name']
+                wp_db_user = db_config['db_user']
+                wp_db_password = db_config['db_password']
+                if default_rds and rds_db_name:
+                    wp_db_host = f"{default_rds['rds_endpoint']}:{int(default_rds.get('rds_port', 3306))}"
+                    wp_db_name = rds_db_name
+                    wp_db_user = default_rds['rds_username']
+                    wp_db_password = default_rds['rds_password']
                 wp_config_content = generate_wp_config_content(
-                    db_host=f"{db_config['db_host']}:3306",
-                    db_name=db_config['db_name'],
-                    db_user=db_config['db_user'],
-                    db_password=db_config['db_password']
+                    db_host=wp_db_host,
+                    db_name=wp_db_name,
+                    db_user=wp_db_user,
+                    db_password=wp_db_password
                 )
                 write_wp_config(site_dir, wp_config_content)
                 
                 # Step 5: Generate and write docker-compose.yml
                 compose_config = generate_docker_compose(site_name, db_config, port)
+                if default_rds and rds_db_name:
+                    ok, err = self._apply_rds_target_to_compose_config(
+                        compose_config=compose_config,
+                        site_name=site_name,
+                        framework='wordpress',
+                        rds_config=default_rds,
+                        database_name=rds_db_name,
+                    )
+                    if not ok:
+                        return Response({'error': err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 compose_path = write_docker_compose(site_dir, compose_config)
+
+                dr_config = {}
+                if default_rds and rds_db_name:
+                    dr_config = {
+                        'enabled': True,
+                        'active_target': 'rds',
+                        'rds_endpoint': default_rds['rds_endpoint'],
+                        'rds_port': int(default_rds.get('rds_port', 3306)),
+                        'rds_database': rds_db_name,
+                        'rds_username': default_rds['rds_username'],
+                        'rds_password': default_rds['rds_password'],
+                        'rds_ssl_required': bool(default_rds.get('rds_ssl_required', True)),
+                        'replication_state': 'promoted',
+                        'replication_last_error': '',
+                    }
                 
                 # Step 6: Create database record
                 site = WordPressSite.objects.create(
@@ -261,7 +420,8 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     db_name=db_config['db_name'],
                     db_user=db_config['db_user'],
                     db_password=db_config['db_password'],
-                    db_root_password=db_config['root_password']
+                    db_root_password=db_config['root_password'],
+                    db_dr_config=dr_config,
                 )
                 
                 # Step 6.5: Create FileBrowser user
@@ -366,6 +526,12 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 from .tenant_db_manager import TenantDatabaseManager
                 db_manager = TenantDatabaseManager()
                 db_config = db_manager.generate_credentials(site_name)
+                default_rds = self._resolve_default_shared_rds_config()
+                rds_db_name = self._render_shared_rds_db_name(site_name) if default_rds else None
+                if default_rds and rds_db_name:
+                    ok, err = self._ensure_rds_database(default_rds, rds_db_name)
+                    if not ok:
+                        return Response({'error': err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
                 # Step 2: Allocate PORTS (Frontend + Backend)
                 ports = find_available_port(count=2) # Returns [9000, 9001]
@@ -396,7 +562,32 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     repo_paths=repo_paths,
                     env_vars=env_vars
                 )
+                if default_rds and rds_db_name:
+                    ok, err = self._apply_rds_target_to_compose_config(
+                        compose_config=compose_config,
+                        site_name=site_name,
+                        framework='react_django',
+                        rds_config=default_rds,
+                        database_name=rds_db_name,
+                    )
+                    if not ok:
+                        return Response({'error': err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 compose_path = write_docker_compose(site_dir, compose_config)
+
+                dr_config = {}
+                if default_rds and rds_db_name:
+                    dr_config = {
+                        'enabled': True,
+                        'active_target': 'rds',
+                        'rds_endpoint': default_rds['rds_endpoint'],
+                        'rds_port': int(default_rds.get('rds_port', 3306)),
+                        'rds_database': rds_db_name,
+                        'rds_username': default_rds['rds_username'],
+                        'rds_password': default_rds['rds_password'],
+                        'rds_ssl_required': bool(default_rds.get('rds_ssl_required', True)),
+                        'replication_state': 'promoted',
+                        'replication_last_error': '',
+                    }
 
                 # Step 5.5: Write frontend Nginx config (proxy /api to backend)
                 try:
@@ -436,7 +627,8 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     db_name=db_config['db_name'],
                     db_user=db_config['db_user'],
                     db_password=db_config['db_password'],
-                    db_root_password=db_config['root_password']
+                    db_root_password=db_config['root_password'],
+                    db_dr_config=dr_config,
                 )
                 
                 # Step 7: Trigger Background Build
