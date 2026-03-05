@@ -6,9 +6,9 @@ ingress:
 - hostname: api.edubricz.online
   service: http://localhost:8088
 - hostname: db.edubricz.online
-  service: http://172.27.0.11:8080
+  service: http://localhost:8080
 - hostname: files.edubricz.online
-  service: http://172.27.0.10:80
+  service: http://172.27.0.100:80
 - hostname: test1.edubricz.online
   service: http://localhost:9000
 - hostname: test3.edubricz.online
