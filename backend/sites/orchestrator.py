@@ -200,7 +200,6 @@ def generate_docker_compose(site_name, db_config, port, site_type='wordpress', a
         }
     
     return {
-        'version': '3.8',
         'services': services,
         'networks': networks_config,
         'volumes': {'db_data': {}}

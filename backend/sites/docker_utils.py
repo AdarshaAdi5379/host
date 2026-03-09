@@ -3,6 +3,7 @@ Docker execution utilities for WordPress Orchestrator
 """
 import subprocess
 import os
+import re
 from pathlib import Path
 
 
@@ -100,6 +101,144 @@ def run_docker_compose_down_volumes(site_directory: str) -> tuple[bool, str]:
         return False, "Docker command not found"
     except Exception as e:
         return False, f"Unexpected error: {str(e)}"
+
+
+def _safe_compose_project_name(value: str) -> str:
+    """
+    Convert arbitrary site/directory names into docker compose project-compatible names.
+    """
+    cleaned = re.sub(r'[^a-z0-9_-]', '', value.strip().lower())
+    if not cleaned:
+        return "site"
+    if not cleaned[0].isalnum():
+        cleaned = f"p{cleaned}"
+    return cleaned
+
+
+def _run_quiet(cmd: list[str], *, cwd: str | None = None, timeout: int = 90) -> tuple[bool, str]:
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except Exception as exc:
+        return False, str(exc)
+
+    if result.returncode == 0:
+        return True, (result.stdout or "").strip()
+    return False, (result.stderr or result.stdout or "").strip()
+
+
+def _split_lines(raw: str) -> list[str]:
+    return [line.strip() for line in (raw or "").splitlines() if line.strip()]
+
+
+def cleanup_compose_project_resources(site_name: str, site_directory: str) -> tuple[bool, dict]:
+    """
+    Best-effort deep cleanup for compose resources to avoid leaked networks/subnets.
+    Returns (ok, report). ok=False indicates at least one cleanup step failed.
+    """
+    site_dir_name = Path(site_directory).name
+    candidates = {
+        _safe_compose_project_name(site_name),
+        _safe_compose_project_name(site_dir_name),
+    }
+
+    report = {
+        "projects": sorted(candidates),
+        "removed": {
+            "containers": 0,
+            "volumes": 0,
+            "networks": 0,
+        },
+        "errors": [],
+        "warnings": [],
+    }
+
+    compose_file = Path(site_directory) / "docker-compose.yml"
+    if not compose_file.exists():
+        report["warnings"].append(f"compose file not found at {compose_file}; running label-based cleanup only")
+
+    for project in sorted(candidates):
+        # Compose-aware teardown
+        if compose_file.exists():
+            ok, out = _run_quiet(
+                ['docker', 'compose', '-p', project, 'down', '-v', '--remove-orphans'],
+                cwd=site_directory,
+                timeout=120,
+            )
+            if not ok and out:
+                report["warnings"].append(f"compose down for '{project}' returned: {out}")
+
+        # Remove containers by compose project label.
+        ok, out = _run_quiet(
+            ['docker', 'ps', '-aq', '--filter', f'label=com.docker.compose.project={project}'],
+            timeout=30,
+        )
+        if ok:
+            container_ids = _split_lines(out)
+            if container_ids:
+                ok_rm, out_rm = _run_quiet(['docker', 'rm', '-f', *container_ids], timeout=60)
+                if ok_rm:
+                    report["removed"]["containers"] += len(container_ids)
+                else:
+                    report["errors"].append(f"failed removing containers for '{project}': {out_rm}")
+        else:
+            report["errors"].append(f"failed listing containers for '{project}': {out}")
+
+        # Remove networks by compose project label.
+        ok, out = _run_quiet(
+            ['docker', 'network', 'ls', '-q', '--filter', f'label=com.docker.compose.project={project}'],
+            timeout=30,
+        )
+        if ok:
+            network_ids = _split_lines(out)
+            for net_id in network_ids:
+                ok_rm, out_rm = _run_quiet(['docker', 'network', 'rm', net_id], timeout=30)
+                if ok_rm:
+                    report["removed"]["networks"] += 1
+                elif "No such network" not in out_rm:
+                    report["errors"].append(f"failed removing network '{net_id}': {out_rm}")
+        else:
+            report["errors"].append(f"failed listing networks for '{project}': {out}")
+
+        # Remove volumes by compose project label.
+        ok, out = _run_quiet(
+            ['docker', 'volume', 'ls', '-q', '--filter', f'label=com.docker.compose.project={project}'],
+            timeout=30,
+        )
+        if ok:
+            volume_names = _split_lines(out)
+            if volume_names:
+                ok_rm, out_rm = _run_quiet(['docker', 'volume', 'rm', '-f', *volume_names], timeout=60)
+                if ok_rm:
+                    report["removed"]["volumes"] += len(volume_names)
+                else:
+                    report["errors"].append(f"failed removing volumes for '{project}': {out_rm}")
+        else:
+            report["errors"].append(f"failed listing volumes for '{project}': {out}")
+
+    # Fallback removal for known leaked network names.
+    fallback_names = set()
+    for project in candidates:
+        fallback_names.update({
+            f"{project}_vpc_private_db",
+            f"{project}_vpc_public_web",
+            f"{project}_{project}_vpc_private_db",
+            f"{project}_{project}_vpc_public_web",
+        })
+
+    for network_name in sorted(fallback_names):
+        ok_rm, out_rm = _run_quiet(['docker', 'network', 'rm', network_name], timeout=20)
+        if ok_rm:
+            report["removed"]["networks"] += 1
+        elif out_rm and "No such network" not in out_rm and "has active endpoints" not in out_rm:
+            report["warnings"].append(f"network '{network_name}' removal: {out_rm}")
+
+    return (len(report["errors"]) == 0), report
 
 
 def check_docker_running() -> bool:

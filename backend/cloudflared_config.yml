@@ -27,4 +27,6 @@ ingress:
   service: http://localhost:9012
 - hostname: shop.edubricz.online
   service: http://localhost:9015
+- hostname: test81.edubricz.online
+  service: http://localhost:9023
 - service: http_status:404

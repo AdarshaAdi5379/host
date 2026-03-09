@@ -6,13 +6,18 @@ from django.conf import settings as django_settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 import logging
+import json
 import secrets
 import string
 import time
 import os
+import shutil
+import subprocess
 import psutil
 import docker
+from pathlib import Path
 
 from .models import (
     WordPressSite,
@@ -49,6 +54,7 @@ from .docker_utils import (
     run_docker_compose_down,
     run_docker_compose_down_volumes,
     check_docker_running,
+    cleanup_compose_project_resources,
 )
 from .gateway_jobs import enqueue_gateway_apply, latest_gateway_job
 from .rds_failover_manager import RDSFailoverManager
@@ -339,6 +345,198 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             r['container_name'],
         ))
         return True, rows, None
+
+    @staticmethod
+    def _backup_slug(site_name: str) -> str:
+        cleaned = "".join(ch if (ch.isalnum() or ch in ("-", "_")) else "_" for ch in site_name.strip().lower())
+        cleaned = cleaned.strip("_-")
+        return (cleaned or "site")[:80]
+
+    @staticmethod
+    def _db_dr_config(site: WordPressSite) -> dict:
+        cfg = site.db_dr_config or {}
+        return cfg if isinstance(cfg, dict) else {}
+
+    def _dump_rds_database_for_backup(self, site: WordPressSite, output_path: Path) -> tuple[bool, str | None]:
+        cfg = self._db_dr_config(site)
+        endpoint = str(cfg.get("rds_endpoint") or "").strip()
+        username = str(cfg.get("rds_username") or "").strip()
+        password = str(cfg.get("rds_password") or "").strip()
+        database = str(cfg.get("rds_database") or site.db_name or "").strip()
+        port = int(cfg.get("rds_port") or 3306)
+        active_target = str(cfg.get("active_target") or "").strip().lower()
+
+        if not endpoint or not username or not password or not database:
+            return False, "RDS backup skipped: RDS credentials/database are not fully configured."
+        if active_target != "rds":
+            return False, "RDS backup skipped: active DB target is not RDS."
+
+        env = os.environ.copy()
+        env["MYSQL_PWD"] = password
+        cmd = [
+            "mysqldump",
+            "--single-transaction",
+            "--routines",
+            "--triggers",
+            "-h",
+            endpoint,
+            "-P",
+            str(port),
+            "-u",
+            username,
+            database,
+        ]
+        try:
+            with output_path.open("wb") as dump_file:
+                result = subprocess.run(
+                    cmd,
+                    stdout=dump_file,
+                    stderr=subprocess.PIPE,
+                    env=env,
+                    timeout=180,
+                )
+        except Exception as exc:
+            if output_path.exists():
+                output_path.unlink(missing_ok=True)
+            return False, f"RDS backup failed: {exc}"
+
+        if result.returncode != 0:
+            if output_path.exists():
+                output_path.unlink(missing_ok=True)
+            stderr = (result.stderr or b"").decode(errors="replace").strip()
+            return False, f"RDS backup failed: {stderr or 'mysqldump returned non-zero'}"
+
+        if not output_path.exists() or output_path.stat().st_size == 0:
+            output_path.unlink(missing_ok=True)
+            return False, "RDS backup failed: dump file is empty."
+
+        return True, None
+
+    def _dump_local_database_for_backup(self, site: WordPressSite, output_path: Path) -> tuple[bool, str | None]:
+        db_name = (site.db_name or "wordpress").strip() or "wordpress"
+        container_candidates = [
+            site.db_container_name,
+            f"{site.name}_db",
+            f"{site.name}_mysql",
+        ]
+        checked = []
+        errors = []
+
+        for container in [c for c in container_candidates if c]:
+            checked.append(container)
+            dump_commands = []
+            if site.db_root_password:
+                dump_commands.append([
+                    "docker", "exec", container, "mysqldump",
+                    "-uroot", f"-p{site.db_root_password}",
+                    "--single-transaction", "--routines", "--triggers",
+                    "--databases", db_name,
+                ])
+            if site.db_user and site.db_password:
+                dump_commands.append([
+                    "docker", "exec", container, "mysqldump",
+                    f"-u{site.db_user}", f"-p{site.db_password}",
+                    "--single-transaction", "--routines", "--triggers",
+                    "--databases", db_name,
+                ])
+
+            for cmd in dump_commands:
+                try:
+                    with output_path.open("wb") as dump_file:
+                        result = subprocess.run(
+                            cmd,
+                            stdout=dump_file,
+                            stderr=subprocess.PIPE,
+                            timeout=180,
+                        )
+                except Exception as exc:
+                    output_path.unlink(missing_ok=True)
+                    errors.append(f"{container}: {exc}")
+                    continue
+
+                if result.returncode == 0 and output_path.exists() and output_path.stat().st_size > 0:
+                    return True, None
+
+                output_path.unlink(missing_ok=True)
+                stderr = (result.stderr or b"").decode(errors="replace").strip()
+                errors.append(f"{container}: {stderr or 'mysqldump returned non-zero'}")
+
+        if not checked:
+            return False, "Local DB backup skipped: no DB container names available."
+        return False, f"Local DB backup failed for containers {checked}: {' | '.join(errors) if errors else 'unknown error'}"
+
+    def _dump_database_for_termination_backup(self, site: WordPressSite, output_path: Path) -> tuple[bool, str | None]:
+        rds_ok, rds_msg = self._dump_rds_database_for_backup(site, output_path)
+        if rds_ok:
+            return True, None
+        local_ok, local_msg = self._dump_local_database_for_backup(site, output_path)
+        if local_ok:
+            return True, None
+
+        combined = []
+        if rds_msg:
+            combined.append(rds_msg)
+        if local_msg:
+            combined.append(local_msg)
+        return False, " ; ".join(combined) if combined else "Database backup failed."
+
+    def _archive_site_files_for_backup(self, site: WordPressSite, archive_path: Path) -> tuple[bool, str | None]:
+        site_path = Path(site.site_directory)
+        if not site_path.exists():
+            return False, f"File backup skipped: site directory does not exist at {site_path}."
+
+        base_name = str(archive_path)
+        if base_name.endswith(".tar.gz"):
+            base_name = base_name[:-7]
+        try:
+            shutil.make_archive(base_name=base_name, format="gztar", root_dir=str(site_path), base_dir=".")
+        except Exception as exc:
+            archive_path.unlink(missing_ok=True)
+            return False, f"File backup failed: {exc}"
+        return True, None
+
+    def _create_termination_backup(self, site: WordPressSite) -> tuple[bool, dict]:
+        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+        backup_dir = Path(django_settings.BACKUP_DIR) / "terminated_sites" / self._backup_slug(site.name) / timestamp
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
+        artifacts = {}
+        warnings = []
+
+        db_dump = backup_dir / "database.sql"
+        db_ok, db_msg = self._dump_database_for_termination_backup(site, db_dump)
+        if db_ok:
+            artifacts["database_dump"] = str(db_dump)
+        elif db_msg:
+            warnings.append(db_msg)
+
+        files_archive = backup_dir / "site_files.tar.gz"
+        files_ok, files_msg = self._archive_site_files_for_backup(site, files_archive)
+        if files_ok:
+            artifacts["site_archive"] = str(files_archive)
+        elif files_msg:
+            warnings.append(files_msg)
+
+        manifest_path = backup_dir / "manifest.json"
+        manifest = {
+            "site_id": site.id,
+            "site_name": site.name,
+            "framework": site.framework,
+            "created_at": timestamp,
+            "artifacts": artifacts,
+            "warnings": warnings,
+        }
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        artifacts["manifest"] = str(manifest_path)
+
+        if not ("database_dump" in artifacts or "site_archive" in artifacts):
+            warnings.append("No backup artifacts could be produced (source files/DB may already be missing).")
+
+        return True, {
+            "backup_dir": str(backup_dir),
+            "artifacts": artifacts,
+            "warnings": warnings,
+        }
 
     def perform_create(self, serializer):
         """Assign current user as owner when creating site"""
@@ -1204,49 +1402,85 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
     def terminate(self, request, pk=None):
         """Terminate and delete a WordPress site"""
         site = self.get_object()
-        
-        # Step 1: Stop and remove WordPress containers and volumes
-        success, output = run_docker_compose_down_volumes(site.site_directory)
-        
-        if not success:
-            # Fallback: Try to remove containers directly if docker-compose fails
-            # This handles cases where docker-compose.yml has syntax errors
-            import subprocess
-            try:
-                container_name = f"{site.name}_wp"
-                # Force remove the container
-                subprocess.run(['docker', 'rm', '-f', container_name], 
-                             capture_output=True, check=False)
-                # Remove the volume
-                volume_name = f"{site.name}_wp_data"
-                subprocess.run(['docker', 'volume', 'rm', '-f', volume_name], 
-                             capture_output=True, check=False)
-            except Exception as e:
-                print(f"Warning: Direct container removal failed: {str(e)}")
-        
-        # Step 2: Remove tenant MySQL database container
+
+        # Step 1: Create an immutable backup snapshot before destructive cleanup.
+        backup_ok, backup_report = self._create_termination_backup(site)
+        if not backup_ok:
+            site.status = 'error'
+            site.save(update_fields=['status', 'updated_at'])
+            return Response(
+                {
+                    'error': backup_report.get('error', 'Failed to create pre-delete backup'),
+                    'backup': backup_report,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Step 2: Attempt compose down for local cleanup.
+        down_ok, down_output = run_docker_compose_down_volumes(site.site_directory)
+        warnings = list(backup_report.get('warnings') or [])
+        if not down_ok and down_output:
+            warnings.append(f"docker compose down output: {down_output}")
+
+        # Step 3: Deep cleanup by compose project labels/prefixes.
+        cleanup_ok, cleanup_report = cleanup_compose_project_resources(
+            site_name=site.name,
+            site_directory=site.site_directory,
+        )
+        warnings.extend(cleanup_report.get('warnings') or [])
+
+        # Step 4: Legacy fallback for historically named MySQL containers.
         if site.db_container_name:
-            from .tenant_db_manager import TenantDatabaseManager
-            db_manager = TenantDatabaseManager()
-            db_success, db_error = db_manager.remove_tenant_database(site.name, remove_volumes=True)
-            
-            if not db_success:
-                # Log error but don't fail the entire operation
-                print(f"Warning: Failed to remove tenant database: {db_error}")
-        
-        # Step 2.5: Remove FileBrowser user
+            try:
+                from .tenant_db_manager import TenantDatabaseManager
+                db_manager = TenantDatabaseManager()
+                db_success, db_error = db_manager.remove_tenant_database(site.name, remove_volumes=True)
+                if not db_success and db_error:
+                    warnings.append(f"legacy DB cleanup warning: {db_error}")
+            except Exception as exc:
+                warnings.append(f"legacy DB cleanup warning: {exc}")
+
+        if not cleanup_ok:
+            site.status = 'error'
+            site.save(update_fields=['status', 'updated_at'])
+            return Response(
+                {
+                    'error': 'Site resources were not fully cleaned. Site record was not deleted.',
+                    'backup': backup_report,
+                    'cleanup': cleanup_report,
+                    'warnings': warnings,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Step 5: Remove FileBrowser user.
         if site.filebrowser_username:
             from .filebrowser_manager import FileBrowserManager
             fb_manager = FileBrowserManager()
             fb_result = fb_manager.delete_user(site.filebrowser_username)
             
             if not fb_result['success']:
-                # Log warning but don't fail deletion
-                print(f"Warning: Failed to delete FileBrowser user: {fb_result.get('error')}")
-        
-        # Step 3: Delete site record
+                warnings.append(f"Failed to delete FileBrowser user: {fb_result.get('error')}")
+
+        # Step 6: Remove project directory after backup snapshot is safely stored.
+        site_path = Path(site.site_directory)
+        if site_path.exists():
+            try:
+                shutil.rmtree(site_path)
+            except Exception as exc:
+                warnings.append(f"Failed to remove site directory '{site_path}': {exc}")
+
+        # Step 7: Delete site record only after cleanup succeeded.
         site.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {
+                'status': 'Site terminated successfully',
+                'backup': backup_report,
+                'cleanup': cleanup_report,
+                'warnings': warnings,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
