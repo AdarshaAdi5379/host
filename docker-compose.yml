@@ -98,6 +98,7 @@ services:
       - ADMINER_DEFAULT_SERVER=db_system
     networks:
       - hostinger_internal
+      - tenant_isolated
     depends_on:
       - db_system
   # Django Backend (optional - for full containerization)
@@ -135,6 +136,8 @@ networks:
   hostinger_internal:
     driver: bridge
     internal: false # Set to true in production to block external access
+  tenant_isolated:
+    external: true
 
 volumes:
   postgres_data:

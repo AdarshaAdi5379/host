@@ -6,6 +6,7 @@ from django.conf import settings as django_settings
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q
+import logging
 import secrets
 import string
 import time
@@ -51,6 +52,9 @@ from .docker_utils import (
 )
 from .gateway_jobs import enqueue_gateway_apply, latest_gateway_job
 from .rds_failover_manager import RDSFailoverManager
+
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -118,7 +122,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         Resolve default shared RDS config for new-site provisioning.
         Priority:
           1) explicit environment variables
-          2) first existing site-level DR config with credentials
+          2) first existing site-level DR config with credentials (enabled=true)
         """
         endpoint = os.getenv("DEFAULT_RDS_ENDPOINT", "").strip()
         username = os.getenv("DEFAULT_RDS_USERNAME", "").strip()
@@ -143,6 +147,8 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
             cfg = site.db_dr_config or {}
             if not isinstance(cfg, dict):
                 continue
+            if not bool(cfg.get("enabled", False)):
+                continue
             endpoint = str(cfg.get("rds_endpoint") or "").strip()
             username = str(cfg.get("rds_username") or "").strip()
             password = str(cfg.get("rds_password") or "").strip()
@@ -160,6 +166,27 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 }
         return None
 
+    def _prepare_shared_rds_database(self, site_name: str):
+        """
+        Try to provision per-site schema on shared RDS.
+        If provisioning fails, we fall back to local tenant DB creation.
+        """
+        default_rds = self._resolve_default_shared_rds_config()
+        if not default_rds:
+            return None, None, None
+
+        rds_db_name = self._render_shared_rds_db_name(site_name)
+        ok, err = self._ensure_rds_database(default_rds, rds_db_name)
+        if ok:
+            return default_rds, rds_db_name, None
+
+        logger.warning(
+            "Shared RDS provisioning failed for site '%s'; falling back to local DB. error=%s",
+            site_name,
+            err,
+        )
+        return None, None, err
+
     @staticmethod
     def _ensure_rds_database(rds_config: dict, database_name: str):
         try:
@@ -173,7 +200,6 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 port=int(rds_config.get("rds_port", 3306)),
                 user=rds_config["rds_username"],
                 passwd=rds_config["rds_password"],
-                db="mysql",
                 connect_timeout=8,
                 autocommit=True,
             )
@@ -187,6 +213,13 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 conn.close()
             return True, None
         except Exception as exc:
+            error_code = getattr(exc, "args", [None])[0]
+            if error_code in (1044, 1142):
+                return (
+                    False,
+                    f"Failed to ensure RDS database '{database_name}': "
+                    "RDS user is missing CREATE DATABASE privilege",
+                )
             return False, f"Failed to ensure RDS database '{database_name}': {exc}"
 
     @staticmethod
@@ -340,12 +373,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 
                 db_manager = TenantDatabaseManager()
                 db_config = db_manager.generate_credentials(site_name)
-                default_rds = self._resolve_default_shared_rds_config()
-                rds_db_name = self._render_shared_rds_db_name(site_name) if default_rds else None
-                if default_rds and rds_db_name:
-                    ok, err = self._ensure_rds_database(default_rds, rds_db_name)
-                    if not ok:
-                        return Response({'error': err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                default_rds, rds_db_name, rds_fallback_warning = self._prepare_shared_rds_database(site_name)
                 
                 # Step 2: Generate configuration
                 port = find_available_port()
@@ -497,7 +525,14 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     # IMPORTANT: In a real scenario, I'd move this huge logic block to `tasks.py`.
                     
                     # Let's keep it simple: Status is running.
-                    return Response(WordPressSiteSerializer(site).data, status=status.HTTP_201_CREATED)
+                    response_data = WordPressSiteSerializer(site).data
+                    if rds_fallback_warning:
+                        response_data["warning"] = (
+                            "Shared RDS is configured but was unavailable during provisioning; "
+                            "site was created with local database. "
+                            f"RDS error: {rds_fallback_warning}"
+                        )
+                    return Response(response_data, status=status.HTTP_201_CREATED)
                     
                 else:
                     site.status = 'error'
@@ -526,12 +561,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 from .tenant_db_manager import TenantDatabaseManager
                 db_manager = TenantDatabaseManager()
                 db_config = db_manager.generate_credentials(site_name)
-                default_rds = self._resolve_default_shared_rds_config()
-                rds_db_name = self._render_shared_rds_db_name(site_name) if default_rds else None
-                if default_rds and rds_db_name:
-                    ok, err = self._ensure_rds_database(default_rds, rds_db_name)
-                    if not ok:
-                        return Response({'error': err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                default_rds, rds_db_name, rds_fallback_warning = self._prepare_shared_rds_database(site_name)
                 
                 # Step 2: Allocate PORTS (Frontend + Backend)
                 ports = find_available_port(count=2) # Returns [9000, 9001]
@@ -638,7 +668,14 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                 thread = threading.Thread(target=run_fullstack_build_task, args=(site.id,))
                 thread.start()
 
-                return Response(WordPressSiteSerializer(site).data, status=status.HTTP_201_CREATED)
+                response_data = WordPressSiteSerializer(site).data
+                if rds_fallback_warning:
+                    response_data["warning"] = (
+                        "Shared RDS is configured but was unavailable during provisioning; "
+                        "site was created with local database. "
+                        f"RDS error: {rds_fallback_warning}"
+                    )
+                return Response(response_data, status=status.HTTP_201_CREATED)
 
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
