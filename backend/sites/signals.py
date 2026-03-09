@@ -7,7 +7,6 @@ from django.contrib.auth.models import User
 from django.contrib.auth.signals import user_logged_in, user_logged_out
 from .models import WordPressSite, UserProfile, ProjectMembership
 from .audit_logger import AuditLogger
-import subprocess
 import threading
 import logging
 
@@ -24,29 +23,38 @@ def sync_filebrowser_credentials_async(site_id):
         import time
         time.sleep(2)
         
-        # Run the sync command for this specific site
-        from .models import WordPressSite
+        # Resolve site and provision credentials directly.
         site = WordPressSite.objects.get(id=site_id)
         
-        # Only sync if credentials are missing
-        if site.filebrowser_username:
+        # Only sync if credentials are missing.
+        if site.filebrowser_username and site.filebrowser_password:
             logger.info(f"Site {site.name} already has FileBrowser credentials, skipping sync")
             return
         
         logger.info(f"Starting FileBrowser sync for site: {site.name}")
-        
-        result = subprocess.run(
-            ['python', 'manage.py', 'sync_filebrowser_users', '--site', site.name],
-            cwd='/home/adarsha/Desktop/projects/HOST/host/backend',
-            capture_output=True,
-            text=True,
-            timeout=60
+
+        from .filebrowser_manager import FileBrowserManager
+        fb_manager = FileBrowserManager()
+
+        if not fb_manager.container_running():
+            logger.error("FileBrowser container is not running; cannot sync credentials.")
+            return
+
+        credentials = fb_manager.generate_credentials(site.name)
+        result = fb_manager.create_user_with_retry(
+            site_name=site.name,
+            username=credentials['username'],
+            password=credentials['password'],
+            max_retries=3,
         )
-        
-        if result.returncode == 0:
+
+        if result.get('success'):
+            site.filebrowser_username = credentials['username']
+            site.filebrowser_password = credentials['password']
+            site.save(update_fields=['filebrowser_username', 'filebrowser_password', 'updated_at'])
             logger.info(f"✅ FileBrowser credentials synced for {site.name}")
         else:
-            logger.error(f"❌ FileBrowser sync failed for {site.name}: {result.stderr}")
+            logger.error(f"❌ FileBrowser sync failed for {site.name}: {result.get('error')}")
             
     except Exception as e:
         logger.error(f"Error syncing FileBrowser credentials: {str(e)}")

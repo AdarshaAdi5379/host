@@ -1514,14 +1514,34 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         Returns username, password, and URL for file manager access
         """
         from .serializers import FileBrowserCredentialsSerializer
+        from .filebrowser_manager import FileBrowserManager
         
         site = self.get_object()
         
         if not site.filebrowser_username or not site.filebrowser_password:
-            return Response(
-                {'error': 'FileBrowser credentials not configured for this site'},
-                status=status.HTTP_404_NOT_FOUND
+            fb_manager = FileBrowserManager()
+            if not fb_manager.container_running():
+                return Response(
+                    {'error': 'FileBrowser service is not running'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+
+            credentials = fb_manager.generate_credentials(site.name)
+            result = fb_manager.create_user_with_retry(
+                site_name=site.name,
+                username=credentials['username'],
+                password=credentials['password'],
+                max_retries=3,
             )
+            if not result.get('success'):
+                return Response(
+                    {'error': result.get('error') or 'Failed to provision FileBrowser credentials'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            site.filebrowser_username = credentials['username']
+            site.filebrowser_password = credentials['password']
+            site.save(update_fields=['filebrowser_username', 'filebrowser_password', 'updated_at'])
         
         credentials = {
             'username': site.filebrowser_username,

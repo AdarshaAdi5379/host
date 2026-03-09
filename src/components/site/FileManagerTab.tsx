@@ -2,7 +2,17 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { FolderOpen, ExternalLink, HardDrive, AlertTriangle, Info } from 'lucide-react'
+import {
+    FolderOpen,
+    ExternalLink,
+    HardDrive,
+    AlertTriangle,
+    Info,
+    Copy,
+    Eye,
+    EyeOff,
+    CheckCircle2
+} from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { fileManagerAPI, type FileManagerAccess } from '@/lib/api/fileManager'
 
@@ -15,6 +25,8 @@ export function FileManagerTab({ siteId }: FileManagerTabProps) {
     const [access, setAccess] = useState<FileManagerAccess | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [showPassword, setShowPassword] = useState(false)
+    const [copiedField, setCopiedField] = useState<string | null>(null)
 
     useEffect(() => {
         fetchAccess()
@@ -41,6 +53,16 @@ export function FileManagerTab({ siteId }: FileManagerTabProps) {
             // access.path is like "/srv/test33", FileBrowser root is /srv, so we need /files/test33/
             const sitePath = access.path.replace('/srv/', '')
             window.open(`${access.url}/files/${sitePath}/`, '_blank', 'noopener,noreferrer')
+        }
+    }
+
+    const copyToClipboard = async (text: string, field: string) => {
+        try {
+            await navigator.clipboard.writeText(text)
+            setCopiedField(field)
+            setTimeout(() => setCopiedField(null), 2000)
+        } catch (err) {
+            console.error('Failed to copy:', err)
         }
     }
 
@@ -75,6 +97,40 @@ export function FileManagerTab({ siteId }: FileManagerTabProps) {
     }
 
     if (!access) return null
+
+    const CredentialRow = ({ label, value, field, secret = false }: {
+        label: string
+        value: string
+        field: string
+        secret?: boolean
+    }) => (
+        <div className="flex items-center justify-between gap-3 py-2">
+            <div className="flex-1 min-w-0">
+                <label className="text-sm font-medium text-gray-700">{label}</label>
+                <code className="mt-1 block px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm font-mono break-all">
+                    {secret && !showPassword ? '••••••••••••' : value}
+                </code>
+            </div>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={() => copyToClipboard(value, field)}
+                className="shrink-0"
+            >
+                {copiedField === field ? (
+                    <>
+                        <CheckCircle2 className="w-4 h-4 mr-1 text-green-600" />
+                        Copied
+                    </>
+                ) : (
+                    <>
+                        <Copy className="w-4 h-4 mr-1" />
+                        Copy
+                    </>
+                )}
+            </Button>
+        </div>
+    )
 
     return (
         <div className="space-y-6">
@@ -117,6 +173,48 @@ export function FileManagerTab({ siteId }: FileManagerTabProps) {
                             <p className="text-xs text-gray-500 mt-1">
                                 Navigate to this folder after logging in
                             </p>
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-medium text-gray-700">Login Credentials</label>
+                                {access.password && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                        {showPassword ? (
+                                            <>
+                                                <EyeOff className="w-4 h-4 mr-1" />
+                                                Hide Password
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Eye className="w-4 h-4 mr-1" />
+                                                Show Password
+                                            </>
+                                        )}
+                                    </Button>
+                                )}
+                            </div>
+
+                            <div className="mt-1">
+                                {access.username && access.password ? (
+                                    <div className="border border-gray-200 rounded-md px-3 py-1">
+                                        <CredentialRow label="Username" value={access.username} field="username" />
+                                        <CredentialRow label="Password" value={access.password} field="password" secret />
+                                    </div>
+                                ) : (
+                                    <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                        <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
+                                        <p className="text-xs text-yellow-800">
+                                            Credentials are not available yet for this site. Refresh this page after the
+                                            site provisioning completes.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 

@@ -6,6 +6,8 @@ Uses a retry mechanism to handle database locking issues
 import subprocess
 import secrets
 import time
+import string
+import re
 from typing import Dict, Optional
 
 
@@ -16,6 +18,7 @@ class FileBrowserManager:
     """
     
     CONTAINER_NAME = "hostinger_files"
+    COMPOSE_DIR = "/home/adarsha/Desktop/projects/HOST/host/backend/filebrowser"
     BASE_SCOPE = ""  # Empty because /srv is already the root mount in FileBrowser
     
     def __init__(self):
@@ -33,8 +36,12 @@ class FileBrowserManager:
         Returns:
             dict: {'username': str, 'password': str}
         """
-        username = f"fb_{site_name}"
-        password = secrets.token_urlsafe(16)  # 16 bytes = ~21 characters
+        slug = re.sub(r'[^a-zA-Z0-9_.-]', '_', site_name.strip())
+        slug = slug.strip('_.-') or "site"
+        username = f"fb_{slug[:48]}"
+        # Keep password strictly alphanumeric so CLI parsing never mistakes it for flags.
+        alphabet = string.ascii_letters + string.digits
+        password = ''.join(secrets.choice(alphabet) for _ in range(24))
         
         return {
             'username': username,
@@ -67,17 +74,27 @@ class FileBrowserManager:
                     ],
                     capture_output=True,
                     text=True,
-                    timeout=5  # Reduced timeout for faster retries
+                    timeout=20
                 )
                 
                 if result.returncode == 0:
                     return {'success': True}
                 else:
                     error_msg = result.stderr or result.stdout or 'Unknown error'
+
+                    # Fallback path: if live DB is locked/timeing out, do an offline one-off command.
+                    if 'timeout' in error_msg.lower():
+                        fallback = self._run_compose_user_command(
+                            ['users', 'add', username, password, '--scope', scope],
+                            timeout=40,
+                        )
+                        if fallback['success']:
+                            return {'success': True}
+                        error_msg = f"{error_msg} | fallback failed: {fallback.get('error')}"
                     
                     # If it's a timeout error and we have retries left, try again
                     if 'timeout' in error_msg.lower() and attempt < max_retries - 1:
-                        time.sleep(1)  # Wait 1 second before retry
+                        time.sleep(2)
                         continue
                     
                     return {
@@ -87,7 +104,7 @@ class FileBrowserManager:
                     
             except subprocess.TimeoutExpired:
                 if attempt < max_retries - 1:
-                    time.sleep(1)  # Wait 1 second before retry
+                    time.sleep(2)
                     continue
                 return {
                     'success': False,
@@ -108,6 +125,45 @@ class FileBrowserManager:
             'success': False,
             'error': 'Failed after maximum retries'
         }
+
+    def _run_compose_user_command(self, args: list[str], timeout: int = 40) -> Dict:
+        """
+        Run filebrowser user commands in offline mode to avoid sqlite lock timeouts.
+        """
+        try:
+            subprocess.run(
+                ['docker', 'compose', 'down'],
+                cwd=self.COMPOSE_DIR,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            result = subprocess.run(
+                ['docker', 'compose', 'run', '--rm', 'filebrowser', *args],
+                cwd=self.COMPOSE_DIR,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+
+            if result.returncode == 0:
+                return {'success': True}
+            return {'success': False, 'error': result.stderr or result.stdout or 'Unknown error'}
+        except Exception as e:
+            return {'success': False, 'error': f'Compose fallback failed: {str(e)}'}
+        finally:
+            try:
+                subprocess.run(
+                    ['docker', 'compose', 'up', '-d'],
+                    cwd=self.COMPOSE_DIR,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+            except Exception:
+                # Keep caller error focused on the main operation.
+                pass
     
     def create_user(self, site_name: str, username: str, password: str) -> Dict:
         """
@@ -123,7 +179,7 @@ class FileBrowserManager:
         """
         # Try once without retry for backward compatibility
         # The view layer can decide whether to use retry version
-        return self.create_user_with_retry(site_name, username, password, max_retries=1)
+        return self.create_user_with_retry(site_name, username, password, max_retries=3)
     
     def delete_user(self, username: str) -> Dict:
         """

@@ -2,6 +2,8 @@ export interface FileManagerAccess {
     url: string
     path: string
     site_name: string
+    username?: string | null
+    password?: string | null
     disk_usage: {
         used: number
         total: number
