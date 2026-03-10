@@ -85,6 +85,22 @@ interface SecurityRuleCreateFormState {
     description: string
 }
 
+interface InstanceTypeCreateFormState {
+    name: string
+    vcpu: string
+    memoryMb: string
+    diskGb: string
+}
+
+interface ImageCreateFormState {
+    name: string
+    version: string
+    localPath: string
+    osFamily: 'ubuntu' | 'debian' | 'centos' | 'rocky' | 'other'
+    minimumDiskGb: string
+    isDefault: boolean
+}
+
 const TRANSIENT_INSTANCE_STATES = new Set([
     'provisioning',
     'pending',
@@ -187,6 +203,24 @@ export function Ec2Service() {
     const [securityRuleCreateForm, setSecurityRuleCreateForm] = useState<SecurityRuleCreateFormState>(DEFAULT_RULE_FORM)
     const [securityRuleCreateLoading, setSecurityRuleCreateLoading] = useState(false)
     const [securityRuleDeleteLoadingId, setSecurityRuleDeleteLoadingId] = useState<number | null>(null)
+
+    const [instanceTypeCreateForm, setInstanceTypeCreateForm] = useState<InstanceTypeCreateFormState>({
+        name: '',
+        vcpu: '1',
+        memoryMb: '1024',
+        diskGb: '20',
+    })
+    const [instanceTypeCreateLoading, setInstanceTypeCreateLoading] = useState(false)
+
+    const [imageCreateForm, setImageCreateForm] = useState<ImageCreateFormState>({
+        name: 'ubuntu',
+        version: '24.04',
+        localPath: '/home/adarsha/Desktop/projects/HOST/host/backend/compute/images/ubuntu-24.04.qcow2',
+        osFamily: 'ubuntu',
+        minimumDiskGb: '20',
+        isDefault: true,
+    })
+    const [imageCreateLoading, setImageCreateLoading] = useState(false)
 
     const pollingTimeoutsRef = useRef<Record<number, number>>({})
     const notifiedOperationsRef = useRef<Set<number>>(new Set())
@@ -520,6 +554,15 @@ export function Ec2Service() {
         setSshKeys(keys)
     }, [])
 
+    const refreshCatalog = useCallback(async () => {
+        const [imageList, typeList] = await Promise.all([
+            wordpressAPI.getComputeImages(),
+            wordpressAPI.getComputeFlavors(),
+        ])
+        setImages(imageList)
+        setFlavors(typeList)
+    }, [])
+
     const handleRefresh = async () => {
         await loadData(false)
     }
@@ -537,6 +580,112 @@ export function Ec2Service() {
                 securityGroupIds: Array.from(current).sort((a, b) => a - b),
             }
         })
+    }
+
+    const handleCreateInstanceType = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault()
+        if (!instanceTypeCreateForm.name.trim()) {
+            addToast({
+                title: 'Instance type name required',
+                description: 'Enter a name like t-small.',
+                variant: 'warning',
+            })
+            return
+        }
+
+        const vcpu = Number(instanceTypeCreateForm.vcpu)
+        const memoryMb = Number(instanceTypeCreateForm.memoryMb)
+        const diskGb = Number(instanceTypeCreateForm.diskGb)
+        if (!Number.isInteger(vcpu) || vcpu <= 0 || !Number.isInteger(memoryMb) || memoryMb <= 0 || !Number.isInteger(diskGb) || diskGb <= 0) {
+            addToast({
+                title: 'Invalid instance type values',
+                description: 'vCPU, memory, and disk must be positive integers.',
+                variant: 'warning',
+            })
+            return
+        }
+
+        setInstanceTypeCreateLoading(true)
+        try {
+            const created = await wordpressAPI.createComputeFlavor({
+                name: instanceTypeCreateForm.name.trim(),
+                vcpu,
+                memory_mb: memoryMb,
+                disk_gb: diskGb,
+                is_active: true,
+            })
+            await refreshCatalog()
+            setCreateForm((previous) => ({ ...previous, flavorId: created.id }))
+            setInstanceTypeCreateForm({
+                name: '',
+                vcpu: '1',
+                memoryMb: '1024',
+                diskGb: '20',
+            })
+            addToast({
+                title: 'Instance type created',
+                description: `${created.name} is now available in launch dropdown.`,
+                variant: 'success',
+            })
+        } catch (error) {
+            addToast({
+                title: 'Failed to create instance type',
+                description: error instanceof Error ? error.message : 'Unknown error',
+                variant: 'error',
+            })
+        } finally {
+            setInstanceTypeCreateLoading(false)
+        }
+    }
+
+    const handleCreateImage = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault()
+        if (!imageCreateForm.name.trim() || !imageCreateForm.localPath.trim()) {
+            addToast({
+                title: 'Image details required',
+                description: 'Image name and local path are required.',
+                variant: 'warning',
+            })
+            return
+        }
+
+        const minimumDiskGb = Number(imageCreateForm.minimumDiskGb)
+        if (!Number.isInteger(minimumDiskGb) || minimumDiskGb <= 0) {
+            addToast({
+                title: 'Invalid minimum disk size',
+                description: 'Minimum disk must be a positive integer.',
+                variant: 'warning',
+            })
+            return
+        }
+
+        setImageCreateLoading(true)
+        try {
+            const created = await wordpressAPI.createComputeImage({
+                name: imageCreateForm.name.trim(),
+                version: imageCreateForm.version.trim() || 'latest',
+                local_path: imageCreateForm.localPath.trim(),
+                os_family: imageCreateForm.osFamily,
+                minimum_disk_gb: minimumDiskGb,
+                is_active: true,
+                is_default: imageCreateForm.isDefault,
+            })
+            await refreshCatalog()
+            setCreateForm((previous) => ({ ...previous, imageId: created.id }))
+            addToast({
+                title: 'Image registered',
+                description: `${created.name} ${created.version} is now available in launch dropdown.`,
+                variant: 'success',
+            })
+        } catch (error) {
+            addToast({
+                title: 'Failed to register image',
+                description: error instanceof Error ? error.message : 'Unknown error',
+                variant: 'error',
+            })
+        } finally {
+            setImageCreateLoading(false)
+        }
     }
 
     const handleCreateInstance = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -900,6 +1049,111 @@ export function Ec2Service() {
                     </div>
                 </Card>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-xl">Compute Catalog</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                    <p className="text-sm text-gray-500">
+                        If Image / Instance Type dropdowns are empty, create them here.
+                    </p>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <form className="space-y-3 rounded-lg border border-gray-200 p-4" onSubmit={handleCreateInstanceType}>
+                            <h3 className="font-semibold text-gray-900">Create Instance Type</h3>
+                            <Input
+                                value={instanceTypeCreateForm.name}
+                                onChange={(event) => setInstanceTypeCreateForm((previous) => ({ ...previous, name: event.target.value }))}
+                                placeholder="t-small"
+                            />
+                            <div className="grid grid-cols-3 gap-3">
+                                <Input
+                                    value={instanceTypeCreateForm.vcpu}
+                                    onChange={(event) => setInstanceTypeCreateForm((previous) => ({ ...previous, vcpu: event.target.value }))}
+                                    placeholder="vCPU"
+                                />
+                                <Input
+                                    value={instanceTypeCreateForm.memoryMb}
+                                    onChange={(event) => setInstanceTypeCreateForm((previous) => ({ ...previous, memoryMb: event.target.value }))}
+                                    placeholder="RAM MB"
+                                />
+                                <Input
+                                    value={instanceTypeCreateForm.diskGb}
+                                    onChange={(event) => setInstanceTypeCreateForm((previous) => ({ ...previous, diskGb: event.target.value }))}
+                                    placeholder="Disk GB"
+                                />
+                            </div>
+                            <Button type="submit" variant="outline" disabled={instanceTypeCreateLoading}>
+                                {instanceTypeCreateLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                                Create Instance Type
+                            </Button>
+                        </form>
+
+                        <form className="space-y-3 rounded-lg border border-gray-200 p-4" onSubmit={handleCreateImage}>
+                            <h3 className="font-semibold text-gray-900">Register Image</h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Input
+                                    value={imageCreateForm.name}
+                                    onChange={(event) => setImageCreateForm((previous) => ({ ...previous, name: event.target.value }))}
+                                    placeholder="ubuntu"
+                                />
+                                <Input
+                                    value={imageCreateForm.version}
+                                    onChange={(event) => setImageCreateForm((previous) => ({ ...previous, version: event.target.value }))}
+                                    placeholder="24.04"
+                                />
+                            </div>
+                            <Input
+                                value={imageCreateForm.localPath}
+                                onChange={(event) => setImageCreateForm((previous) => ({ ...previous, localPath: event.target.value }))}
+                                placeholder="/absolute/path/to/image.qcow2"
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                                <select
+                                    value={imageCreateForm.osFamily}
+                                    onChange={(event) => setImageCreateForm((previous) => ({ ...previous, osFamily: event.target.value as ImageCreateFormState['osFamily'] }))}
+                                    className="flex h-10 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple focus:ring-offset-2"
+                                >
+                                    <option value="ubuntu">ubuntu</option>
+                                    <option value="debian">debian</option>
+                                    <option value="centos">centos</option>
+                                    <option value="rocky">rocky</option>
+                                    <option value="other">other</option>
+                                </select>
+                                <Input
+                                    value={imageCreateForm.minimumDiskGb}
+                                    onChange={(event) => setImageCreateForm((previous) => ({ ...previous, minimumDiskGb: event.target.value }))}
+                                    placeholder="Minimum disk GB"
+                                />
+                            </div>
+                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                                <input
+                                    type="checkbox"
+                                    checked={imageCreateForm.isDefault}
+                                    onChange={(event) => setImageCreateForm((previous) => ({ ...previous, isDefault: event.target.checked }))}
+                                />
+                                Set as default image
+                            </label>
+                            <Button type="submit" variant="outline" disabled={imageCreateLoading}>
+                                {imageCreateLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+                                Register Image
+                            </Button>
+                        </form>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Active Images</p>
+                            <p className="text-lg font-semibold text-gray-900">{images.length}</p>
+                        </div>
+                        <div className="rounded-lg border border-gray-200 p-3">
+                            <p className="text-xs text-gray-500">Active Instance Types</p>
+                            <p className="text-lg font-semibold text-gray-900">{flavors.length}</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader>

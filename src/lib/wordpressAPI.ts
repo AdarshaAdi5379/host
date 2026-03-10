@@ -630,12 +630,48 @@ class WordPressAPI {
         return response.json();
     }
 
+    async createComputeImage(payload: {
+        name: string;
+        version?: string;
+        local_path: string;
+        os_family?: 'ubuntu' | 'debian' | 'centos' | 'rocky' | 'other';
+        minimum_disk_gb?: number;
+        is_active?: boolean;
+        is_default?: boolean;
+        source_url?: string;
+        checksum_sha256?: string;
+    }): Promise<ComputeImage> {
+        const response = await fetch(`${API_BASE_URL}/compute-images/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+        await this.checkOkWithBody(response, 'Failed to create image');
+        return response.json();
+    }
+
     async getComputeFlavors(): Promise<ComputeFlavor[]> {
         const response = await fetch(`${API_BASE_URL}/compute-flavors/`, {
             method: 'GET',
             headers: this.getHeaders(),
         });
         await this.checkOkWithBody(response, 'Failed to fetch instance types');
+        return response.json();
+    }
+
+    async createComputeFlavor(payload: {
+        name: string;
+        vcpu: number;
+        memory_mb: number;
+        disk_gb: number;
+        is_active?: boolean;
+    }): Promise<ComputeFlavor> {
+        const response = await fetch(`${API_BASE_URL}/compute-flavors/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+        await this.checkOkWithBody(response, 'Failed to create instance type');
         return response.json();
     }
 
