@@ -18,6 +18,7 @@ class SitesConfig(AppConfig):
             'migrate', 'makemigrations', 'collectstatic', 'shell',
             'createsuperuser', 'dbshell', 'dumpdata', 'loaddata',
             'test', 'check',
+            'run_gateway_worker', 'run_compute_worker', 'reconcile_compute_state',
         }
         argv = sys.argv
         if len(argv) >= 2 and argv[1] in _SKIP_COMMANDS:

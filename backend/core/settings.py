@@ -258,6 +258,15 @@ SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'  # Skip email verification for social 
 # In production, replace with SMTP / SendGrid / SES settings.
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# Compute/EC2-like orchestration settings (KVM/libvirt)
+COMPUTE_STORAGE_ROOT = os.getenv('COMPUTE_STORAGE_ROOT', str(BASE_DIR / 'compute'))
+COMPUTE_IMAGES_DIR = os.getenv('COMPUTE_IMAGES_DIR', str(Path(COMPUTE_STORAGE_ROOT) / 'images'))
+COMPUTE_DISKS_DIR = os.getenv('COMPUTE_DISKS_DIR', str(Path(COMPUTE_STORAGE_ROOT) / 'disks'))
+COMPUTE_SEEDS_DIR = os.getenv('COMPUTE_SEEDS_DIR', str(Path(COMPUTE_STORAGE_ROOT) / 'seeds'))
+COMPUTE_LIBVIRT_NETWORK = os.getenv('COMPUTE_LIBVIRT_NETWORK', 'default')
+COMPUTE_OPERATION_DEBOUNCE_SECONDS = float(os.getenv('COMPUTE_OPERATION_DEBOUNCE_SECONDS', '0.2'))
+COMPUTE_STOP_TIMEOUT_SECONDS = int(os.getenv('COMPUTE_STOP_TIMEOUT_SECONDS', '45'))
+
 # Google OAuth2 Settings
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
