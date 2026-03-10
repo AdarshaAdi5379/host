@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APITestCase
+from unittest.mock import patch
 
 from sites.models import ComputeFlavor, ComputeImage, ComputeInstance, ComputeOperation, SSHKeyPair
 
@@ -134,3 +135,55 @@ class ComputePhase5AuthorizationTests(ComputePhase5ApiBase):
         self.assertEqual(detail.status_code, status.HTTP_200_OK)
         self.assertEqual(poll.status_code, status.HTTP_200_OK)
         self.assertEqual(poll.data['operation']['id'], self.operation.id)
+
+
+class ComputePhase5SSHKeyGenerateTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='p5-key-owner', password='testpass')
+        self.client.force_authenticate(self.user)
+
+    @patch('sites.compute_views.subprocess.run')
+    def test_generate_ssh_key_creates_key_and_returns_private_material(self, mocked_run):
+        def _fake_ssh_keygen(cmd, check, capture_output, text):
+            key_path = cmd[cmd.index('-f') + 1]
+            with open(key_path, 'w', encoding='utf-8') as private_handle:
+                private_handle.write(
+                    "-----BEGIN OPENSSH PRIVATE KEY-----\n"
+                    "dummy-private-key\n"
+                    "-----END OPENSSH PRIVATE KEY-----\n"
+                )
+            with open(f'{key_path}.pub', 'w', encoding='utf-8') as public_handle:
+                public_handle.write(
+                    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5u0OQ4X7m2c3hG2f0qM4G4YhYzu3PV6PvJEa3TBUnV generated@example"
+                )
+
+            class _Result:
+                returncode = 0
+                stderr = ''
+
+            return _Result()
+
+        mocked_run.side_effect = _fake_ssh_keygen
+
+        response = self.client.post(
+            '/api/ssh-keys/generate/',
+            {'name': 'generated-main', 'key_type': 'ed25519'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], 'created')
+        self.assertIn('private_key', response.data)
+        self.assertIn('public_key', response.data)
+        self.assertEqual(response.data['key']['name'], 'generated-main')
+        self.assertEqual(SSHKeyPair.objects.filter(owner=self.user, name='generated-main').count(), 1)
+
+    @patch('sites.compute_views.subprocess.run')
+    def test_generate_ssh_key_rejects_invalid_key_type(self, mocked_run):
+        response = self.client.post(
+            '/api/ssh-keys/generate/',
+            {'name': 'generated-main', 'key_type': 'dsa'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['error']['code'], 'invalid_request')
+        mocked_run.assert_not_called()

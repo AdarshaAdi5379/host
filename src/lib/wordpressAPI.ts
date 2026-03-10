@@ -90,6 +90,142 @@ export interface GatewayDiscoveryContainer {
     already_registered_for_port: boolean;
 }
 
+export interface ComputeImage {
+    id: number;
+    name: string;
+    version: string;
+    source_url?: string;
+    checksum_sha256?: string;
+    local_path: string;
+    os_family: string;
+    minimum_disk_gb: number;
+    is_active: boolean;
+    is_default: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ComputeFlavor {
+    id: number;
+    name: string;
+    vcpu: number;
+    memory_mb: number;
+    disk_gb: number;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ComputeSSHKey {
+    id: number;
+    owner: number;
+    name: string;
+    public_key: string;
+    fingerprint: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ComputeSecurityGroup {
+    id: number;
+    owner?: number;
+    name: string;
+    description: string;
+    is_default: boolean;
+    rules?: Array<{
+        id: number;
+        direction: 'ingress' | 'egress';
+        protocol: 'tcp' | 'udp' | 'icmp' | 'all';
+        from_port: number | null;
+        to_port: number | null;
+        cidr: string;
+        description: string;
+        is_active: boolean;
+    }>;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ComputeSecurityGroupRule {
+    id: number;
+    security_group: number;
+    direction: 'ingress' | 'egress';
+    protocol: 'tcp' | 'udp' | 'icmp' | 'all';
+    from_port: number | null;
+    to_port: number | null;
+    cidr: string;
+    description: string;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ComputeInstance {
+    id: number;
+    name: string;
+    instance_id: string;
+    state: string;
+    desired_state: string;
+    private_ip: string | null;
+    public_ip: string | null;
+    image: number;
+    image_name: string;
+    image_version: string;
+    flavor: number;
+    flavor_name: string;
+    ssh_key: number | null;
+    ssh_key_name: string | null;
+    security_groups?: ComputeSecurityGroup[];
+    last_error: string;
+    launched_at: string | null;
+    terminated_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ComputeOperation {
+    id: number;
+    instance: number;
+    instance_id: string;
+    instance_name: string;
+    operation: 'create' | 'start' | 'stop' | 'reboot' | 'terminate' | 'describe' | 'reconcile';
+    status: 'pending' | 'running' | 'success' | 'failed' | 'superseded' | 'cancelled';
+    request_payload: Record<string, unknown>;
+    result_payload: Record<string, unknown>;
+    idempotency_key: string;
+    attempt_count: number;
+    max_attempts: number;
+    retry_backoff_seconds: number;
+    can_retry: boolean;
+    error: string;
+    worker_id: string;
+    requested_by: number | null;
+    requested_by_username: string | null;
+    scheduled_for: string;
+    started_at: string | null;
+    finished_at: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ComputeOperationPollResponse {
+    operation: ComputeOperation;
+    status: ComputeOperation['status'];
+    terminal: boolean;
+    poll_after_seconds: number;
+}
+
+export interface ComputeGeneratedSSHKeyResponse {
+    status: 'created';
+    key: ComputeSSHKey;
+    public_key: string;
+    private_key: string;
+    download_filename: string;
+    key_type: 'ed25519' | 'rsa';
+    bits?: number;
+}
+
 export interface CreateSiteRequest {
     name: string;
     admin_username?: string;
@@ -119,7 +255,15 @@ class WordPressAPI {
             let detail = '';
             try {
                 const body = await response.clone().json();
-                detail = body.detail || body.error || JSON.stringify(body);
+                if (body?.detail) {
+                    detail = body.detail;
+                } else if (body?.error) {
+                    detail = typeof body.error === 'string'
+                        ? body.error
+                        : (body.error.message || JSON.stringify(body.error));
+                } else {
+                    detail = JSON.stringify(body);
+                }
             } catch (_) { }
             throw new Error(detail ? `${message}: ${detail}` : `${message} (HTTP ${response.status})`);
         }
@@ -473,6 +617,177 @@ class WordPressAPI {
         });
 
         await this.checkOkWithBody(response, 'Failed to queue API gateway apply');
+        return response.json();
+    }
+
+    // Compute (EC2-style) endpoints
+    async getComputeImages(): Promise<ComputeImage[]> {
+        const response = await fetch(`${API_BASE_URL}/compute-images/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+        await this.checkOkWithBody(response, 'Failed to fetch compute images');
+        return response.json();
+    }
+
+    async getComputeFlavors(): Promise<ComputeFlavor[]> {
+        const response = await fetch(`${API_BASE_URL}/compute-flavors/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+        await this.checkOkWithBody(response, 'Failed to fetch instance types');
+        return response.json();
+    }
+
+    async getComputeSSHKeys(): Promise<ComputeSSHKey[]> {
+        const response = await fetch(`${API_BASE_URL}/ssh-keys/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+        await this.checkOkWithBody(response, 'Failed to fetch SSH keys');
+        return response.json();
+    }
+
+    async createComputeSSHKey(payload: {
+        name: string;
+        public_key: string;
+    }): Promise<ComputeSSHKey> {
+        const response = await fetch(`${API_BASE_URL}/ssh-keys/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+        await this.checkOkWithBody(response, 'Failed to create SSH key');
+        return response.json();
+    }
+
+    async generateComputeSSHKey(payload: {
+        name: string;
+        key_type?: 'ed25519' | 'rsa';
+        comment?: string;
+        bits?: number;
+    }): Promise<ComputeGeneratedSSHKeyResponse> {
+        const response = await fetch(`${API_BASE_URL}/ssh-keys/generate/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+        await this.checkOkWithBody(response, 'Failed to generate SSH key');
+        return response.json();
+    }
+
+    async getComputeSecurityGroups(): Promise<ComputeSecurityGroup[]> {
+        const response = await fetch(`${API_BASE_URL}/security-groups/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+        await this.checkOkWithBody(response, 'Failed to fetch security groups');
+        return response.json();
+    }
+
+    async createComputeSecurityGroup(payload: {
+        name: string;
+        description?: string;
+        is_default?: boolean;
+    }): Promise<ComputeSecurityGroup> {
+        const response = await fetch(`${API_BASE_URL}/security-groups/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+        await this.checkOkWithBody(response, 'Failed to create security group');
+        return response.json();
+    }
+
+    async createComputeSecurityGroupRule(
+        securityGroupId: number,
+        payload: {
+            direction: 'ingress' | 'egress';
+            protocol: 'tcp' | 'udp' | 'icmp' | 'all';
+            from_port?: number | null;
+            to_port?: number | null;
+            cidr: string;
+            description?: string;
+            is_active?: boolean;
+        }
+    ): Promise<ComputeSecurityGroupRule> {
+        const response = await fetch(`${API_BASE_URL}/security-groups/${securityGroupId}/rules/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+        await this.checkOkWithBody(response, 'Failed to create security group rule');
+        return response.json();
+    }
+
+    async deleteComputeSecurityGroupRule(securityGroupId: number, ruleId: number): Promise<{ status: string }> {
+        const response = await fetch(`${API_BASE_URL}/security-groups/${securityGroupId}/rules/${ruleId}/`, {
+            method: 'DELETE',
+            headers: this.getHeaders(),
+        });
+        await this.checkOkWithBody(response, 'Failed to delete security group rule');
+        return response.json();
+    }
+
+    async getComputeInstances(): Promise<ComputeInstance[]> {
+        const response = await fetch(`${API_BASE_URL}/compute-instances/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+        await this.checkOkWithBody(response, 'Failed to fetch compute instances');
+        return response.json();
+    }
+
+    async createComputeInstance(payload: {
+        name: string;
+        image_id: number;
+        flavor_id: number;
+        ssh_key_id: number;
+        security_group_ids?: number[];
+        metadata?: Record<string, unknown>;
+    }): Promise<{ status: string; instance: ComputeInstance; operation: ComputeOperation }> {
+        const response = await fetch(`${API_BASE_URL}/compute-instances/`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+        });
+        await this.checkOkWithBody(response, 'Failed to create compute instance');
+        return response.json();
+    }
+
+    async queueComputeInstanceAction(
+        instanceId: number,
+        action: 'start' | 'stop' | 'reboot' | 'terminate' | 'describe',
+        idempotencyKey: string = '',
+    ): Promise<{ status: string; instance_id: string; operation: ComputeOperation }> {
+        const headers = {
+            ...this.getHeaders(),
+            ...(idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey } : {}),
+        };
+        const response = await fetch(`${API_BASE_URL}/compute-instances/${instanceId}/${action}/`, {
+            method: 'POST',
+            headers,
+        });
+        await this.checkOkWithBody(response, `Failed to queue ${action} operation`);
+        return response.json();
+    }
+
+    async pollComputeOperation(operationId: number): Promise<ComputeOperationPollResponse> {
+        const response = await fetch(`${API_BASE_URL}/compute-operations/${operationId}/poll/`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+        await this.checkOkWithBody(response, 'Failed to poll compute operation');
+        return response.json();
+    }
+
+    async getComputeInstanceOperationStatus(instanceId: number, operationId?: number): Promise<ComputeOperationPollResponse> {
+        const query = operationId ? `?operation_id=${operationId}` : '';
+        const response = await fetch(`${API_BASE_URL}/compute-instances/${instanceId}/operation-status/${query}`, {
+            method: 'GET',
+            headers: this.getHeaders(),
+        });
+        await this.checkOkWithBody(response, 'Failed to fetch compute instance operation status');
         return response.json();
     }
 }

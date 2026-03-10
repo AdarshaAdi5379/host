@@ -1,4 +1,4 @@
-import { Globe, Layers, FolderOpen, Database } from 'lucide-react'
+import { Globe, Layers, FolderOpen, Database, Cpu } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const quickActions = [
@@ -9,6 +9,14 @@ const quickActions = [
         href: '/hosting/create',
         color: 'bg-blue-100 text-blue-600',
         hoverBg: 'hover:border-blue-300 hover:bg-blue-50',
+    },
+    {
+        name: 'EC2 Service',
+        description: 'Manage VM instances',
+        icon: Cpu,
+        href: '/ec2',
+        color: 'bg-indigo-100 text-indigo-600',
+        hoverBg: 'hover:border-indigo-300 hover:bg-indigo-50',
     },
     {
         name: 'New Full Stack App',

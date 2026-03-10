@@ -31,6 +31,7 @@ import { DomainTransferWizard } from '@/pages/domains/DomainTransferWizard'
 import { AuditLogViewer } from '@/components/audit/AuditLogViewer'
 import DomainManagement from '@/pages/settings/DomainManagement'
 import DomainsOverview from '@/pages/DomainsOverview'
+import { Ec2Service } from '@/pages/Ec2Service'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
@@ -64,6 +65,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
 
           <Route path="hosting" element={<HostingManagement />} />
+          <Route path="ec2" element={<Ec2Service />} />
           <Route path="hosting/create" element={<CreateHosting />} />
           <Route path="hosting/create-fullstack" element={<CreateFullStack />} />
           <Route path="hosting/dns" element={<DNSEditor />} />

@@ -133,7 +133,7 @@ class Command(BaseCommand):
                 ComputeInstance.objects.exclude(libvirt_domain_name='').values_list('libvirt_domain_name', flat=True)
             )
             orphaned_domains = sorted(domains - tracked)
-        except ComputeDriverError as exc:
+        except (ComputeDriverError, OSError, FileNotFoundError) as exc:
             self.stdout.write(self.style.WARNING(f'Could not list domains for orphan detection: {exc}'))
 
         summary = {

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import {
     Server,
+    Cpu,
     Globe,
     Mail,
     CreditCard,
@@ -15,6 +16,7 @@ import { useState } from 'react'
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Hosting', href: '/hosting', icon: Server },
+    { name: 'EC2 Service', href: '/ec2', icon: Cpu },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Domains', href: '/domains', icon: Globe },
     { name: 'Email', href: '/email', icon: Mail },

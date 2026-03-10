@@ -143,6 +143,8 @@ class LibvirtComputeDriver:
             'virt-install',
             '--name',
             domain_name,
+            '--osinfo',
+            'detect=on,require=off',
             '--memory',
             str(int(memory_mb)),
             '--vcpus',

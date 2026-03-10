@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import subprocess
+import tempfile
+from pathlib import Path
+
 from django.db import transaction
 from django.db.models import ProtectedError
 from rest_framework import status, viewsets
@@ -205,6 +209,100 @@ class SSHKeyPairViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    @action(detail=False, methods=['post'], url_path='generate')
+    def generate(self, request):
+        name = (request.data.get('name') or '').strip()
+        if not name:
+            return _error_response(
+                'Key name is required.',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code='invalid_request',
+                details={'name': ['This field is required.']},
+            )
+
+        key_type = (request.data.get('key_type') or 'ed25519').strip().lower()
+        if key_type not in {'ed25519', 'rsa'}:
+            return _error_response(
+                'Unsupported key_type. Allowed values: ed25519, rsa.',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code='invalid_request',
+                details={'key_type': key_type},
+            )
+
+        bits = 4096
+        if key_type == 'rsa':
+            try:
+                bits = int(request.data.get('bits') or 4096)
+            except (TypeError, ValueError):
+                return _error_response(
+                    'bits must be an integer.',
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    code='invalid_request',
+                    details={'bits': request.data.get('bits')},
+                )
+            if bits not in {2048, 3072, 4096}:
+                return _error_response(
+                    'Unsupported RSA key size. Allowed values: 2048, 3072, 4096.',
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    code='invalid_request',
+                    details={'bits': bits},
+                )
+
+        comment = (request.data.get('comment') or '').strip() or f'{request.user.username}@hostpanel'
+
+        try:
+            with tempfile.TemporaryDirectory(prefix='compute-ssh-key-') as tmp_dir:
+                key_path = Path(tmp_dir) / 'id_key'
+                public_path = Path(f'{key_path}.pub')
+
+                cmd = ['ssh-keygen', '-t', key_type, '-N', '', '-C', comment, '-f', str(key_path)]
+                if key_type == 'rsa':
+                    cmd.extend(['-b', str(bits)])
+
+                result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+                if result.returncode != 0:
+                    return _error_response(
+                        'Failed to generate SSH key material.',
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        code='key_generation_failed',
+                        details={'stderr': (result.stderr or '').strip()},
+                    )
+
+                private_key = key_path.read_text(encoding='utf-8')
+                public_key = public_path.read_text(encoding='utf-8').strip()
+        except FileNotFoundError:
+            return _error_response(
+                'ssh-keygen binary is not available on the server.',
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                code='key_generation_failed',
+            )
+        except OSError as exc:
+            return _error_response(
+                'Failed to access generated key files.',
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                code='key_generation_failed',
+                details={'error': str(exc)},
+            )
+
+        serializer = SSHKeyPairSerializer(data={'name': name, 'public_key': public_key})
+        serializer.is_valid(raise_exception=True)
+        key = serializer.save(owner=request.user)
+
+        payload = {
+            'status': 'created',
+            'key': SSHKeyPairSerializer(key).data,
+            'public_key': public_key,
+            'private_key': private_key,
+            'download_filename': f'{name}.pem',
+            'key_type': key_type,
+        }
+        if key_type == 'rsa':
+            payload['bits'] = bits
+
+        response = Response(payload, status=status.HTTP_201_CREATED)
+        response['Cache-Control'] = 'no-store'
+        return response
 
 
 class SecurityGroupViewSet(viewsets.ModelViewSet):
