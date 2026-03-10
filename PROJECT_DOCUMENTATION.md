@@ -936,3 +936,33 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   Passwords shown in terminal history/chats must be rotated immediately.
     -   Keep source MySQL port tightly restricted (AWS source ranges or trusted ingress path only) once replication is stable.
 -   **Status**: 🟡 Implemented in code and partially validated; final external-source connectivity hardening still pending (see `TODO.md`).
+
+### Phase 24: Enhanced Receipt & Billing Management
+-   **Objective**: Improve the billing and receipt management system to allow users to easily download, print, email, and share their receipts.
+-   **Implementation**:
+    -   **Frontend Additions**: 
+        -   Integrated action buttons on the Receipt UI for "Print", "Download PDF", "Email Receipt", and "Share via WhatsApp".
+        -   Implemented print-specific CSS to ensure receipts hide interactive elements when printed.
+-   **Outcome**:
+    -   Users have flexible options to save and share their billing receipts, improving the administrative experience.
+    -   **Status**: 🟢 Completed (Verified).
+
+### Phase 25: Autostarting Cloudflared Tunnel
+-   **Objective**: Resolve "Error 1033 Cloudflare Tunnel" errors by ensuring the `cloudflared` process automatically starts alongside the Django backend.
+-   **Implementation**:
+    -   Created `backend/sites/cloudflared_runner.py` to oversee the tunnel lifecycle.
+    -   Integrated with Django's startup sequence via `sites/apps.py` (`SitesConfig.ready()`), conditionally spawning the tunnel process in the background when the HTTP server starts.
+-   **Outcome**:
+    -   Tunnel connection is perfectly synced with the backend lifecycle, eliminating manual `cloudflared` startup steps.
+    -   **Status**: 🟢 Completed (Verified).
+
+### Phase 26: Superuser Configuration & UI Polishing
+-   **Objective**: Address UI mock data scaling issues and ensure Superadmin privileges are correctly enforced across the entire platform.
+-   **Implementation**:
+    -   **Superuser Quota**: Fixed a quota calculation bug in `UserProfile` that prevented Superadmins from creating new projects (incorrectly showing "project is full"). Superadmins now have truly unlimited project creation capabilities.
+    -   **UI Data Clean-up**: Removed hardcoded mock data for system prune metrics and deleted stale malware alerts, ensuring the UI accurately reflects dynamic backend data.
+    -   **Filebrowser Provisions**: Enhanced the `file_manager` interface to reliably auto-provision file browser credentials for legacy sites without them, preventing empty UI displays.
+-   **Outcome**:
+    -   Polished administrative dashboard and robust platform privilege enforcement.
+    -   **Status**: 🟢 Completed (Verified).
+
