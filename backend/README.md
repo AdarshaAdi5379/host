@@ -105,6 +105,59 @@ Process one ready job and exit:
 python manage.py run_gateway_worker --once
 ```
 
+## Compute Worker (EC2-style lifecycle operations)
+
+Compute instance lifecycle calls are queued and processed asynchronously by the compute worker.
+
+Run in a separate terminal:
+
+```bash
+python manage.py run_compute_worker
+```
+
+Process one ready operation and exit:
+
+```bash
+python manage.py run_compute_worker --once
+```
+
+Reconcile DB state with libvirt state:
+
+```bash
+python manage.py reconcile_compute_state
+```
+
+### Import Compute Images
+
+Import an image into the catalog with checksum verification:
+
+```bash
+python manage.py import_compute_image \
+  --name ubuntu \
+  --image-version 24.04 \
+  --source /path/to/ubuntu-24.04-server-cloudimg-amd64.img \
+  --target-path /var/lib/host/compute/images/ubuntu-24.04.qcow2 \
+  --set-default
+```
+
+### Compute API Endpoints
+
+Base: `http://localhost:8000/api/`
+
+- `GET/POST /compute-images/` (admin create/update)
+- `GET/POST /compute-flavors/` (admin create/update)
+- `GET/POST /ssh-keys/`
+- `GET/POST /security-groups/`
+- `GET/POST /security-groups/{id}/rules/`
+- `GET/POST /compute-instances/`
+- `POST /compute-instances/{id}/start/`
+- `POST /compute-instances/{id}/stop/`
+- `POST /compute-instances/{id}/reboot/`
+- `POST /compute-instances/{id}/terminate/`
+- `GET /compute-instances/{id}/operations/`
+- `GET /compute-operations/`
+- `GET /compute-events/`
+
 ### Enable Auto-Start On Boot (systemd)
 
 Install and start the worker service:
@@ -112,6 +165,7 @@ Install and start the worker service:
 ```bash
 cd /home/adarsha/Desktop/projects/HOST/host/backend
 sudo ./scripts/install_gateway_worker_service.sh
+sudo ./scripts/install_compute_worker_service.sh
 ```
 
 Install and start the Django API service:
@@ -139,10 +193,13 @@ Service management:
 ```bash
 sudo systemctl status host-django-api.service --no-pager
 sudo systemctl status host-gateway-worker.service --no-pager
+sudo systemctl status host-compute-worker.service --no-pager
 sudo systemctl restart host-django-api.service
 sudo systemctl restart host-gateway-worker.service
+sudo systemctl restart host-compute-worker.service
 sudo journalctl -u host-django-api.service -f
 sudo journalctl -u host-gateway-worker.service -f
+sudo journalctl -u host-compute-worker.service -f
 ```
 
 ### Fallback (no systemd)
@@ -152,6 +209,9 @@ cd /home/adarsha/Desktop/projects/HOST/host/backend
 ./scripts/gateway_worker_ctl.sh start
 ./scripts/gateway_worker_ctl.sh status
 ./scripts/gateway_worker_ctl.sh logs
+./scripts/compute_worker_ctl.sh start
+./scripts/compute_worker_ctl.sh status
+./scripts/compute_worker_ctl.sh logs
 ```
 
 ### Django API Runtime Mode

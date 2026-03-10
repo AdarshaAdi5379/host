@@ -1,5 +1,11 @@
+import tempfile
+from pathlib import Path
+
 from django.contrib.auth.models import User
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
+from django.test.utils import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -98,3 +104,53 @@ class ComputeInstanceApiTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('ssh_key_id', response.data)
+
+
+class ImportComputeImageCommandTests(TestCase):
+    @override_settings(COMPUTE_IMAGES_DIR='/tmp')
+    def test_import_compute_image_from_local_path(self):
+        with tempfile.TemporaryDirectory(prefix='compute-image-test-') as tmp:
+            source = Path(tmp) / 'src.qcow2'
+            target = Path(tmp) / 'images' / 'ubuntu-24.04.qcow2'
+            source.write_bytes(b'fake qcow2 image content')
+
+            call_command(
+                'import_compute_image',
+                '--name',
+                'ubuntu',
+                '--image-version',
+                '24.04',
+                '--source',
+                str(source),
+                '--target-path',
+                str(target),
+                '--set-default',
+            )
+
+            image = ComputeImage.objects.get(name='ubuntu', version='24.04')
+            self.assertTrue(target.exists())
+            self.assertEqual(image.local_path, str(target))
+            self.assertTrue(image.is_default)
+            self.assertTrue(image.is_active)
+            self.assertEqual(len(image.checksum_sha256), 64)
+
+    def test_import_compute_image_checksum_mismatch_raises(self):
+        with tempfile.TemporaryDirectory(prefix='compute-image-test-') as tmp:
+            source = Path(tmp) / 'src.qcow2'
+            target = Path(tmp) / 'ubuntu-22.04.qcow2'
+            source.write_bytes(b'fake image data')
+
+            with self.assertRaises(CommandError):
+                call_command(
+                    'import_compute_image',
+                    '--name',
+                    'ubuntu',
+                    '--image-version',
+                    '22.04',
+                    '--source',
+                    str(source),
+                    '--target-path',
+                    str(target),
+                    '--checksum-sha256',
+                    '0' * 64,
+                )

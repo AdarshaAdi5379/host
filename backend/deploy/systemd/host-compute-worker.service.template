@@ -1,0 +1,19 @@
+[Unit]
+Description=HOST Compute Worker
+After=network-online.target libvirtd.service
+Wants=network-online.target
+Requires=libvirtd.service
+
+[Service]
+Type=simple
+User={{RUN_AS_USER}}
+WorkingDirectory={{BACKEND_DIR}}
+Environment=PYTHONUNBUFFERED=1
+ExecStart={{PYTHON_BIN}} manage.py run_compute_worker --sleep-seconds 1
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

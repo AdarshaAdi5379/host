@@ -1,11 +1,12 @@
-# Django API + Gateway Worker systemd Deployment
+# Django API + Workers systemd Deployment
 
-This folder contains `systemd` templates used to run Django API and gateway worker as persistent services.
+This folder contains `systemd` templates used to run Django API, gateway worker, and compute worker as persistent services.
 
 ## Files
 
 - `host-django-api.service.template`: Django API unit template
 - `host-gateway-worker.service.template`: unit template with placeholders
+- `host-compute-worker.service.template`: compute operation worker template
 
 ## Install
 
@@ -15,6 +16,7 @@ Run from the backend directory:
 cd /home/adarsha/Desktop/projects/HOST/host/backend
 sudo ./scripts/install_django_api_service.sh
 sudo ./scripts/install_gateway_worker_service.sh
+sudo ./scripts/install_compute_worker_service.sh
 ```
 
 Install both with one command:
@@ -33,6 +35,11 @@ sudo SERVICE_NAME=host-gateway-worker \
      PYTHON_BIN=/usr/bin/python3 \
      ./scripts/install_gateway_worker_service.sh
 
+sudo SERVICE_NAME=host-compute-worker \
+     RUN_AS_USER=adarsha \
+     PYTHON_BIN=/usr/bin/python3 \
+     ./scripts/install_compute_worker_service.sh
+
 sudo SERVICE_NAME=host-django-api \
      RUN_AS_USER=adarsha \
      PYTHON_BIN=/usr/bin/python3 \
@@ -44,8 +51,11 @@ sudo SERVICE_NAME=host-django-api \
 ```bash
 sudo systemctl status host-django-api.service --no-pager
 sudo systemctl status host-gateway-worker.service --no-pager
+sudo systemctl status host-compute-worker.service --no-pager
 sudo systemctl restart host-django-api.service
 sudo systemctl restart host-gateway-worker.service
+sudo systemctl restart host-compute-worker.service
 sudo journalctl -u host-django-api.service -f
 sudo journalctl -u host-gateway-worker.service -f
+sudo journalctl -u host-compute-worker.service -f
 ```
