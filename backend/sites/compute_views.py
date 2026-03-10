@@ -39,6 +39,23 @@ def _is_admin_user(user) -> bool:
     return hasattr(user, 'profile') and user.profile.is_super_admin
 
 
+def _queue_reconcile_for_instances(instances: list[ComputeInstance], requested_by, trigger: str, extra: dict | None = None):
+    payload = {'trigger': trigger}
+    if extra:
+        payload.update(extra)
+    queued = []
+    for instance in instances:
+        op = enqueue_compute_operation(
+            instance=instance,
+            operation='reconcile',
+            requested_by=requested_by,
+            request_payload=payload,
+            idempotency_key='',
+        )
+        queued.append({'instance_id': instance.instance_id, 'operation_id': op.id, 'status': op.status})
+    return queued
+
+
 class ComputeImageViewSet(viewsets.ModelViewSet):
     queryset = ComputeImage.objects.all()
     serializer_class = ComputeImageSerializer
@@ -164,6 +181,29 @@ class SecurityGroupViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
+    def perform_update(self, serializer):
+        group = serializer.save()
+        running_instances = list(group.instances.filter(state='running').order_by('id'))
+        queued = _queue_reconcile_for_instances(
+            running_instances,
+            requested_by=self.request.user,
+            trigger='security_group_updated',
+            extra={'security_group_id': group.id},
+        )
+        self._last_reconcile_jobs = queued
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        if hasattr(self, '_last_reconcile_jobs'):
+            response.data['reconcile_jobs'] = self._last_reconcile_jobs
+        return response
+
+    def partial_update(self, request, *args, **kwargs):
+        response = super().partial_update(request, *args, **kwargs)
+        if hasattr(self, '_last_reconcile_jobs'):
+            response.data['reconcile_jobs'] = self._last_reconcile_jobs
+        return response
+
     def destroy(self, request, *args, **kwargs):
         group = self.get_object()
         if not _is_admin_user(request.user) and group.owner_id != request.user.id:
@@ -188,7 +228,16 @@ class SecurityGroupViewSet(viewsets.ModelViewSet):
         serializer = SecurityGroupRuleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         rule = serializer.save(security_group=group)
-        return Response(SecurityGroupRuleSerializer(rule).data, status=status.HTTP_201_CREATED)
+        running_instances = list(group.instances.filter(state='running').order_by('id'))
+        queued = _queue_reconcile_for_instances(
+            running_instances,
+            requested_by=request.user,
+            trigger='security_group_rule_created',
+            extra={'security_group_id': group.id, 'security_group_rule_id': rule.id},
+        )
+        payload = SecurityGroupRuleSerializer(rule).data
+        payload['reconcile_jobs'] = queued
+        return Response(payload, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['patch', 'delete'], url_path='rules/(?P<rule_id>[^/.]+)')
     def rule_detail(self, request, pk=None, rule_id=None):
@@ -203,12 +252,28 @@ class SecurityGroupViewSet(viewsets.ModelViewSet):
 
         if request.method == 'DELETE':
             rule.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            running_instances = list(group.instances.filter(state='running').order_by('id'))
+            queued = _queue_reconcile_for_instances(
+                running_instances,
+                requested_by=request.user,
+                trigger='security_group_rule_deleted',
+                extra={'security_group_id': group.id, 'security_group_rule_id': int(rule_id)},
+            )
+            return Response({'status': 'deleted', 'reconcile_jobs': queued})
 
         serializer = SecurityGroupRuleSerializer(rule, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        updated = serializer.save()
+        running_instances = list(group.instances.filter(state='running').order_by('id'))
+        queued = _queue_reconcile_for_instances(
+            running_instances,
+            requested_by=request.user,
+            trigger='security_group_rule_updated',
+            extra={'security_group_id': group.id, 'security_group_rule_id': updated.id},
+        )
+        payload = SecurityGroupRuleSerializer(updated).data
+        payload['reconcile_jobs'] = queued
+        return Response(payload)
 
 
 class ComputeInstanceViewSet(viewsets.ModelViewSet):
@@ -301,6 +366,45 @@ class ComputeInstanceViewSet(viewsets.ModelViewSet):
         instance.desired_state = desired_state
         instance.save(update_fields=['desired_state', 'updated_at'])
         return Response(ComputeInstanceSerializer(instance).data)
+
+    @action(detail=True, methods=['post'], url_path='security-groups')
+    def set_security_groups(self, request, pk=None):
+        instance = self.get_object()
+        group_ids = request.data.get('security_group_ids')
+        if not isinstance(group_ids, list):
+            return Response(
+                {'error': 'security_group_ids must be a list of integers.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            parsed_ids = [int(v) for v in group_ids]
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'security_group_ids must contain valid integers.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        groups = list(SecurityGroup.objects.filter(owner=instance.owner, id__in=parsed_ids))
+        if len(groups) != len(set(parsed_ids)):
+            return Response(
+                {'error': 'One or more security groups are invalid for this instance owner.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            instance.security_groups.set(groups)
+            reconcile_jobs = []
+            if instance.state == 'running':
+                reconcile_jobs = _queue_reconcile_for_instances(
+                    [instance],
+                    requested_by=request.user,
+                    trigger='instance_security_groups_updated',
+                    extra={'instance_id': instance.instance_id},
+                )
+
+        payload = ComputeInstanceSerializer(instance).data
+        payload['reconcile_jobs'] = reconcile_jobs
+        return Response(payload)
 
     def destroy(self, request, *args, **kwargs):
         return Response(

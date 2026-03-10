@@ -127,6 +127,27 @@ Reconcile DB state with libvirt state:
 python manage.py reconcile_compute_state
 ```
 
+### Phase 3 V1: Security Group -> Host Firewall
+
+Security-group rules can now be enforced on host firewall (iptables) for running VMs.
+
+Enable via environment:
+
+```bash
+export COMPUTE_FIREWALL_ENABLED=true
+# Optional safety flags:
+export COMPUTE_FIREWALL_STRICT=false
+export COMPUTE_FIREWALL_DRY_RUN=false
+```
+
+Manual sync command:
+
+```bash
+python manage.py sync_compute_firewall --all
+# or single instance:
+python manage.py sync_compute_firewall --instance-id i-xxxxxxxxxxxxxxxxx
+```
+
 ### Import Compute Images
 
 Import an image into the catalog with checksum verification:

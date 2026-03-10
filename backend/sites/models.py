@@ -6,6 +6,7 @@ from django.db.models import Q
 import base64
 import binascii
 import hashlib
+import ipaddress
 import uuid
 
 
@@ -602,16 +603,21 @@ class SecurityGroupRule(models.Model):
         verbose_name_plural = 'Security Group Rules'
 
     def clean(self):
-        if self.protocol == 'all':
+        if self.protocol in {'all', 'icmp'}:
             self.from_port = None
             self.to_port = None
-            return
-        if self.from_port is None or self.to_port is None:
-            raise ValidationError({'from_port': 'from_port and to_port are required when protocol is not "all".'})
-        if self.from_port > self.to_port:
-            raise ValidationError({'to_port': 'to_port must be greater than or equal to from_port.'})
-        if self.to_port > 65535:
-            raise ValidationError({'to_port': 'Port must be <= 65535.'})
+        else:
+            if self.from_port is None or self.to_port is None:
+                raise ValidationError({'from_port': 'from_port and to_port are required for tcp/udp rules.'})
+            if self.from_port > self.to_port:
+                raise ValidationError({'to_port': 'to_port must be greater than or equal to from_port.'})
+            if self.to_port > 65535:
+                raise ValidationError({'to_port': 'Port must be <= 65535.'})
+
+        try:
+            ipaddress.ip_network(self.cidr, strict=False)
+        except ValueError as exc:
+            raise ValidationError({'cidr': f'Invalid CIDR value: {exc}'}) from exc
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -748,6 +754,10 @@ class ComputeOperation(models.Model):
     request_payload = models.JSONField(default=dict, blank=True)
     result_payload = models.JSONField(default=dict, blank=True)
     idempotency_key = models.CharField(max_length=80, blank=True, default='')
+    attempt_count = models.PositiveIntegerField(default=0)
+    max_attempts = models.PositiveIntegerField(default=3)
+    retry_backoff_seconds = models.PositiveIntegerField(default=5)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
     error = models.TextField(blank=True, default='')
     worker_id = models.CharField(max_length=120, blank=True, default='')
     scheduled_for = models.DateTimeField(default=timezone.now)
@@ -768,6 +778,10 @@ class ComputeOperation(models.Model):
 
     def __str__(self):
         return f"compute:{self.instance.instance_id}:{self.operation}:{self.status}:{self.id}"
+
+    @property
+    def can_retry(self) -> bool:
+        return int(self.attempt_count) < int(self.max_attempts)
 
 
 class ComputeEvent(models.Model):

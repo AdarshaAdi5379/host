@@ -4,6 +4,7 @@ import os
 import socket
 import time
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -23,6 +24,23 @@ class Command(BaseCommand):
         now = timezone.now()
 
         with transaction.atomic():
+            # Recover stale running jobs (worker crash / hard timeout).
+            operation_timeout = int(getattr(settings, 'COMPUTE_OPERATION_TIMEOUT_SECONDS', 600))
+            stale_cutoff = now - timezone.timedelta(seconds=max(30, operation_timeout))
+            stale_running = (
+                ComputeOperation.objects
+                .select_for_update()
+                .filter(status='running', started_at__lt=stale_cutoff)
+                .order_by('started_at')
+            )
+            for stale in stale_running:
+                stale.status = 'pending'
+                stale.scheduled_for = now + timezone.timedelta(seconds=1)
+                stale.error = 'Recovered stale running operation after timeout window.'
+                stale.worker_id = ''
+                stale.started_at = None
+                stale.save(update_fields=['status', 'scheduled_for', 'error', 'worker_id', 'started_at', 'updated_at'])
+
             try:
                 qs = ComputeOperation.objects.select_for_update(skip_locked=True)
             except TypeError:
@@ -76,21 +94,57 @@ class Command(BaseCommand):
             job.status = 'running'
             job.worker_id = worker_id
             job.started_at = now
+            job.last_attempt_at = now
+            job.attempt_count = int(job.attempt_count) + 1
             job.error = ''
-            job.save(update_fields=['status', 'worker_id', 'started_at', 'error', 'updated_at'])
+            job.save(update_fields=['status', 'worker_id', 'started_at', 'last_attempt_at', 'attempt_count', 'error', 'updated_at'])
             return job
 
     def _finish_job(self, job_id: int, success: bool, message: str, result: dict):
         now = timezone.now()
-        status_value = 'success' if success else 'failed'
+        if success:
+            ComputeOperation.objects.filter(id=job_id).update(
+                status='success',
+                error='',
+                result_payload=result or {},
+                finished_at=now,
+                updated_at=now,
+            )
+            return 'success'
+
+        job = ComputeOperation.objects.select_related('instance').get(id=job_id)
+        if job.can_retry and job.operation in {'create', 'start', 'stop', 'reboot', 'reconcile'}:
+            retry_base = max(1, int(job.retry_backoff_seconds))
+            # Exponential-ish backoff by attempts already consumed.
+            retry_after = retry_base * (2 ** max(0, int(job.attempt_count) - 1))
+            retry_after = min(retry_after, int(getattr(settings, 'COMPUTE_OPERATION_MAX_BACKOFF_SECONDS', 120)))
+            job.status = 'pending'
+            job.error = f"{message} (auto-retry scheduled in {retry_after}s)"
+            job.result_payload = result or {}
+            job.worker_id = ''
+            job.started_at = None
+            job.scheduled_for = now + timezone.timedelta(seconds=retry_after)
+            job.save(
+                update_fields=[
+                    'status',
+                    'error',
+                    'result_payload',
+                    'worker_id',
+                    'started_at',
+                    'scheduled_for',
+                    'updated_at',
+                ]
+            )
+            return 'retried'
 
         ComputeOperation.objects.filter(id=job_id).update(
-            status=status_value,
-            error='' if success else message,
+            status='failed',
+            error=message,
             result_payload=result or {},
             finished_at=now,
             updated_at=now,
         )
+        return 'failed'
 
     def handle(self, *args, **options):
         run_once = options['once']
@@ -113,10 +167,12 @@ class Command(BaseCommand):
                 f"Executing operation={job.operation} instance={job.instance.instance_id} job_id={job.id}..."
             )
             ok, msg, result = service.execute_operation(job)
-            self._finish_job(job.id, ok, msg, result)
+            finish_mode = self._finish_job(job.id, ok, msg, result)
 
             if ok:
                 self.stdout.write(self.style.SUCCESS(f'Job {job.id} succeeded: {msg}'))
+            elif finish_mode == 'retried':
+                self.stdout.write(self.style.WARNING(f'Job {job.id} will retry: {msg}'))
             else:
                 self.stdout.write(self.style.ERROR(f'Job {job.id} failed: {msg}'))
 

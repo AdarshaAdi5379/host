@@ -10,6 +10,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from .compute_driver import ComputeDriverError, LibvirtComputeDriver
+from .compute_firewall import SecurityGroupFirewallManager
 from .compute_jobs import record_compute_event
 from .models import ComputeInstance, ComputeOperation
 
@@ -19,6 +20,7 @@ class ComputeService:
         self.driver = driver or LibvirtComputeDriver(
             network_name=getattr(settings, 'COMPUTE_LIBVIRT_NETWORK', 'default')
         )
+        self.firewall = SecurityGroupFirewallManager()
 
     def execute_operation(self, op: ComputeOperation) -> tuple[bool, str, dict]:
         instance = op.instance
@@ -65,6 +67,35 @@ class ComputeService:
             )
             return False, error, {}
 
+    def _sync_instance_firewall(self, instance: ComputeInstance, operation: ComputeOperation | None = None) -> dict:
+        if not self.firewall.enabled:
+            return {'enabled': False, 'message': 'compute firewall disabled'}
+
+        if instance.state == 'running' and instance.private_ip:
+            result = self.firewall.apply_instance_rules(instance)
+            event_type = 'firewall_applied' if result.ok else 'firewall_apply_failed'
+        else:
+            result = self.firewall.clear_instance_rules(instance)
+            event_type = 'firewall_cleared' if result.ok else 'firewall_clear_failed'
+
+        record_compute_event(
+            instance=instance,
+            operation=operation,
+            event_type=event_type,
+            message=result.message,
+            metadata=result.details,
+        )
+
+        if not result.ok and self.firewall.strict:
+            raise ComputeDriverError(result.message)
+
+        return {
+            'enabled': self.firewall.enabled,
+            'ok': result.ok,
+            'message': result.message,
+            **(result.details or {}),
+        }
+
     @staticmethod
     def _storage_paths(instance: ComputeInstance) -> tuple[str, str]:
         disks_dir = Path(getattr(settings, 'COMPUTE_DISKS_DIR', '/var/lib/host/compute/disks'))
@@ -72,6 +103,27 @@ class ComputeService:
         disk_path = str(disks_dir / f"{instance.instance_id}.qcow2")
         seed_path = str(seeds_dir / f"{instance.instance_id}.iso")
         return disk_path, seed_path
+
+    def _rollback_failed_create(self, instance: ComputeInstance, disk_path: str, seed_iso_path: str):
+        """
+        Deterministic compensating cleanup for partially created VM assets.
+        """
+        try:
+            if self.driver.domain_exists(instance.libvirt_domain_name):
+                self.driver.destroy_domain(instance.libvirt_domain_name)
+                self.driver.undefine_domain(instance.libvirt_domain_name)
+        except Exception:
+            pass
+
+        for candidate in (disk_path, seed_iso_path):
+            if not candidate:
+                continue
+            try:
+                path = Path(candidate)
+                if path.exists():
+                    path.unlink()
+            except Exception:
+                pass
 
     @staticmethod
     def _map_libvirt_state(libvirt_state: str) -> str:
@@ -99,25 +151,29 @@ class ComputeService:
             return self.describe_instance(instance)
 
         disk_path, seed_iso_path = self._storage_paths(instance)
-        self.driver.create_overlay_disk(
-            base_image_path=instance.image.local_path,
-            disk_path=disk_path,
-            disk_gb=max(instance.flavor.disk_gb, instance.image.minimum_disk_gb),
-        )
-        self.driver.create_cloud_init_seed(
-            instance_id=instance.instance_id,
-            vm_name=instance.libvirt_domain_name,
-            ssh_public_key=instance.ssh_key.public_key,
-            seed_iso_path=seed_iso_path,
-            username=str(payload.get('ssh_username') or 'ubuntu'),
-        )
-        self.driver.create_domain(
-            domain_name=instance.libvirt_domain_name,
-            memory_mb=instance.flavor.memory_mb,
-            vcpu=instance.flavor.vcpu,
-            disk_path=disk_path,
-            seed_iso_path=seed_iso_path,
-        )
+        try:
+            self.driver.create_overlay_disk(
+                base_image_path=instance.image.local_path,
+                disk_path=disk_path,
+                disk_gb=max(instance.flavor.disk_gb, instance.image.minimum_disk_gb),
+            )
+            self.driver.create_cloud_init_seed(
+                instance_id=instance.instance_id,
+                vm_name=instance.libvirt_domain_name,
+                ssh_public_key=instance.ssh_key.public_key,
+                seed_iso_path=seed_iso_path,
+                username=str(payload.get('ssh_username') or 'ubuntu'),
+            )
+            self.driver.create_domain(
+                domain_name=instance.libvirt_domain_name,
+                memory_mb=instance.flavor.memory_mb,
+                vcpu=instance.flavor.vcpu,
+                disk_path=disk_path,
+                seed_iso_path=seed_iso_path,
+            )
+        except Exception:
+            self._rollback_failed_create(instance, disk_path, seed_iso_path)
+            raise
 
         instance.disk_path = disk_path
         instance.seed_iso_path = seed_iso_path
@@ -231,19 +287,23 @@ class ComputeService:
                 'updated_at',
             ]
         )
+        firewall = self._sync_instance_firewall(instance)
         return {
             'state': instance.state,
             'instance_id': instance.instance_id,
             'terminated_at': instance.terminated_at.isoformat(),
+            'firewall': firewall,
         }
 
     def describe_instance(self, instance: ComputeInstance) -> dict:
         if instance.state == 'terminated':
+            firewall = self._sync_instance_firewall(instance)
             return {
                 'state': instance.state,
                 'instance_id': instance.instance_id,
                 'private_ip': None,
                 'domain_uuid': instance.libvirt_domain_uuid,
+                'firewall': firewall,
             }
 
         if not self.driver.domain_exists(instance.libvirt_domain_name):
@@ -257,10 +317,12 @@ class ComputeService:
             instance.state = 'error'
             instance.last_error = 'libvirt domain not found for tracked instance'
             instance.save(update_fields=['state', 'last_error', 'updated_at'])
+            firewall = self._sync_instance_firewall(instance)
             return {
                 'state': instance.state,
                 'instance_id': instance.instance_id,
                 'error': instance.last_error,
+                'firewall': firewall,
             }
 
         raw_state = self.driver.get_domain_state(instance.libvirt_domain_name)
@@ -290,10 +352,12 @@ class ComputeService:
             update_fields.append('last_error')
         instance.save(update_fields=update_fields)
 
+        firewall = self._sync_instance_firewall(instance)
         return {
             'state': instance.state,
             'instance_id': instance.instance_id,
             'private_ip': instance.private_ip,
             'domain_uuid': instance.libvirt_domain_uuid,
             'cloud_init_completed': instance.cloud_init_completed,
+            'firewall': firewall,
         }

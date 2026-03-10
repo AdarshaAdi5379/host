@@ -43,6 +43,8 @@ def enqueue_compute_operation(
 
     normalized_payload = request_payload or {}
     normalized_key = (idempotency_key or '').strip()
+    default_max_attempts = int(getattr(settings, 'COMPUTE_OPERATION_MAX_ATTEMPTS', 3))
+    retry_backoff_seconds = int(getattr(settings, 'COMPUTE_OPERATION_RETRY_BACKOFF_SECONDS', 5))
 
     with transaction.atomic():
         if normalized_key:
@@ -95,6 +97,8 @@ def enqueue_compute_operation(
             request_payload=normalized_payload,
             idempotency_key=normalized_key,
             scheduled_for=schedule_time,
+            max_attempts=max(1, default_max_attempts),
+            retry_backoff_seconds=max(1, retry_backoff_seconds),
         )
         record_compute_event(
             instance=instance,
