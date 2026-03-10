@@ -9,6 +9,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from sites.compute_jobs import record_compute_event
 from sites.compute_service import ComputeService
 from sites.models import ComputeInstance, ComputeOperation
 
@@ -166,8 +167,43 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"Executing operation={job.operation} instance={job.instance.instance_id} job_id={job.id}..."
             )
-            ok, msg, result = service.execute_operation(job)
+            record_compute_event(
+                instance=job.instance,
+                operation=job,
+                created_by=job.requested_by,
+                event_type='operation_started',
+                message=f'{job.operation} started',
+                metadata={
+                    'operation_id': job.id,
+                    'operation': job.operation,
+                    'worker_id': worker_id,
+                    'attempt_count': int(job.attempt_count),
+                    'max_attempts': int(job.max_attempts),
+                    'correlation_id': f'compute-op-{job.id}',
+                },
+            )
+            try:
+                ok, msg, result = service.execute_operation(job)
+            except Exception as exc:
+                ok, msg, result = False, str(exc), {}
             finish_mode = self._finish_job(job.id, ok, msg, result)
+
+            event_type = 'operation_finished' if ok else ('operation_retry_scheduled' if finish_mode == 'retried' else 'operation_failed_final')
+            record_compute_event(
+                instance=job.instance,
+                operation=job,
+                created_by=job.requested_by,
+                event_type=event_type,
+                message=msg,
+                metadata={
+                    'operation_id': job.id,
+                    'operation': job.operation,
+                    'finish_mode': finish_mode,
+                    'worker_id': worker_id,
+                    'result': result or {},
+                    'correlation_id': f'compute-op-{job.id}',
+                },
+            )
 
             if ok:
                 self.stdout.write(self.style.SUCCESS(f'Job {job.id} succeeded: {msg}'))

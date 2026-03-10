@@ -26,6 +26,15 @@ class ComputeService:
         instance = op.instance
         operation = op.operation
         payload = op.request_payload or {}
+        event_context = {
+            'operation_id': op.id,
+            'operation': operation,
+            'instance_id': instance.instance_id,
+            'attempt_count': int(op.attempt_count),
+            'max_attempts': int(op.max_attempts),
+            'worker_id': op.worker_id,
+            'correlation_id': f'compute-op-{op.id}',
+        }
         try:
             if operation == 'create':
                 data = self.create_instance(instance, payload)
@@ -48,7 +57,7 @@ class ComputeService:
                 created_by=op.requested_by,
                 event_type='operation_success',
                 message=f'{operation} succeeded',
-                metadata=data,
+                metadata={**event_context, **(data or {})},
             )
             return True, f'{operation} succeeded', data
         except Exception as exc:
@@ -63,7 +72,7 @@ class ComputeService:
                 created_by=op.requested_by,
                 event_type='operation_failed',
                 message=f'{operation} failed',
-                metadata={'error': error},
+                metadata={**event_context, 'error': error},
             )
             return False, error, {}
 

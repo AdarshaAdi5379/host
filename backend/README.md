@@ -228,6 +228,23 @@ Operation polling response shape:
 }
 ```
 
+### Phase 6: Reconciliation + Observability
+
+Drift-aware reconciliation (optional auto-repair):
+
+```bash
+python manage.py reconcile_compute_state
+python manage.py reconcile_compute_state --repair-drift
+python manage.py reconcile_compute_state --repair-drift --json
+```
+
+Compute metrics/alerts snapshot:
+
+```bash
+python manage.py compute_metrics --window-hours 24
+python manage.py compute_metrics --window-hours 24 --pretty
+```
+
 ### Enable Auto-Start On Boot (systemd)
 
 Install and start the worker service:
