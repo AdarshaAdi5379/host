@@ -546,6 +546,7 @@ class ComputeOperationSerializer(serializers.ModelSerializer):
     requested_by_username = serializers.CharField(source='requested_by.username', read_only=True)
     instance_id = serializers.CharField(source='instance.instance_id', read_only=True)
     instance_name = serializers.CharField(source='instance.name', read_only=True)
+    can_retry = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = ComputeOperation
@@ -559,6 +560,10 @@ class ComputeOperationSerializer(serializers.ModelSerializer):
             'request_payload',
             'result_payload',
             'idempotency_key',
+            'attempt_count',
+            'max_attempts',
+            'retry_backoff_seconds',
+            'can_retry',
             'error',
             'worker_id',
             'requested_by',

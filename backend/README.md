@@ -148,6 +148,26 @@ python manage.py sync_compute_firewall --all
 python manage.py sync_compute_firewall --instance-id i-xxxxxxxxxxxxxxxxx
 ```
 
+### Phase 4: Worker Retry/Timeout + Provisioning Cleanup
+
+Compute operations now support bounded retries with backoff and stale-running recovery.
+
+Environment settings:
+
+```bash
+export COMPUTE_OPERATION_MAX_ATTEMPTS=3
+export COMPUTE_OPERATION_RETRY_BACKOFF_SECONDS=5
+export COMPUTE_OPERATION_MAX_BACKOFF_SECONDS=120
+export COMPUTE_OPERATION_TIMEOUT_SECONDS=600
+```
+
+Orphaned asset cleanup command (disks and seed ISOs not referenced by non-terminated instances):
+
+```bash
+python manage.py cleanup_compute_orphans --dry-run
+python manage.py cleanup_compute_orphans
+```
+
 ### Import Compute Images
 
 Import an image into the catalog with checksum verification:
