@@ -196,8 +196,37 @@ Base: `http://localhost:8000/api/`
 - `POST /compute-instances/{id}/reboot/`
 - `POST /compute-instances/{id}/terminate/`
 - `GET /compute-instances/{id}/operations/`
+- `GET /compute-instances/{id}/operation-status/` (optional query: `operation_id=<id>`)
 - `GET /compute-operations/`
+- `GET /compute-operations/{id}/poll/`
 - `GET /compute-events/`
+
+### Compute Error Contract (Phase 5)
+
+Compute API validation/authorization failures use a consistent error object:
+
+```json
+{
+  "error": {
+    "code": "invalid_request",
+    "message": "Only desired_state updates are allowed (running/stopped/terminated).",
+    "details": {
+      "allowed_desired_states": ["running", "stopped", "terminated"]
+    }
+  }
+}
+```
+
+Operation polling response shape:
+
+```json
+{
+  "operation": { "id": 123, "status": "running" },
+  "status": "running",
+  "terminal": false,
+  "poll_after_seconds": 2
+}
+```
 
 ### Enable Auto-Start On Boot (systemd)
 

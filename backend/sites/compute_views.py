@@ -56,6 +56,36 @@ def _queue_reconcile_for_instances(instances: list[ComputeInstance], requested_b
     return queued
 
 
+def _error_response(
+    message: str,
+    *,
+    status_code: int,
+    code: str = 'compute_error',
+    details: dict | None = None,
+    operation_id: int | None = None,
+):
+    payload = {
+        'code': code,
+        'message': message,
+        'details': details or {},
+    }
+    if operation_id is not None:
+        payload['operation_id'] = operation_id
+    return Response({'error': payload}, status=status_code)
+
+
+def _operation_poll_payload(operation: ComputeOperation) -> dict:
+    operation_data = ComputeOperationSerializer(operation).data
+    current_status = operation_data.get('status')
+    terminal = current_status in {'success', 'failed', 'superseded', 'cancelled'}
+    return {
+        'operation': operation_data,
+        'status': current_status,
+        'terminal': terminal,
+        'poll_after_seconds': 0 if terminal else 2,
+    }
+
+
 class ComputeImageViewSet(viewsets.ModelViewSet):
     queryset = ComputeImage.objects.all()
     serializer_class = ComputeImageSerializer
@@ -69,7 +99,11 @@ class ComputeImageViewSet(viewsets.ModelViewSet):
 
     def _require_admin(self):
         if not _is_admin_user(self.request.user):
-            return Response({'error': 'Only admins can manage compute images.'}, status=status.HTTP_403_FORBIDDEN)
+            return _error_response(
+                'Only admins can manage compute images.',
+                status_code=status.HTTP_403_FORBIDDEN,
+                code='permission_denied',
+            )
         return None
 
     def create(self, request, *args, **kwargs):
@@ -97,9 +131,10 @@ class ComputeImageViewSet(viewsets.ModelViewSet):
         try:
             return super().destroy(request, *args, **kwargs)
         except ProtectedError:
-            return Response(
-                {'error': 'Cannot delete image while it is referenced by instances.'},
-                status=status.HTTP_409_CONFLICT,
+            return _error_response(
+                'Cannot delete image while it is referenced by instances.',
+                status_code=status.HTTP_409_CONFLICT,
+                code='conflict',
             )
 
     def perform_create(self, serializer):
@@ -119,7 +154,11 @@ class ComputeFlavorViewSet(viewsets.ModelViewSet):
 
     def _require_admin(self):
         if not _is_admin_user(self.request.user):
-            return Response({'error': 'Only admins can manage compute flavors.'}, status=status.HTTP_403_FORBIDDEN)
+            return _error_response(
+                'Only admins can manage compute flavors.',
+                status_code=status.HTTP_403_FORBIDDEN,
+                code='permission_denied',
+            )
         return None
 
     def create(self, request, *args, **kwargs):
@@ -147,9 +186,10 @@ class ComputeFlavorViewSet(viewsets.ModelViewSet):
         try:
             return super().destroy(request, *args, **kwargs)
         except ProtectedError:
-            return Response(
-                {'error': 'Cannot delete flavor while it is referenced by instances.'},
-                status=status.HTTP_409_CONFLICT,
+            return _error_response(
+                'Cannot delete flavor while it is referenced by instances.',
+                status_code=status.HTTP_409_CONFLICT,
+                code='conflict',
             )
 
 
@@ -207,11 +247,16 @@ class SecurityGroupViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         group = self.get_object()
         if not _is_admin_user(request.user) and group.owner_id != request.user.id:
-            return Response({'error': 'You cannot delete this security group.'}, status=status.HTTP_403_FORBIDDEN)
+            return _error_response(
+                'You cannot delete this security group.',
+                status_code=status.HTTP_403_FORBIDDEN,
+                code='permission_denied',
+            )
         if group.instances.exists():
-            return Response(
-                {'error': 'Security group is attached to one or more instances.'},
-                status=status.HTTP_409_CONFLICT,
+            return _error_response(
+                'Security group is attached to one or more instances.',
+                status_code=status.HTTP_409_CONFLICT,
+                code='conflict',
             )
         return super().destroy(request, *args, **kwargs)
 
@@ -219,7 +264,11 @@ class SecurityGroupViewSet(viewsets.ModelViewSet):
     def rules(self, request, pk=None):
         group = self.get_object()
         if not _is_admin_user(request.user) and group.owner_id != request.user.id:
-            return Response({'error': 'Access denied.'}, status=status.HTTP_403_FORBIDDEN)
+            return _error_response(
+                'Access denied.',
+                status_code=status.HTTP_403_FORBIDDEN,
+                code='permission_denied',
+            )
 
         if request.method == 'GET':
             rules = group.rules.order_by('direction', 'protocol', 'from_port')
@@ -243,12 +292,21 @@ class SecurityGroupViewSet(viewsets.ModelViewSet):
     def rule_detail(self, request, pk=None, rule_id=None):
         group = self.get_object()
         if not _is_admin_user(request.user) and group.owner_id != request.user.id:
-            return Response({'error': 'Access denied.'}, status=status.HTTP_403_FORBIDDEN)
+            return _error_response(
+                'Access denied.',
+                status_code=status.HTTP_403_FORBIDDEN,
+                code='permission_denied',
+            )
 
         try:
             rule = SecurityGroupRule.objects.get(id=rule_id, security_group=group)
         except SecurityGroupRule.DoesNotExist:
-            return Response({'error': 'Rule not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return _error_response(
+                'Rule not found.',
+                status_code=status.HTTP_404_NOT_FOUND,
+                code='not_found',
+                details={'rule_id': rule_id},
+            )
 
         if request.method == 'DELETE':
             rule.delete()
@@ -314,9 +372,10 @@ class ComputeInstanceViewSet(viewsets.ModelViewSet):
         max_instances = self._max_instances_per_tenant(request.user)
         current = ComputeInstance.objects.filter(owner=request.user).exclude(state='terminated').count()
         if max_instances and current >= max_instances:
-            return Response(
-                {'error': f'Instance quota reached ({max_instances}).'},
-                status=status.HTTP_403_FORBIDDEN,
+            return _error_response(
+                f'Instance quota reached ({max_instances}).',
+                status_code=status.HTTP_403_FORBIDDEN,
+                code='quota_exceeded',
             )
 
         data = serializer.validated_data
@@ -353,15 +412,21 @@ class ComputeInstanceViewSet(viewsets.ModelViewSet):
         )
 
     def update(self, request, *args, **kwargs):
-        return Response({'error': 'Direct update is not supported for compute instances.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return _error_response(
+            'Direct update is not supported for compute instances.',
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            code='method_not_allowed',
+        )
 
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
         desired_state = request.data.get('desired_state')
         if desired_state not in {'running', 'stopped', 'terminated'}:
-            return Response(
-                {'error': 'Only desired_state updates are allowed (running/stopped/terminated).'},
-                status=status.HTTP_400_BAD_REQUEST,
+            return _error_response(
+                'Only desired_state updates are allowed (running/stopped/terminated).',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code='invalid_request',
+                details={'allowed_desired_states': ['running', 'stopped', 'terminated']},
             )
         instance.desired_state = desired_state
         instance.save(update_fields=['desired_state', 'updated_at'])
@@ -372,23 +437,27 @@ class ComputeInstanceViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         group_ids = request.data.get('security_group_ids')
         if not isinstance(group_ids, list):
-            return Response(
-                {'error': 'security_group_ids must be a list of integers.'},
-                status=status.HTTP_400_BAD_REQUEST,
+            return _error_response(
+                'security_group_ids must be a list of integers.',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code='invalid_request',
             )
         try:
             parsed_ids = [int(v) for v in group_ids]
         except (TypeError, ValueError):
-            return Response(
-                {'error': 'security_group_ids must contain valid integers.'},
-                status=status.HTTP_400_BAD_REQUEST,
+            return _error_response(
+                'security_group_ids must contain valid integers.',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code='invalid_request',
             )
 
         groups = list(SecurityGroup.objects.filter(owner=instance.owner, id__in=parsed_ids))
         if len(groups) != len(set(parsed_ids)):
-            return Response(
-                {'error': 'One or more security groups are invalid for this instance owner.'},
-                status=status.HTTP_400_BAD_REQUEST,
+            return _error_response(
+                'One or more security groups are invalid for this instance owner.',
+                status_code=status.HTTP_400_BAD_REQUEST,
+                code='invalid_request',
+                details={'security_group_ids': parsed_ids},
             )
 
         with transaction.atomic():
@@ -407,9 +476,10 @@ class ComputeInstanceViewSet(viewsets.ModelViewSet):
         return Response(payload)
 
     def destroy(self, request, *args, **kwargs):
-        return Response(
-            {'error': 'Use terminate action to safely destroy compute instances.'},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        return _error_response(
+            'Use terminate action to safely destroy compute instances.',
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            code='method_not_allowed',
         )
 
     def _queue_lifecycle(self, request, instance: ComputeInstance, operation: str):
@@ -475,6 +545,38 @@ class ComputeInstanceViewSet(viewsets.ModelViewSet):
         op = latest_compute_operation(instance)
         return Response({'latest_operation': ComputeOperationSerializer(op).data if op else None})
 
+    @action(detail=True, methods=['get'], url_path='operation-status')
+    def operation_status(self, request, pk=None):
+        instance = self.get_object()
+        operation_id = request.query_params.get('operation_id')
+        if operation_id:
+            try:
+                parsed_operation_id = int(operation_id)
+            except (TypeError, ValueError):
+                return _error_response(
+                    'operation_id must be an integer.',
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    code='invalid_request',
+                )
+            op = instance.operations.filter(id=parsed_operation_id).first()
+            if not op:
+                return _error_response(
+                    'Operation not found for this instance.',
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    code='not_found',
+                    details={'operation_id': parsed_operation_id},
+                )
+            return Response(_operation_poll_payload(op))
+
+        op = latest_compute_operation(instance)
+        if not op:
+            return _error_response(
+                'No operations found for this instance.',
+                status_code=status.HTTP_404_NOT_FOUND,
+                code='not_found',
+            )
+        return Response(_operation_poll_payload(op))
+
     @action(detail=True, methods=['get'])
     def events(self, request, pk=None):
         instance = self.get_object()
@@ -492,6 +594,11 @@ class ComputeOperationViewSet(viewsets.ReadOnlyModelViewSet):
         if _is_admin_user(self.request.user):
             return qs
         return qs.filter(instance__owner=self.request.user)
+
+    @action(detail=True, methods=['get'])
+    def poll(self, request, pk=None):
+        operation = self.get_object()
+        return Response(_operation_poll_payload(operation))
 
 
 class ComputeEventViewSet(viewsets.ReadOnlyModelViewSet):
