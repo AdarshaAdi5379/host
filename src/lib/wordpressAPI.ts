@@ -3,8 +3,9 @@
  */
 
 import { useAuthStore } from '@/store/authStore';
+import { API_BASE_URL as BACKEND_BASE_URL } from '@/lib/api/config'
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
 
 /**
  * Handle globally unauthorized responses: clear the stale token and
@@ -268,9 +269,7 @@ class WordPressAPI {
             headers: this.getHeaders(),
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch aggregate stats');
-        }
+        await this.checkOkWithBody(response, 'Failed to fetch aggregate stats');
 
         return response.json();
     }

@@ -75,7 +75,7 @@ export const authAPI = {
     // Get full user profile with RBAC
     me: async (token: string) => {
         // We use the profile/me endpoint to get full details including role
-        const response = await fetch('http://localhost:8000/api/profile/me/', {
+        const response = await fetch(`${API_BASE_URL}/api/profile/me/`, {
             headers: { 'Authorization': `Token ${token}` },
         })
         if (!response.ok) {

@@ -27,6 +27,7 @@ export function SiteOwnerDashboard() {
     const hydrated = useHasHydrated()
     const [sites, setSites] = useState<Site[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
 
     // Aggregate telemetry across all running sites
@@ -55,8 +56,10 @@ export function SiteOwnerDashboard() {
         try {
             const data = await wordpressAPI.getSites()
             setSites(data)
+            setLoadError(null)
         } catch (error) {
             console.error('Failed to fetch sites:', error)
+            setLoadError(error instanceof Error ? error.message : 'Failed to load projects')
         } finally {
             setIsLoading(false)
         }
@@ -129,6 +132,21 @@ export function SiteOwnerDashboard() {
                             {[1, 2, 3].map(i => (
                                 <div key={i} className="h-48 bg-gray-100 rounded-xl animate-pulse" />
                             ))}
+                        </div>
+                    ) : loadError ? (
+                        <div className="text-center py-12 bg-red-50 rounded-xl border border-dashed border-red-200">
+                            <h3 className="text-lg font-semibold text-red-900 mb-1">Could not load projects</h3>
+                            <p className="text-red-700 mb-6">{loadError}</p>
+                            <Button
+                                onClick={() => {
+                                    setIsLoading(true)
+                                    fetchSites()
+                                }}
+                                variant="outline"
+                                className="border-red-300 text-red-700 hover:bg-red-100"
+                            >
+                                Retry
+                            </Button>
                         </div>
                     ) : filteredSites.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

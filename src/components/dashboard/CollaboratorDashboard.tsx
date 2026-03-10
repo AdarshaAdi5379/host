@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Link } from 'react-router-dom'
 import { useAuthStore, useHasHydrated } from '@/store/authStore'
+import { API_BASE_URL } from '@/lib/api/config'
 
 interface ProjectMembership {
     id: number
@@ -29,7 +30,7 @@ export function CollaboratorDashboard() {
         }
         const fetchMemberships = async () => {
             try {
-                const response = await fetch('http://localhost:8000/api/team/', {
+                const response = await fetch(`${API_BASE_URL}/api/team/`, {
                     headers: { 'Authorization': `Token ${token}` }
                 })
                 if (response.ok) {

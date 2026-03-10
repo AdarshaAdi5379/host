@@ -1,6 +1,25 @@
 /**
- * Shared API configuration for all backend API modules.
- * In production, replace with an environment variable:
- *   export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+ * Shared API base URL.
+ *
+ * Priority:
+ * 1) explicit Vite env (`VITE_API_BASE_URL`)
+ * 2) localhost dev default (`http://localhost:8000`)
+ * 3) current browser origin (for deployed same-origin setups)
  */
-export const API_BASE_URL = 'http://localhost:8000'
+const envApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim()
+
+function resolveApiBaseUrl(): string {
+    if (envApiBaseUrl) return envApiBaseUrl
+
+    if (typeof window !== 'undefined') {
+        const host = window.location.hostname
+        if (host === 'localhost' || host === '127.0.0.1') {
+            return 'http://localhost:8000'
+        }
+        return window.location.origin
+    }
+
+    return 'http://localhost:8000'
+}
+
+export const API_BASE_URL = resolveApiBaseUrl()

@@ -85,7 +85,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
         if not user.is_authenticated:
             return WordPressSite.objects.none()
 
-        if user.is_staff or user.is_superuser:
+        if self._is_admin_user(user):
             return WordPressSite.objects.all()
 
         # For detail/action endpoints (retrieve, scale, start, stop, etc.)
