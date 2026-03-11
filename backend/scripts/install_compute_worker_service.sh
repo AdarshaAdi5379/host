@@ -6,8 +6,8 @@ BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TEMPLATE_PATH="${BACKEND_DIR}/deploy/systemd/host-compute-worker.service.template"
 
 SERVICE_NAME="${SERVICE_NAME:-host-compute-worker}"
-SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
 RUN_AS_USER="${RUN_AS_USER:-${SUDO_USER:-${USER}}}"
+SYSTEMD_SCOPE="${SYSTEMD_SCOPE:-}"
 
 detect_python_bin() {
   local candidate=""
@@ -107,6 +107,24 @@ if ! command -v systemctl >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -z "${SYSTEMD_SCOPE}" ]]; then
+  if [[ "${EUID}" -eq 0 ]]; then
+    SYSTEMD_SCOPE="system"
+  else
+    SYSTEMD_SCOPE="user"
+  fi
+fi
+
+if [[ "${SYSTEMD_SCOPE}" == "system" ]]; then
+  SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
+  SYSTEMCTL_CMD=(systemctl)
+  WANTED_BY="multi-user.target"
+else
+  SYSTEMD_DIR="${SYSTEMD_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user}"
+  SYSTEMCTL_CMD=(systemctl --user)
+  WANTED_BY="default.target"
+fi
+
 TARGET_PATH="${SYSTEMD_DIR}/${SERVICE_NAME}.service"
 TMP_FILE="$(mktemp)"
 trap 'rm -f "${TMP_FILE}"' EXIT
@@ -117,18 +135,46 @@ sed \
   -e "s|{{PYTHON_BIN}}|${PYTHON_BIN}|g" \
   "${TEMPLATE_PATH}" > "${TMP_FILE}"
 
-if [[ "${EUID}" -ne 0 ]]; then
+if [[ "${SYSTEMD_SCOPE}" == "user" ]]; then
+  python3 - "${TMP_FILE}" "${WANTED_BY}" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+wanted_by = sys.argv[2]
+lines = path.read_text(encoding="utf-8").splitlines()
+filtered: list[str] = []
+for line in lines:
+    if line.startswith(("After=", "Wants=", "Requires=")):
+        continue
+    if line.startswith("User="):
+        continue
+    if line.startswith("WantedBy="):
+        filtered.append(f"WantedBy={wanted_by}")
+        continue
+    filtered.append(line)
+path.write_text("\n".join(filtered) + "\n", encoding="utf-8")
+PY
+elif [[ "${EUID}" -ne 0 ]]; then
   echo "[info] Root privileges required to install systemd unit." >&2
   echo "[info] Re-run with sudo:" >&2
   echo "  sudo SERVICE_NAME=${SERVICE_NAME} RUN_AS_USER=${RUN_AS_USER} PYTHON_BIN='${PYTHON_BIN}' ${SCRIPT_DIR}/install_compute_worker_service.sh" >&2
+  echo "[info] Or install a user-level service without sudo:" >&2
+  echo "  SYSTEMD_SCOPE=user SERVICE_NAME=${SERVICE_NAME} RUN_AS_USER=${RUN_AS_USER} PYTHON_BIN='${PYTHON_BIN}' ${SCRIPT_DIR}/install_compute_worker_service.sh" >&2
   exit 1
 fi
 
+mkdir -p "${SYSTEMD_DIR}"
 install -m 0644 "${TMP_FILE}" "${TARGET_PATH}"
 
-systemctl daemon-reload
-systemctl enable --now "${SERVICE_NAME}.service"
+"${SYSTEMCTL_CMD[@]}" daemon-reload
+"${SYSTEMCTL_CMD[@]}" enable --now "${SERVICE_NAME}.service"
 
-echo "[ok] Installed and started ${SERVICE_NAME}.service"
-echo "[info] Check status: sudo systemctl status ${SERVICE_NAME}.service --no-pager"
-echo "[info] Tail logs: sudo journalctl -u ${SERVICE_NAME}.service -f"
+echo "[ok] Installed and started ${SERVICE_NAME}.service (${SYSTEMD_SCOPE})"
+if [[ "${SYSTEMD_SCOPE}" == "system" ]]; then
+  echo "[info] Check status: sudo systemctl status ${SERVICE_NAME}.service --no-pager"
+  echo "[info] Tail logs: sudo journalctl -u ${SERVICE_NAME}.service -f"
+else
+  echo "[info] Check status: systemctl --user status ${SERVICE_NAME}.service --no-pager"
+  echo "[info] Tail logs: journalctl --user -u ${SERVICE_NAME}.service -f"
+fi

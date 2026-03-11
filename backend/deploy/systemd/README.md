@@ -19,6 +19,15 @@ sudo ./scripts/install_gateway_worker_service.sh
 sudo ./scripts/install_compute_worker_service.sh
 ```
 
+If you do not have passwordless `sudo`, the compute worker installer can also install
+as a user-level systemd service:
+
+```bash
+cd /home/adarsha/Desktop/projects/HOST/host/backend
+SYSTEMD_SCOPE=user ./scripts/install_compute_worker_service.sh
+systemctl --user status host-compute-worker.service --no-pager
+```
+
 Install both with one command:
 
 ```bash
