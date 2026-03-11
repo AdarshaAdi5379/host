@@ -20,6 +20,15 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# -----------------------------------------------------------------------------
+# Compute VM defaults for UEFI/q35
+# -----------------------------------------------------------------------------
+COMPUTE_VM_MACHINE_TYPE = os.getenv('COMPUTE_VM_MACHINE_TYPE', 'q35')
+COMPUTE_VM_ENABLE_UEFI = os.getenv('COMPUTE_VM_ENABLE_UEFI', 'true').lower() in {'1', 'true', 'yes'}
+COMPUTE_VM_UEFI_LOADER = os.getenv('COMPUTE_VM_UEFI_LOADER', '/usr/share/ovmf/OVMF.fd')
+COMPUTE_VM_UEFI_VARS_TEMPLATE = os.getenv('COMPUTE_VM_UEFI_VARS_TEMPLATE', '/usr/share/OVMF/OVMF_VARS_4M.fd')
+COMPUTE_VM_UEFI_VARS_DIR = os.getenv('COMPUTE_VM_UEFI_VARS_DIR', str(BASE_DIR / 'compute' / 'nvram'))
+COMPUTE_VM_VIRT_TYPE = os.getenv('COMPUTE_VM_VIRT_TYPE', 'qemu')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -208,6 +217,7 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'x-idempotency-key',
 ]
 
 # REST Framework Settings

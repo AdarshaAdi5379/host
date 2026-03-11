@@ -40,6 +40,7 @@ import {
     type ComputeSecurityGroup,
 } from '@/lib/wordpressAPI'
 import { formatDateTime } from '@/lib/utils'
+import { useAuthStore, useHasHydrated } from '@/store/authStore'
 
 type InstanceAction = 'start' | 'stop' | 'reboot' | 'terminate' | 'describe'
 type SSHKeyType = 'ed25519' | 'rsa'
@@ -162,6 +163,8 @@ function triggerDownload(filename: string, content: string) {
 
 export function Ec2Service() {
     const { addToast } = useToast()
+    const token = useAuthStore((state) => state.token)
+    const hydrated = useHasHydrated()
 
     const [images, setImages] = useState<ComputeImage[]>([])
     const [flavors, setFlavors] = useState<ComputeFlavor[]>([])
@@ -449,8 +452,11 @@ export function Ec2Service() {
     )
 
     useEffect(() => {
+        if (!token || !hydrated) {
+            return
+        }
         void loadData(true)
-    }, [loadData])
+    }, [loadData, token, hydrated])
 
     useEffect(() => {
         setCreateForm((previous) => {

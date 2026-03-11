@@ -3,10 +3,13 @@ Low-level libvirt/qemu command wrapper for compute orchestration.
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
 from pathlib import Path
+
+from django.conf import settings
 
 
 class ComputeDriverError(RuntimeError):
@@ -22,6 +25,21 @@ class LibvirtComputeDriver:
         if shutil.which(binary_name) is None:
             raise ComputeDriverError(f"Required binary not found: {binary_name}")
 
+    @staticmethod
+    def _find_existing_path(candidates: list[str], description: str) -> Path:
+        tried: list[str] = []
+        for raw_path in candidates:
+            if not raw_path:
+                continue
+            candidate = Path(os.path.expanduser(raw_path))
+            candidate_str = str(candidate)
+            if candidate_str in tried:
+                continue
+            tried.append(candidate_str)
+            if candidate.exists():
+                return candidate
+        raise ComputeDriverError(f"{description} not found. Tried: {', '.join(tried)}")
+
     def _run(self, cmd: list[str], timeout: int = 120, check: bool = True) -> str:
         proc = subprocess.run(
             cmd,
@@ -35,6 +53,28 @@ class LibvirtComputeDriver:
             message = stderr or stdout or f"command failed with exit code {proc.returncode}"
             raise ComputeDriverError(f"{' '.join(cmd)}: {message}")
         return stdout
+
+    def _resolve_uefi_paths(self, domain_name: str) -> tuple[str, str]:
+        loader_candidates = [
+            getattr(settings, 'COMPUTE_VM_UEFI_LOADER', '/usr/share/ovmf/OVMF.fd'),
+            '/usr/share/ovmf/OVMF.fd',
+            '/usr/share/OVMF/OVMF_CODE_4M.fd',
+            '/usr/share/OVMF/OVMF_CODE.fd',
+        ]
+        template_candidates = [
+            getattr(settings, 'COMPUTE_VM_UEFI_VARS_TEMPLATE', '/usr/share/OVMF/OVMF_VARS_4M.fd'),
+            '/usr/share/OVMF/OVMF_VARS_4M.fd',
+            '/usr/share/OVMF/OVMF_VARS.fd',
+        ]
+        loader_path = self._find_existing_path(loader_candidates, 'UEFI loader')
+        template_path = self._find_existing_path(template_candidates, 'UEFI vars template')
+
+        nvram_dir = Path(getattr(settings, 'COMPUTE_VM_UEFI_VARS_DIR', '/var/lib/libvirt/qemu/nvram'))
+        nvram_dir.mkdir(parents=True, exist_ok=True)
+        nvram_path = nvram_dir / f"{domain_name}_VARS.fd"
+        if not nvram_path.exists():
+            shutil.copy(template_path, nvram_path)
+        return str(loader_path), str(nvram_path)
 
     def create_overlay_disk(self, base_image_path: str, disk_path: str, disk_gb: int):
         self._require_binary('qemu-img')
@@ -139,10 +179,20 @@ class LibvirtComputeDriver:
         if self.domain_exists(domain_name):
             return
 
+        machine_type = getattr(settings, 'COMPUTE_VM_MACHINE_TYPE', 'pc-q35')
+        virt_type = getattr(settings, 'COMPUTE_VM_VIRT_TYPE', 'kvm')
+        boot_args = ['hd']
+        if getattr(settings, 'COMPUTE_VM_ENABLE_UEFI', False):
+            boot_args = ['uefi']
+
         self._run([
             'virt-install',
             '--name',
             domain_name,
+            '--machine',
+            machine_type,
+            '--virt-type',
+            virt_type,
             '--osinfo',
             'detect=on,require=off',
             '--memory',
@@ -160,6 +210,8 @@ class LibvirtComputeDriver:
             'none',
             '--network',
             f'network={self.network_name},model=virtio',
+            '--boot',
+            boot_args[0],
             '--noautoconsole',
         ], timeout=300)
 

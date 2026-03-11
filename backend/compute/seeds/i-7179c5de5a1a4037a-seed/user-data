@@ -7,7 +7,7 @@ users:
     shell: /bin/bash
     lock_passwd: true
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF5u0OQ4X7m2c3hG2f0qM4G4YhYzu3PV6PvJEa3TBUnV smoke@example
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILNBu5/jLtog5IZUK4rSHDWe6I5JvCFEsEiUtGo6N8j6 adarsha@hostpanel
 ssh_pwauth: false
 disable_root: true
 package_update: true
