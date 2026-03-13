@@ -61,10 +61,13 @@
 <ul>
   <li><b>Unified Dashboard:</b> Overview of hosting, domains, and resource consumption.</li>
   <li><b>Deployment Engine:</b> CI/CD pipeline with Git integration, real-time streaming build logs, and direct drag-and-drop uploads.</li>
+  <li><b>Compute Engine:</b> Full Virtual Machine provisioning via Libvirt/KVM with secure UEFI boot support, cloud-init integration, and automated security groups.</li>
+  <li><b>High Availability:</b> Built-in API Gateway and dynamic Nginx load balancing for automatic scaling of frontend/backend applications.</li>
   <li><b>DNS Manager:</b> Advanced table interface for managing complex DNS records (A, MX, CNAME).</li>
-  <li><b>File Explorer:</b> Browser-based directory management with upload/edit capabilities.</li>
-  <li><b>Identity Suite:</b> Secure RBAC (Role-Based Access Control) with MFA support.</li>
-  <li><b>Billing Center:</b> Automated subscription tracking and PDF invoice generation.</li>
+  <li><b>File Explorer:</b> Browser-based directory management with auto-provisioned credentials and upload/edit capabilities.</li>
+  <li><b>Identity Suite:</b> Secure dual-channel RBAC with Google OAuth2 support, seamless token management, and MFA support.</li>
+  <li><b>Secure Tunneling:</b> Fully automated Cloudflared Integration that auto-starts with the server to expose local environments publicly.</li>
+  <li><b>Billing Center:</b> Automated subscription tracking and PDF invoice generation, with built-in receipt sharing (Print, PDF, Email, WhatsApp).</li>
 </ul>
 
 

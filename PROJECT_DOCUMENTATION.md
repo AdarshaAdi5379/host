@@ -966,3 +966,18 @@ The system uses **Adminer**, a lightweight database management tool, running in 
     -   Polished administrative dashboard and robust platform privilege enforcement.
     -   **Status**: 🟢 Completed (Verified).
 
+### Phase 27: Compute & Virtual Machines (Libvirt/KVM)
+-   **Objective**: Provide robust infrastructure for provisioning and managing full Virtual Machines (VMs) alongside containerized applications.
+-   **Architecture**:
+    -   **Hypervisor**: Integrates with Libvirt, QEMU, and KVM for native hardware virtualization.
+    -   **UEFI Support**: Built-in support for OVMF UEFI firmware compatibility (resolving legacy BIOS boot loops with modern Ubuntu images) using the `pc-q35` machine type.
+    -   **Storage**: Utilizes QCOW2 overlay disks layered on base OS images to achieve near-instantaneous, storage-efficient provisioning.
+    -   **Cloud-Init**: Dynamic generation of ISO seed files providing `user-data` and `meta-data` for passwordless SSH setup, VM networking, and automatic agent installation.
+-   **Implementation**:
+    -   **Compute Driver** (`backend/sites/compute_driver.py`): Low-level execution of `qemu-img`, `cloud-localds`, and `virsh`.
+    -   **Compute Service** (`backend/sites/compute_service.py`): High-level state machine handling asynchronous creation, startups, shutdowns, terminations, and reliable failure rollbacks.
+    -   **Security Groups** (`backend/sites/compute_firewall.py`): Synchronizes VM capabilities with external networking, restricting unwanted network traversal automatically upon boot.
+-   **Outcome**:
+    -   Hostinger-grade VM capabilities with secure SSH public-key ingress.
+    -   Resolved boot loop mismatch for UEFI-only instances.
+    -   **Status**: 🟢 Completed (Verified).
