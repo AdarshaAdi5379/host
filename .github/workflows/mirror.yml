@@ -1,0 +1,44 @@
+name: Mirror Repository
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secret
+        env:
+          GITLAB_MIRROR_URL: ${{ secrets.GITLAB_MIRROR_URL }}
+        run: |
+          if [ -z "$GITLAB_MIRROR_URL" ]; then
+            echo "Missing secret: GITLAB_MIRROR_URL"
+            echo "Example format: https://oauth2:<token>@gitlab.com/<group>/<repo>.git"
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push all branches and tags to GitLab
+        env:
+          GITLAB_MIRROR_URL: ${{ secrets.GITLAB_MIRROR_URL }}
+        run: |
+          git remote add gitlab "$GITLAB_MIRROR_URL"
+          git push --force --prune gitlab \
+            +refs/heads/*:refs/heads/* \
+            +refs/tags/*:refs/tags/*
