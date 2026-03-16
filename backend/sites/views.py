@@ -832,6 +832,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                                     status=status.HTTP_500_INTERNAL_SERVER_ERROR)
                 
                 # Step 6: Save to DB
+                generated_admin_password = secrets.token_urlsafe(24)
                 site = WordPressSite.objects.create(
                     name=site_name,
                     domain=f"{site_name}.local",
@@ -843,7 +844,7 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
                     env_vars=env_vars,
                     # No admin/pass for custom apps usually, or passed via env vars
                     admin_username='admin', 
-                    admin_password='password',
+                    admin_password=generated_admin_password,
                     site_directory=site_dir,
                     docker_compose_path=compose_path,
                     status='provisioning',

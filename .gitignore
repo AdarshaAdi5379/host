@@ -7,6 +7,8 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
+backend/.venv/
 ENV/
 *.egg-info/
 dist/
@@ -26,6 +28,8 @@ backend/.env
 *.env
 backend/cloudflared_config.yml
 backend/wordpress_sites/
+backend/error.html
+debug_site.html
 *.pem
 *.key
 *.crt

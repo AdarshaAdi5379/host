@@ -1,6 +1,7 @@
 import os
 import django
 import json
+import sys
 from django.conf import settings
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
@@ -10,7 +11,20 @@ from django.test import RequestFactory
 from dj_rest_auth.views import LoginView
 
 factory = RequestFactory()
-data = {"email": "demo@example.com", "password": "DemoPass123!"}
+email = os.getenv("DEBUG_LOGIN_EMAIL", "").strip()
+password = os.getenv("DEBUG_LOGIN_PASSWORD", "").strip()
+
+if not email or not password:
+    print(
+        "Missing required env vars.\n"
+        "Usage:\n"
+        "  DEBUG_LOGIN_EMAIL='user@example.com' \\\n"
+        "  DEBUG_LOGIN_PASSWORD='<password>' \\\n"
+        "  python backend/debug_login.py"
+    )
+    sys.exit(1)
+
+data = {"email": email, "password": password}
 request = factory.post('/api/auth/login/', data, content_type='application/json')
 
 try:

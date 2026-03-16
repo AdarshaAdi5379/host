@@ -5,7 +5,7 @@ We've created dummy accounts for testing different user experiences:
 ### 👑 Admin Account (Full Access)
 ```
 Email: demo@example.com
-Password: DemoPass123!
+Password: set locally (do not commit)
 Role: Owner/Admin
 ```
 **Features:**
@@ -20,7 +20,7 @@ Role: Owner/Admin
 ### 👤 Regular User Account (Limited Access)
 ```
 Email: user@example.com
-Password: UserPass123!
+Password: set locally (do not commit)
 Role: User
 ```
 **Features:**
