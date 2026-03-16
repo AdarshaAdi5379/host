@@ -16,6 +16,9 @@
 sudo git clone https://github.com/AdarshaAdi5379/host.git host
 sudo chown -R $USER:$USER /opt/host
 cd /opt/host
+# IMPORTANT: set your real environment values before setup
+cp backend/.env.example backend/.env
+# edit backend/.env and .env (API URL, DB, secrets, cloudflare, etc.)
 chmod +x setup.sh
 ./setup.sh --diagnose</code></pre>
 <p>Diagnostics (on failure) are saved under:</p>
@@ -327,6 +330,9 @@ data/
 sudo git clone https://github.com/AdarshaAdi5379/host.git host
 sudo chown -R $USER:$USER /opt/host
 cd /opt/host
+# IMPORTANT: set your real environment values before setup
+cp backend/.env.example backend/.env
+# edit backend/.env and .env (API URL, DB, secrets, cloudflare, etc.)
 chmod +x setup.sh
 ./setup.sh</code></pre>
 
@@ -365,7 +371,21 @@ docker compose --env-file backend/.env logs --tail=200</code></pre>
 <p>If you want to run frontend dev server manually:</p>
 <pre><code>npm run dev -- --host 0.0.0.0 --port 5173</code></pre>
 
-<h3>6. Full Setup Guide</h3>
+<h3>6. Manual Backend Start</h3>
+<p>If services are installed via <code>setup.sh</code>:</p>
+<pre><code>sudo systemctl restart host-django-api host-gateway-worker host-compute-worker
+sudo systemctl status host-django-api host-gateway-worker host-compute-worker --no-pager</code></pre>
+
+<p>If you want to run backend directly (development mode):</p>
+<pre><code>cd backend
+.venv/bin/python manage.py runserver 0.0.0.0:8000</code></pre>
+
+<p>Optional workers in separate terminals:</p>
+<pre><code>cd backend
+.venv/bin/python manage.py run_gateway_worker
+.venv/bin/python manage.py run_compute_worker</code></pre>
+
+<h3>7. Full Setup Guide</h3>
 <p>For complete service-by-service setup (Cloudflared, Adminer, MinIO, FileBrowser, troubleshooting), see:</p>
 <code>PROJECT_SETUP.md</code>
 
