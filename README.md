@@ -10,6 +10,17 @@
   </p>
 </div>
 
+<h2>⚡ Quick Server Setup</h2>
+<p>Run these commands on a fresh Ubuntu/Debian server:</p>
+<pre><code>cd /opt
+sudo git clone https://github.com/AdarshaAdi5379/host.git host
+sudo chown -R $USER:$USER /opt/host
+cd /opt/host
+chmod +x setup.sh
+./setup.sh --diagnose</code></pre>
+<p>Diagnostics (on failure) are saved under:</p>
+<code>logs/setup-diagnostics/diagnostics_YYYYMMDD_HHMMSS.log</code>
+
 <hr />
 
 <h2>📖 Overview</h2>
@@ -310,21 +321,53 @@ data/
 
 <h2>🚦 Getting Started</h2>
 
-<h3>1. Installation</h3>
-<p>Clone the repository and install dependencies:</p>
-<code>git clone https://github.com/your-username/hpanel-clone.git</code><br/>
-<code>npm install</code>
+<h3>1. One-Command Installation (Recommended)</h3>
+<p>Use the automated setup script on a fresh Ubuntu/Debian server:</p>
+<pre><code>cd /opt
+sudo git clone https://github.com/AdarshaAdi5379/host.git host
+sudo chown -R $USER:$USER /opt/host
+cd /opt/host
+chmod +x setup.sh
+./setup.sh</code></pre>
 
-<h3>2. Development</h3>
-<p>Launch the Vite development server:</p>
-<code>npm run dev</code>
+<p>This script installs dependencies and configures:</p>
+<ul>
+  <li>System packages + security tools (Fail2ban, ClamAV)</li>
+  <li>Docker + Compose, Nginx, Node.js, Python venv</li>
+  <li>Core containers (API Gateway, PostgreSQL, MinIO, Adminer)</li>
+  <li>FileBrowser container</li>
+  <li>Django migrations + static collection</li>
+  <li>Systemd services (Django API, gateway worker, compute worker)</li>
+</ul>
 
-<h3>3. API Gateway (Routing-Only Phase)</h3>
-<p>Start the API gateway container (Nginx):</p>
-<code>docker compose up -d api_gateway</code>
-<p>Gateway routes all <code>/api/*</code> traffic to Django and listens on <code>http://localhost:8088</code>.</p>
-<p>Health check:</p>
-<code>curl http://localhost:8088/healthz</code>
+<h3>2. Installation With Auto-Diagnostics</h3>
+<p>If you want automatic failure diagnostics:</p>
+<pre><code>./setup.sh --diagnose</code></pre>
+<p>On failure, diagnostics are saved to:</p>
+<code>logs/setup-diagnostics/diagnostics_YYYYMMDD_HHMMSS.log</code>
+
+<h3>3. Superuser Creation</h3>
+<p>Interactive:</p>
+<pre><code>./setup.sh --with-superuser</code></pre>
+<p>Non-interactive:</p>
+<pre><code>DJANGO_SUPERUSER_USERNAME=admin \
+DJANGO_SUPERUSER_EMAIL=admin@example.com \
+DJANGO_SUPERUSER_PASSWORD='change-this' \
+./setup.sh --with-superuser</code></pre>
+
+<h3>4. Post-Install Health Checks</h3>
+<pre><code>docker compose --env-file backend/.env ps
+sudo systemctl status host-django-api host-gateway-worker host-compute-worker --no-pager
+curl -I http://127.0.0.1:8088/api/
+docker compose --env-file backend/.env logs --tail=200</code></pre>
+
+<h3>5. Manual Frontend Start</h3>
+<p>If you want to run frontend dev server manually:</p>
+<pre><code>npm run dev -- --host 0.0.0.0 --port 5173</code></pre>
+
+<h3>6. Full Setup Guide</h3>
+<p>For complete service-by-service setup (Cloudflared, Adminer, MinIO, FileBrowser, troubleshooting), see:</p>
+<code>PROJECT_SETUP.md</code>
 
 <hr />
 

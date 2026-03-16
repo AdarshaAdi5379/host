@@ -38,7 +38,7 @@ Diagnostics output path:
 
 ```bash
 cd /opt
-sudo git clone <YOUR_GIT_REPO_URL> host
+sudo git clone https://github.com/AdarshaAdi5379/host.git host
 sudo chown -R $USER:$USER /opt/host
 cd /opt/host
 ```
