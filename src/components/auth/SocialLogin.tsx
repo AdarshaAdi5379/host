@@ -4,11 +4,21 @@ export function SocialLogin() {
     const handleGoogleLogin = () => {
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
         const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || 'http://localhost:5173/auth/google/callback'
-        const scope = 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile'
-        const responseType = 'code'
-        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}&access_type=online&prompt=select_account`
+        const scope = 'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile'
 
-        window.location.href = authUrl
+        // Use implicit flow (response_type=token id_token) so Google returns the
+        // access_token and id_token directly in the URL hash fragment.
+        // This avoids a server-side code exchange, which allauth 0.57 handles
+        // unreliably when the callback URL is a local SPA dev server.
+        const params = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            response_type: 'token id_token',
+            scope,
+            nonce: crypto.randomUUID(),
+            prompt: 'select_account',
+        })
+        window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
     }
 
     const handleGithubLogin = () => {

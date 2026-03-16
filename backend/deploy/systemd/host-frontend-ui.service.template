@@ -1,0 +1,17 @@
+[Unit]
+Description=HOST Frontend UI (Vite)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/adarsha/Desktop/projects/HOST/host
+Environment=NODE_ENV=development
+Environment=VITE_API_BASE_URL=http://localhost:8000
+Environment=PATH=/home/adarsha/.nvm/versions/node/v24.13.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/adarsha/.nvm/versions/node/v24.13.0/bin/node /home/adarsha/Desktop/projects/HOST/host/node_modules/vite/bin/vite.js --host 0.0.0.0 --port 5173 --strictPort
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

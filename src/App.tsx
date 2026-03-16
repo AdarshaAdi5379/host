@@ -21,7 +21,7 @@ import { GeneralSettings } from '@/pages/settings/GeneralSettings'
 import { SecuritySettings } from '@/pages/settings/SecuritySettings'
 import { NotificationSettings } from '@/pages/settings/NotificationSettings'
 import { SessionManagement } from '@/pages/settings/SessionManagement'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore, useHasHydrated } from '@/store/authStore'
 import { CreateHosting } from '@/pages/hosting/CreateHosting'
 import { CreateFullStack } from '@/pages/hosting/CreateFullStack'
 import { ProjectSettings } from '@/pages/hosting/ProjectSettings'
@@ -35,6 +35,12 @@ import { Ec2Service } from '@/pages/Ec2Service'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
+  const hydrated = useHasHydrated()
+
+  // While the auth store is rehydrating from localStorage, don't redirect
+  // on public routes — isAuthenticated is still false at this point even
+  // for a logged-in user, which would wrongly show the login page.
+  const authRedirect = hydrated && isAuthenticated
 
   return (
     <BrowserRouter>
@@ -42,11 +48,11 @@ function App() {
         {/* Public Auth Routes */}
         <Route
           path="/login"
-          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />}
+          element={authRedirect ? <Navigate to="/dashboard" replace /> : <Login />}
         />
         <Route
           path="/signup"
-          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Signup />}
+          element={authRedirect ? <Navigate to="/dashboard" replace /> : <Signup />}
         />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
@@ -104,7 +110,7 @@ function App() {
         {/* Catch all - redirect to login or dashboard */}
         <Route
           path="*"
-          element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+          element={<Navigate to={authRedirect ? '/dashboard' : '/login'} replace />}
         />
       </Routes>
     </BrowserRouter>

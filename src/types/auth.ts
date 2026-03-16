@@ -75,6 +75,10 @@ export interface AuthState {
     refreshToken: () => Promise<void>
     updateUser: (user: Partial<User>) => void
     clearError: () => void
+    /** Clear local session state without calling the backend logout endpoint.
+     *  Use this when the server already rejected the token (401) so there is
+     *  no point (or it would fail) trying to invalidate it server-side. */
+    clearSession: () => void
 }
 
 export interface Session {

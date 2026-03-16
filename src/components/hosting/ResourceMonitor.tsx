@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Loader2, Cpu, HardDrive } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { API_BASE_URL } from '@/lib/api/config'
 
 interface ResourceStats {
     cpu_percent: number
@@ -33,7 +34,7 @@ export function ResourceMonitor({ siteId, isRunning }: ResourceMonitorProps) {
             }
 
             try {
-                const response = await fetch(`http://localhost:8000/api/sites/${siteId}/stats/`, {
+                const response = await fetch(`${API_BASE_URL}/api/sites/${siteId}/stats/`, {
                     headers: {
                         ...(token ? { 'Authorization': `Token ${token}` } : {}),
                     },

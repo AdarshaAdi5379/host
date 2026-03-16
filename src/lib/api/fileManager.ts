@@ -1,3 +1,5 @@
+import { API_BASE_URL } from './config'
+import { useAuthStore } from '@/store/authStore'
 export interface FileManagerAccess {
     url: string
     path: string
@@ -12,9 +14,7 @@ export interface FileManagerAccess {
     }
 }
 
-import { useAuthStore } from '@/store/authStore'
-
-const API_BASE = 'http://localhost:8000/api/sites'
+const API_BASE = `${API_BASE_URL}/api/sites`
 
 export const fileManagerAPI = {
     getAccess: async (siteId: number, token: string): Promise<FileManagerAccess> => {
@@ -26,7 +26,7 @@ export const fileManagerAPI = {
         })
 
         if (response.status === 401) {
-            useAuthStore.getState().logout()
+            useAuthStore.getState().clearSession()
             throw new Error('Session expired. Please login again.')
         }
 

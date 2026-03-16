@@ -12,7 +12,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
+from copy import copy as shallow_copy
 from dotenv import load_dotenv
+from django.template import context as template_context
 
 # Load environment variables from .env file
 load_dotenv()
@@ -20,88 +23,123 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+if sys.version_info >= (3, 14):
+
+    def _safe_base_context_copy(self):
+        duplicate = object.__new__(type(self))
+        for name, value in self.__dict__.items():
+            if name == "dicts":
+                continue
+            setattr(duplicate, name, value)
+        duplicate.dicts = self.dicts[:]
+        return duplicate
+
+    def _safe_context_copy(self):
+        duplicate = object.__new__(type(self))
+        for name, value in self.__dict__.items():
+            if name in {"dicts", "render_context"}:
+                continue
+            setattr(duplicate, name, value)
+        duplicate.dicts = self.dicts[:]
+        duplicate.render_context = shallow_copy(self.render_context)
+        return duplicate
+
+    template_context.BaseContext.__copy__ = _safe_base_context_copy
+    template_context.Context.__copy__ = _safe_context_copy
+
 # -----------------------------------------------------------------------------
 # Compute VM defaults for UEFI/q35
 # -----------------------------------------------------------------------------
-COMPUTE_VM_MACHINE_TYPE = os.getenv('COMPUTE_VM_MACHINE_TYPE', 'q35')
-COMPUTE_VM_ENABLE_UEFI = os.getenv('COMPUTE_VM_ENABLE_UEFI', 'true').lower() in {'1', 'true', 'yes'}
-COMPUTE_VM_UEFI_LOADER = os.getenv('COMPUTE_VM_UEFI_LOADER', '/usr/share/ovmf/OVMF.fd')
-COMPUTE_VM_UEFI_VARS_TEMPLATE = os.getenv('COMPUTE_VM_UEFI_VARS_TEMPLATE', '/usr/share/OVMF/OVMF_VARS_4M.fd')
-COMPUTE_VM_UEFI_VARS_DIR = os.getenv('COMPUTE_VM_UEFI_VARS_DIR', str(BASE_DIR / 'compute' / 'nvram'))
-COMPUTE_VM_VIRT_TYPE = os.getenv('COMPUTE_VM_VIRT_TYPE', 'qemu')
+COMPUTE_VM_MACHINE_TYPE = os.getenv("COMPUTE_VM_MACHINE_TYPE", "q35")
+COMPUTE_VM_ENABLE_UEFI = os.getenv("COMPUTE_VM_ENABLE_UEFI", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+COMPUTE_VM_UEFI_LOADER = os.getenv("COMPUTE_VM_UEFI_LOADER", "/usr/share/ovmf/OVMF.fd")
+COMPUTE_VM_UEFI_VARS_TEMPLATE = os.getenv(
+    "COMPUTE_VM_UEFI_VARS_TEMPLATE", "/usr/share/OVMF/OVMF_VARS_4M.fd"
+)
+COMPUTE_VM_UEFI_VARS_DIR = os.getenv(
+    "COMPUTE_VM_UEFI_VARS_DIR", str(BASE_DIR / "compute" / "nvram")
+)
+COMPUTE_VM_VIRT_TYPE = os.getenv("COMPUTE_VM_VIRT_TYPE", "qemu")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-kejjynu*q6xfkajcx#i1xtwy+0!_9n4wu5_+szu@a+#7wx13ov')
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-kejjynu*q6xfkajcx#i1xtwy+0!_9n4wu5_+szu@a+#7wx13ov",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') + [
-    'edubricz.online',
-    '.edubricz.online',  # Allow all subdomains
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") + [
+    "edubricz.online",
+    ".edubricz.online",  # Allow all subdomains
 ]
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django.contrib.sites',  # Required by allauth
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "django.contrib.sites",  # Required by allauth
     # Third-party apps
-    'rest_framework',
-    'corsheaders',
+    "rest_framework",
+    "corsheaders",
     # Authentication apps
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.google',
-    'dj_rest_auth',
-    'dj_rest_auth.registration',
-    'knox',
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    "knox",
     # Local apps
-    'sites.apps.SitesConfig',  # Use full path to avoid conflict with django.contrib.sites
-    'authentication',
-    'storages',  # Django Storages for MinIO/S3
+    "sites.apps.SitesConfig",  # Use full path to avoid conflict with django.contrib.sites
+    "authentication",
+    "storages",  # Django Storages for MinIO/S3
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',  # CORS middleware
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'allauth.account.middleware.AccountMiddleware',  # Required by allauth
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # CORS middleware
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",  # Required by allauth
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'core.urls'
+ROOT_URLCONF = "core.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'core.wsgi.application'
+WSGI_APPLICATION = "core.wsgi.application"
 
 
 # Database
@@ -111,20 +149,20 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # - Control Plane: PostgreSQL (Django app data - users, sites, billing)
 # - Data Plane: MySQL containers (WordPress tenant data - isolated per site)
 
-DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite3')
+DB_ENGINE = os.getenv("DB_ENGINE", "sqlite3")
 
-if DB_ENGINE == 'postgresql':
+if DB_ENGINE == "postgresql":
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('DB_NAME', 'hostinger_platform'),
-            'USER': os.getenv('DB_USER', 'hostinger_admin'),
-            'PASSWORD': os.getenv('DB_PASSWORD', ''),
-            'HOST': os.getenv('DB_HOST', 'localhost'),
-            'PORT': os.getenv('DB_PORT', '5432'),
-            'CONN_MAX_AGE': 600,  # Connection pooling (10 minutes)
-            'OPTIONS': {
-                'connect_timeout': 10,
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "hostinger_platform"),
+            "USER": os.getenv("DB_USER", "hostinger_admin"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+            "CONN_MAX_AGE": 600,  # Connection pooling (10 minutes)
+            "OPTIONS": {
+                "connect_timeout": 10,
                 # Uncomment for SSL/TLS in production
                 # 'sslmode': os.getenv('DB_SSL_MODE', 'require'),
                 # 'sslcert': os.getenv('DB_SSL_CERT'),
@@ -136,9 +174,9 @@ if DB_ENGINE == 'postgresql':
 else:
     # Fallback to SQLite for development
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
         }
     }
 
@@ -148,16 +186,16 @@ else:
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -165,9 +203,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -177,12 +215,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [
@@ -198,48 +237,47 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Allow all methods for development
 CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
 ]
 
 # Allow all headers for development
 CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'x-idempotency-key',
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-idempotency-key",
 ]
 
 # REST Framework Settings
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'knox.auth.TokenAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "knox.auth.TokenAuthentication",
     ],
-    'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
     ],
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
     ],
 }
 
 # Authentication Backends
 AUTHENTICATION_BACKENDS = [
     # Needed to login by username in Django admin, regardless of `allauth`
-    'django.contrib.auth.backends.ModelBackend',
-
+    "django.contrib.auth.backends.ModelBackend",
     # `allauth` specific authentication methods, such as login by e-mail
-    'allauth.account.auth_backends.AuthenticationBackend',
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
 # Authentication Settings
@@ -247,103 +285,136 @@ SITE_ID = 1  # Required by allauth
 
 # Knox Settings
 from datetime import timedelta
+
 REST_KNOX = {
-    'TOKEN_TTL': timedelta(hours=10),  # 10-hour rolling window
-    'AUTO_REFRESH': True,
-    'MIN_REFRESH_INTERVAL': 60,  # Refresh if older than 1 minute
+    "TOKEN_TTL": timedelta(
+        days=30
+    ),  # 30-day rolling window (dev-friendly; tighten for prod)
+    "AUTO_REFRESH": True,
+    "MIN_REFRESH_INTERVAL": 60,  # Refresh if older than 1 minute
 }
 
 # Allauth Settings
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_AUTHENTICATION_METHOD = "email"
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_EMAIL_VERIFICATION = 'none'   # No SMTP server in dev — set to 'mandatory' in production
+ACCOUNT_EMAIL_VERIFICATION = (
+    "none"  # No SMTP server in dev — set to 'mandatory' in production
+)
 ACCOUNT_UNIQUE_EMAIL = True
 
 # Social Account Settings
 SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-create account on Google login
-SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'  # Skip email verification for social accounts
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"  # Skip email verification for social accounts
 
 # Email Backend — use console in development so no SMTP server is needed.
 # In production, replace with SMTP / SendGrid / SES settings.
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Compute/EC2-like orchestration settings (KVM/libvirt)
-COMPUTE_STORAGE_ROOT = os.getenv('COMPUTE_STORAGE_ROOT', str(BASE_DIR / 'compute'))
-COMPUTE_IMAGES_DIR = os.getenv('COMPUTE_IMAGES_DIR', str(Path(COMPUTE_STORAGE_ROOT) / 'images'))
-COMPUTE_DISKS_DIR = os.getenv('COMPUTE_DISKS_DIR', str(Path(COMPUTE_STORAGE_ROOT) / 'disks'))
-COMPUTE_SEEDS_DIR = os.getenv('COMPUTE_SEEDS_DIR', str(Path(COMPUTE_STORAGE_ROOT) / 'seeds'))
-COMPUTE_LIBVIRT_NETWORK = os.getenv('COMPUTE_LIBVIRT_NETWORK', 'default')
-COMPUTE_OPERATION_DEBOUNCE_SECONDS = float(os.getenv('COMPUTE_OPERATION_DEBOUNCE_SECONDS', '0.2'))
-COMPUTE_STOP_TIMEOUT_SECONDS = int(os.getenv('COMPUTE_STOP_TIMEOUT_SECONDS', '45'))
-COMPUTE_OPERATION_MAX_ATTEMPTS = int(os.getenv('COMPUTE_OPERATION_MAX_ATTEMPTS', '3'))
-COMPUTE_OPERATION_RETRY_BACKOFF_SECONDS = int(os.getenv('COMPUTE_OPERATION_RETRY_BACKOFF_SECONDS', '5'))
-COMPUTE_OPERATION_MAX_BACKOFF_SECONDS = int(os.getenv('COMPUTE_OPERATION_MAX_BACKOFF_SECONDS', '120'))
-COMPUTE_OPERATION_TIMEOUT_SECONDS = int(os.getenv('COMPUTE_OPERATION_TIMEOUT_SECONDS', '600'))
-COMPUTE_ALERT_MAX_QUEUE_DEPTH = int(os.getenv('COMPUTE_ALERT_MAX_QUEUE_DEPTH', '50'))
-COMPUTE_ALERT_MAX_FAILURE_RATE = float(os.getenv('COMPUTE_ALERT_MAX_FAILURE_RATE', '0.20'))
-COMPUTE_ALERT_MAX_DISK_USAGE_PCT = float(os.getenv('COMPUTE_ALERT_MAX_DISK_USAGE_PCT', '85'))
-COMPUTE_FIREWALL_ENABLED = os.getenv('COMPUTE_FIREWALL_ENABLED', 'False').lower() == 'true'
-COMPUTE_FIREWALL_STRICT = os.getenv('COMPUTE_FIREWALL_STRICT', 'False').lower() == 'true'
-COMPUTE_FIREWALL_DRY_RUN = os.getenv('COMPUTE_FIREWALL_DRY_RUN', 'False').lower() == 'true'
-COMPUTE_FIREWALL_BINARY = os.getenv('COMPUTE_FIREWALL_BINARY', 'iptables')
-COMPUTE_FIREWALL_TABLE = os.getenv('COMPUTE_FIREWALL_TABLE', 'filter')
-COMPUTE_FIREWALL_PARENT_CHAIN = os.getenv('COMPUTE_FIREWALL_PARENT_CHAIN', 'FORWARD')
+COMPUTE_STORAGE_ROOT = os.getenv("COMPUTE_STORAGE_ROOT", str(BASE_DIR / "compute"))
+COMPUTE_IMAGES_DIR = os.getenv(
+    "COMPUTE_IMAGES_DIR", str(Path(COMPUTE_STORAGE_ROOT) / "images")
+)
+COMPUTE_DISKS_DIR = os.getenv(
+    "COMPUTE_DISKS_DIR", str(Path(COMPUTE_STORAGE_ROOT) / "disks")
+)
+COMPUTE_SEEDS_DIR = os.getenv(
+    "COMPUTE_SEEDS_DIR", str(Path(COMPUTE_STORAGE_ROOT) / "seeds")
+)
+COMPUTE_LIBVIRT_NETWORK = os.getenv("COMPUTE_LIBVIRT_NETWORK", "default")
+COMPUTE_OPERATION_DEBOUNCE_SECONDS = float(
+    os.getenv("COMPUTE_OPERATION_DEBOUNCE_SECONDS", "0.2")
+)
+COMPUTE_STOP_TIMEOUT_SECONDS = int(os.getenv("COMPUTE_STOP_TIMEOUT_SECONDS", "45"))
+COMPUTE_OPERATION_MAX_ATTEMPTS = int(os.getenv("COMPUTE_OPERATION_MAX_ATTEMPTS", "3"))
+COMPUTE_OPERATION_RETRY_BACKOFF_SECONDS = int(
+    os.getenv("COMPUTE_OPERATION_RETRY_BACKOFF_SECONDS", "5")
+)
+COMPUTE_OPERATION_MAX_BACKOFF_SECONDS = int(
+    os.getenv("COMPUTE_OPERATION_MAX_BACKOFF_SECONDS", "120")
+)
+COMPUTE_OPERATION_TIMEOUT_SECONDS = int(
+    os.getenv("COMPUTE_OPERATION_TIMEOUT_SECONDS", "600")
+)
+COMPUTE_ALERT_MAX_QUEUE_DEPTH = int(os.getenv("COMPUTE_ALERT_MAX_QUEUE_DEPTH", "50"))
+COMPUTE_ALERT_MAX_FAILURE_RATE = float(
+    os.getenv("COMPUTE_ALERT_MAX_FAILURE_RATE", "0.20")
+)
+COMPUTE_ALERT_MAX_DISK_USAGE_PCT = float(
+    os.getenv("COMPUTE_ALERT_MAX_DISK_USAGE_PCT", "85")
+)
+COMPUTE_FIREWALL_ENABLED = (
+    os.getenv("COMPUTE_FIREWALL_ENABLED", "False").lower() == "true"
+)
+COMPUTE_FIREWALL_STRICT = (
+    os.getenv("COMPUTE_FIREWALL_STRICT", "False").lower() == "true"
+)
+COMPUTE_FIREWALL_DRY_RUN = (
+    os.getenv("COMPUTE_FIREWALL_DRY_RUN", "False").lower() == "true"
+)
+COMPUTE_FIREWALL_BINARY = os.getenv("COMPUTE_FIREWALL_BINARY", "iptables")
+COMPUTE_FIREWALL_TABLE = os.getenv("COMPUTE_FIREWALL_TABLE", "filter")
+COMPUTE_FIREWALL_PARENT_CHAIN = os.getenv("COMPUTE_FIREWALL_PARENT_CHAIN", "FORWARD")
 
 # Google OAuth2 Settings
 SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'SCOPE': [
-            'profile',
-            'email',
+    "google": {
+        "SCOPE": [
+            "profile",
+            "email",
         ],
-        'AUTH_PARAMS': {
-            'access_type': 'online',
+        "AUTH_PARAMS": {
+            "access_type": "online",
         },
     }
 }
 
 # REST Auth Settings
 REST_AUTH = {
-    'USE_JWT': False,  # Use Knox instead
-    'SESSION_LOGIN': False,
-    'TOKEN_MODEL': 'knox.models.AuthToken',
-    'TOKEN_CREATOR': 'authentication.views.create_knox_token',
-    'TOKEN_SERIALIZER': 'authentication.serializers.KnoxTokenSerializer',
+    "USE_JWT": False,  # Use Knox instead
+    "SESSION_LOGIN": False,
+    "TOKEN_MODEL": "knox.models.AuthToken",
+    "TOKEN_CREATOR": "authentication.views.create_knox_token",
+    "TOKEN_SERIALIZER": "authentication.serializers.KnoxTokenSerializer",
 }
 
 
 # WordPress Sites Storage Directory
-WORDPRESS_SITES_DIR = BASE_DIR / 'wordpress_sites'
+WORDPRESS_SITES_DIR = BASE_DIR / "wordpress_sites"
 
 # Cloudflare Tunnel Configuration
-CLOUDFLARE_DOMAIN = os.getenv('CLOUDFLARE_DOMAIN', 'edubricz.online')
-CLOUDFLARE_TUNNEL_ID = os.getenv('CLOUDFLARE_TUNNEL_ID', 'f7a24d5d-ea18-477f-bd26-6dfc0f3b2774')
-CLOUDFLARE_CREDENTIALS_FILE = os.getenv(
-    'CLOUDFLARE_CREDENTIALS_FILE',
-    os.path.expanduser('~/.cloudflared/f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.json')
+CLOUDFLARE_DOMAIN = os.getenv("CLOUDFLARE_DOMAIN", "edubricz.online")
+CLOUDFLARE_TUNNEL_ID = os.getenv(
+    "CLOUDFLARE_TUNNEL_ID", "f7a24d5d-ea18-477f-bd26-6dfc0f3b2774"
 )
-CLOUDFLARE_CONFIG_PATH = str(BASE_DIR / 'cloudflared_config.yml')
+CLOUDFLARE_CREDENTIALS_FILE = os.getenv(
+    "CLOUDFLARE_CREDENTIALS_FILE",
+    os.path.expanduser("~/.cloudflared/f7a24d5d-ea18-477f-bd26-6dfc0f3b2774.json"),
+)
+CLOUDFLARE_CONFIG_PATH = str(BASE_DIR / "cloudflared_config.yml")
 
 # Backup Configuration
-BACKUP_DIR = BASE_DIR / 'backups'
-BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', 7))
+BACKUP_DIR = BASE_DIR / "backups"
+BACKUP_RETENTION_DAYS = int(os.getenv("BACKUP_RETENTION_DAYS", 7))
 
 # Tenant Database Configuration
-TENANT_DB_IMAGE = os.getenv('TENANT_DB_IMAGE', 'mysql:8.0')
-TENANT_DB_NETWORK = os.getenv('TENANT_DB_NETWORK', 'tenant_isolated')
+TENANT_DB_IMAGE = os.getenv("TENANT_DB_IMAGE", "mysql:8.0")
+TENANT_DB_NETWORK = os.getenv("TENANT_DB_NETWORK", "tenant_isolated")
 
 # API Gateway worker
-GATEWAY_RELOAD_DEBOUNCE_SECONDS = float(os.getenv('GATEWAY_RELOAD_DEBOUNCE_SECONDS', '0.5'))
+GATEWAY_RELOAD_DEBOUNCE_SECONDS = float(
+    os.getenv("GATEWAY_RELOAD_DEBOUNCE_SECONDS", "0.5")
+)
 
 # AWS S3 / MinIO Configuration
 MAX_UPLOAD_SIZE = 5242880
-AWS_ACCESS_KEY_ID = os.getenv('MINIO_ROOT_USER')
-AWS_SECRET_ACCESS_KEY = os.getenv('MINIO_ROOT_PASSWORD')
-AWS_STORAGE_BUCKET_NAME = os.getenv('MINIO_STORAGE_BUCKET_NAME', 'hostinger-uploads')
-AWS_S3_ENDPOINT_URL = 'http://localhost:9300'  # MinIO API Port
-AWS_S3_REGION_NAME = 'us-east-1'  # Default for MinIO
-AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_ACCESS_KEY_ID = os.getenv("MINIO_ROOT_USER")
+AWS_SECRET_ACCESS_KEY = os.getenv("MINIO_ROOT_PASSWORD")
+AWS_STORAGE_BUCKET_NAME = os.getenv("MINIO_STORAGE_BUCKET_NAME", "hostinger-uploads")
+AWS_S3_ENDPOINT_URL = "http://localhost:9300"  # MinIO API Port
+AWS_S3_REGION_NAME = "us-east-1"  # Default for MinIO
+AWS_S3_SIGNATURE_VERSION = "s3v4"
 
 # Static Files & Media
 STORAGES = {

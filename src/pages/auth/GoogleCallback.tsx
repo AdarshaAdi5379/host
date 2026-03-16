@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { authAPI } from '@/lib/api/auth'
@@ -6,33 +6,53 @@ import { Loader2 } from 'lucide-react'
 
 export function GoogleCallback() {
     const navigate = useNavigate()
-    const { isAuthenticated } = useAuthStore()
+    const calledRef = useRef(false)
 
     useEffect(() => {
+        // Guard against React StrictMode double-invocation — the OAuth tokens
+        // in the hash are single-use and must only be submitted to the backend once.
+        if (calledRef.current) return
+        calledRef.current = true
+
+        const { isAuthenticated } = useAuthStore.getState()
+        if (isAuthenticated) {
+            navigate('/dashboard', { replace: true })
+            return
+        }
+
         const handleGoogleCallback = async () => {
-            const params = new URLSearchParams(window.location.search)
-            const code = params.get('code')
+            // With response_type=token id_token, Google places the tokens in the
+            // URL hash fragment: #access_token=...&id_token=...&token_type=Bearer
+            const hash = window.location.hash.slice(1)
+            const params = new URLSearchParams(hash)
+
+            const accessToken = params.get('access_token')
+            const idToken = params.get('id_token')
             const error = params.get('error')
 
             if (error) {
                 console.error('Google OAuth error:', error)
-                navigate('/login?error=google_auth_failed')
+                navigate('/login?error=google_auth_failed', { replace: true })
                 return
             }
 
-            if (!code) {
-                navigate('/login')
+            if (!accessToken || !idToken) {
+                // Fallback: check the query string for an error param
+                const queryError = new URLSearchParams(window.location.search).get('error')
+                if (queryError) {
+                    console.error('Google OAuth error:', queryError)
+                }
+                console.error('Google OAuth: missing access_token or id_token in callback URL hash')
+                navigate('/login?error=google_auth_failed', { replace: true })
                 return
             }
 
             try {
-                // Exchange code for token
-                const response = await authAPI.googleLogin(code)
+                const response = await authAPI.googleLogin(accessToken, idToken)
+                // Use me() to get the full user profile (same as email/password login)
+                // getUser() returns a raw Django auth shape without role/name.
+                const userProfile = await authAPI.me(response.key)
 
-                // Fetch user profile
-                const userProfile = await authAPI.getUser(response.key)
-
-                // Update auth store
                 useAuthStore.setState({
                     user: userProfile,
                     token: response.key,
@@ -41,21 +61,15 @@ export function GoogleCallback() {
                     error: null,
                 })
 
-                // Redirect to dashboard
-                navigate('/dashboard')
+                navigate('/dashboard', { replace: true })
             } catch (err) {
                 console.error('Google login error:', err)
-                navigate('/login?error=google_auth_failed')
+                navigate('/login?error=google_auth_failed', { replace: true })
             }
         }
 
-        // Only process if not already authenticated
-        if (!isAuthenticated) {
-            handleGoogleCallback()
-        } else {
-            navigate('/dashboard')
-        }
-    }, [navigate, isAuthenticated])
+        void handleGoogleCallback()
+    }, [navigate]) // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">

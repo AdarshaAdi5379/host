@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './config'
+import type { Role } from '@/types/auth'
 
 const API_BASE = `${API_BASE_URL}/api/auth`
 
@@ -39,16 +40,22 @@ export const authAPI = {
         return response.json()
     },
 
-    // Google OAuth
-    googleLogin: async (code: string) => {
+    // Google OAuth — implicit flow
+    // Sends access_token + id_token obtained directly from Google's implicit flow.
+    // django-allauth's Google adapter validates the id_token and returns a Knox token.
+    googleLogin: async (accessToken: string, idToken: string) => {
         const response = await fetch(`${API_BASE}/google/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code }),
+            body: JSON.stringify({ access_token: accessToken, id_token: idToken }),
         })
         if (!response.ok) {
-            const error = await response.json()
-            throw new Error(error.non_field_errors?.[0] || 'Google login failed')
+            let errorMessage = 'Google login failed'
+            try {
+                const error = await response.json()
+                errorMessage = error.non_field_errors?.[0] || error.detail || errorMessage
+            } catch (_) { /* response was not JSON */ }
+            throw new Error(errorMessage)
         }
         return response.json()
     },
@@ -82,12 +89,27 @@ export const authAPI = {
             throw new Error('Failed to fetch user profile')
         }
         const data = await response.json()
-        // Map the profile data to our User interface
+        // Map the profile data to our User interface.
+        // The backend returns { user: { id, username, email, first_name, last_name, date_joined },
+        //                        platform_role, project_quota, email_notifications, ... }
+        // We must map snake_case backend fields → camelCase User interface fields.
+        const u = data.user || {}
+        const platformRole = (data.platform_role === 'super_admin' ? 'super_admin' : 'user') as 'super_admin' | 'user'
+        const role: Role = platformRole === 'super_admin' ? 'owner' : 'user'
+        const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ')
         return {
-            ...data.user,
-            platform_role: data.platform_role,
+            id: String(u.id ?? ''),
+            email: u.email ?? '',
+            name: fullName || u.username || u.email?.split('@')[0] || '',
+            role,
+            platform_role: platformRole,
             project_quota: data.project_quota,
-            email_notifications: data.email_notifications
+            email_notifications: data.email_notifications,
+            // The profile endpoint does not expose these fields; default to safe values.
+            // They will be refreshed if the user re-authenticates.
+            emailVerified: true,
+            mfaEnabled: false,
+            createdAt: u.date_joined ?? new Date().toISOString(),
         }
     },
 }

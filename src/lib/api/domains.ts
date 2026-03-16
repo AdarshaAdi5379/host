@@ -2,8 +2,11 @@
  * API client for Custom Domain management
  */
 
-const API_BASE = 'http://localhost:8000/api/sites'
-const API_DOMAINS_BASE = 'http://localhost:8000/api/domains'
+import { API_BASE_URL } from './config'
+import { useAuthStore } from '@/store/authStore'
+
+const API_BASE = `${API_BASE_URL}/api/sites`
+const API_DOMAINS_BASE = `${API_BASE_URL}/api/domains`
 
 export interface CustomDomain {
     id: number
@@ -37,7 +40,7 @@ export const domainsAPI = {
         })
 
         if (response.status === 401) {
-            useAuthStore.getState().logout()
+            useAuthStore.getState().clearSession()
             throw new Error('Session expired. Please login again.')
         }
 
@@ -61,7 +64,7 @@ export const domainsAPI = {
         })
 
         if (response.status === 401) {
-            useAuthStore.getState().logout()
+            useAuthStore.getState().clearSession()
             throw new Error('Session expired. Please login again.')
         }
 
@@ -85,7 +88,7 @@ export const domainsAPI = {
         })
 
         if (response.status === 401) {
-            useAuthStore.getState().logout()
+            useAuthStore.getState().clearSession()
             throw new Error('Session expired. Please login again.')
         }
 
@@ -110,7 +113,7 @@ export const domainsAPI = {
         })
 
         if (response.status === 401) {
-            useAuthStore.getState().logout()
+            useAuthStore.getState().clearSession()
             throw new Error('Session expired. Please login again.')
         }
 
@@ -120,5 +123,3 @@ export const domainsAPI = {
         }
     }
 }
-
-import { useAuthStore } from '@/store/authStore'

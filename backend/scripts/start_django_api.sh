@@ -4,7 +4,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || command -v python)}"
+PYTHON_BIN="${PYTHON_BIN:-/home/adarsha/.pyenv/versions/3.12.12/bin/python3}"
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+  PYTHON_BIN="$(command -v python3 || command -v python || true)"
+fi
 DJANGO_BIND_ADDR="${DJANGO_BIND_ADDR:-0.0.0.0}"
 DJANGO_PORT="${DJANGO_PORT:-8000}"
 DJANGO_WSGI_APP="${DJANGO_WSGI_APP:-core.wsgi:application}"

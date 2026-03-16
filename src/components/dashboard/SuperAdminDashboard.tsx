@@ -6,7 +6,8 @@ import {
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore, useHasHydrated } from '@/store/authStore'
+import { API_BASE_URL } from '@/lib/api/config'
 import { Link } from 'react-router-dom'
 
 interface ServerStats {
@@ -23,19 +24,24 @@ interface ServerStats {
 
 export function SuperAdminDashboard() {
     const { token } = useAuthStore()
+    const hydrated = useHasHydrated()
     const [stats, setStats] = useState<ServerStats | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
+        // Wait for the auth store to rehydrate before making API calls.
+        // Without this guard, token is null on the first render and the
+        // fetch returns 401, which triggers handleUnauthorized() → logout() → /login.
+        if (!hydrated || !token) return
         fetchStats()
         // Poll every 30 seconds
         const interval = setInterval(fetchStats, 30000)
         return () => clearInterval(interval)
-    }, [])
+    }, [hydrated, token])
 
     const fetchStats = async () => {
         try {
-            const response = await fetch('http://localhost:8000/api/admin/server_stats/', {
+            const response = await fetch(`${API_BASE_URL}/api/admin/server_stats/`, {
                 headers: { 'Authorization': `Token ${token}` }
             })
             if (response.ok) {
@@ -53,7 +59,7 @@ export function SuperAdminDashboard() {
         if (!confirm('Are you sure you want to prune unused Docker resources? This action cannot be undone.')) return
 
         try {
-            const response = await fetch('http://localhost:8000/api/admin/system_prune/', {
+            const response = await fetch(`${API_BASE_URL}/api/admin/system_prune/`, {
                 method: 'POST',
                 headers: { 'Authorization': `Token ${token}` }
             })
@@ -76,7 +82,7 @@ export function SuperAdminDashboard() {
         if (confirmStr !== 'STOP') return
 
         try {
-            const response = await fetch('http://localhost:8000/api/admin/emergency_stop/', {
+            const response = await fetch(`${API_BASE_URL}/api/admin/emergency_stop/`, {
                 method: 'POST',
                 headers: { 'Authorization': `Token ${token}` }
             })

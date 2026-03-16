@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/store/authStore'
+import { API_BASE_URL } from './config'
 
-const API_BASE = 'http://localhost:8000/api/sites'
+const API_BASE = `${API_BASE_URL}/api/sites`
 
 export interface DatabaseCredentials {
     host: string
@@ -23,7 +24,7 @@ export const wordpressAPI = {
         })
 
         if (response.status === 401) {
-            useAuthStore.getState().logout()
+            useAuthStore.getState().clearSession()
             throw new Error('Session expired. Please login again.')
         }
 

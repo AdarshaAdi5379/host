@@ -6,6 +6,7 @@ mysqlclient>=2.2.0
 python-dotenv>=1.0.0
 boto3>=1.34.0
 django-storages>=1.14.2
+whitenoise==6.12.0
 psutil>=5.9.0
 docker>=6.0.0
 PyYAML>=6.0

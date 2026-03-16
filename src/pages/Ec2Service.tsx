@@ -331,9 +331,11 @@ export function Ec2Service() {
                         variant: 'error',
                     })
                 }
+                // Refresh instance list even on poll failure so the UI stays in sync
+                await loadInstances()
             }
         },
-        [addToast, clearPollingTimer, handlePollResult]
+        [addToast, clearPollingTimer, handlePollResult, loadInstances]
     )
 
     const trackOperation = useCallback(
@@ -361,6 +363,12 @@ export function Ec2Service() {
 
     const loadData = useCallback(
         async (fullLoad: boolean) => {
+            const currentToken = useAuthStore.getState().token
+            console.log('[Ec2Service] loadData called, fullLoad=', fullLoad, 'token=', currentToken ? currentToken.slice(0, 8) + '...' : 'NULL')
+            if (!currentToken) {
+                console.warn('[Ec2Service] loadData: no token in store, aborting')
+                return
+            }
             if (fullLoad) {
                 setLoading(true)
             } else {
@@ -375,6 +383,12 @@ export function Ec2Service() {
                     wordpressAPI.getComputeSecurityGroups(),
                     wordpressAPI.getComputeInstances(),
                 ])
+                const allFailed =
+                    imagesResult.status === 'rejected' &&
+                    flavorsResult.status === 'rejected' &&
+                    sshKeysResult.status === 'rejected' &&
+                    groupsResult.status === 'rejected' &&
+                    instancesResult.status === 'rejected'
 
                 if (isUnmountedRef.current) {
                     return
@@ -383,7 +397,6 @@ export function Ec2Service() {
                 if (imagesResult.status === 'fulfilled') {
                     setImages(imagesResult.value)
                 } else {
-                    setImages([])
                     addToast({
                         title: 'Failed to load images',
                         description: imagesResult.reason instanceof Error ? imagesResult.reason.message : 'Unknown error',
@@ -394,7 +407,6 @@ export function Ec2Service() {
                 if (flavorsResult.status === 'fulfilled') {
                     setFlavors(flavorsResult.value)
                 } else {
-                    setFlavors([])
                     addToast({
                         title: 'Failed to load instance types',
                         description: flavorsResult.reason instanceof Error ? flavorsResult.reason.message : 'Unknown error',
@@ -405,7 +417,6 @@ export function Ec2Service() {
                 if (sshKeysResult.status === 'fulfilled') {
                     setSshKeys(sshKeysResult.value)
                 } else {
-                    setSshKeys([])
                     addToast({
                         title: 'Failed to load SSH keys',
                         description: sshKeysResult.reason instanceof Error ? sshKeysResult.reason.message : 'Unknown error',
@@ -416,7 +427,6 @@ export function Ec2Service() {
                 if (groupsResult.status === 'fulfilled') {
                     setSecurityGroups(groupsResult.value)
                 } else {
-                    setSecurityGroups([])
                     addToast({
                         title: 'Failed to load security groups',
                         description: groupsResult.reason instanceof Error ? groupsResult.reason.message : 'Unknown error',
@@ -427,12 +437,19 @@ export function Ec2Service() {
                 if (instancesResult.status === 'fulfilled') {
                     setInstances(instancesResult.value)
                 } else {
-                    setInstances([])
                     addToast({
                         title: 'Failed to load instances',
                         description: instancesResult.reason instanceof Error ? instancesResult.reason.message : 'Unknown error',
                         variant: 'error',
                     })
+                }
+
+                if (allFailed && fullLoad) {
+                    window.setTimeout(() => {
+                        if (!isUnmountedRef.current) {
+                            void loadData(false)
+                        }
+                    }, 1200)
                 }
             } catch (error) {
                 addToast({
@@ -509,6 +526,19 @@ export function Ec2Service() {
             })
         }
     }, [])
+
+    // Periodically refresh the instance list while any instance is in a transient state
+    // (e.g. after a page reload when a 'provisioning' instance exists and no poll is active).
+    useEffect(() => {
+        const hasTransient = instances.some((instance) => TRANSIENT_INSTANCE_STATES.has(instance.state))
+        if (!hasTransient) return
+        const intervalId = window.setInterval(() => {
+            if (!isUnmountedRef.current) {
+                void loadInstances()
+            }
+        }, 5000)
+        return () => window.clearInterval(intervalId)
+    }, [instances, loadInstances])
 
     const runningCount = useMemo(
         () => instances.filter((instance) => instance.state === 'running').length,

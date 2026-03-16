@@ -137,6 +137,95 @@ class ComputePhase5AuthorizationTests(ComputePhase5ApiBase):
         self.assertEqual(poll.data['operation']['id'], self.operation.id)
 
 
+class ComputePhase5CatalogVisibilityTests(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(username='p5-catalog-admin', password='testpass')
+        self.admin.is_staff = True
+        self.admin.save(update_fields=['is_staff'])
+
+        self.user = User.objects.create_user(username='p5-catalog-user', password='testpass')
+
+        ComputeImage.objects.create(
+            name='catalog-inactive-image',
+            version='1.0',
+            local_path='/tmp/catalog-inactive-image.qcow2',
+            checksum_sha256='',
+            is_active=False,
+            created_by=self.admin,
+        )
+        ComputeFlavor.objects.create(
+            name='catalog-inactive-flavor',
+            vcpu=1,
+            memory_mb=1024,
+            disk_gb=20,
+            is_active=False,
+        )
+
+    def test_non_admin_can_view_full_catalog_including_inactive_entries(self):
+        self.client.force_authenticate(self.user)
+
+        image_response = self.client.get('/api/compute-images/')
+        flavor_response = self.client.get('/api/compute-flavors/')
+
+        self.assertEqual(image_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(flavor_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(item['name'] == 'catalog-inactive-image' for item in image_response.data))
+        self.assertTrue(any(item['name'] == 'catalog-inactive-flavor' for item in flavor_response.data))
+
+    def test_non_admin_cannot_create_catalog_entries(self):
+        self.client.force_authenticate(self.user)
+
+        image_create = self.client.post('/api/compute-images/', {}, format='json')
+        flavor_create = self.client.post('/api/compute-flavors/', {}, format='json')
+
+        self.assertEqual(image_create.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(flavor_create.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(image_create.data['error']['code'], 'permission_denied')
+        self.assertEqual(flavor_create.data['error']['code'], 'permission_denied')
+
+
+class ComputePhase5SharedComputeVisibilityTests(APITestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(username='p5-shared-owner', password='testpass')
+        self.viewer = User.objects.create_user(username='p5-shared-viewer', password='testpass')
+        self.image = ComputeImage.objects.create(
+            name='p5-shared-image',
+            version='1.0',
+            local_path='/tmp/p5-shared-image.qcow2',
+            checksum_sha256='',
+            is_active=True,
+            created_by=self.owner,
+        )
+        self.flavor = ComputeFlavor.objects.create(
+            name='p5-shared-flavor',
+            vcpu=1,
+            memory_mb=1024,
+            disk_gb=20,
+            is_active=True,
+        )
+        self.key = SSHKeyPair.objects.create(owner=self.owner, name='p5-shared-key', public_key=SSH_KEY)
+        self.instance = ComputeInstance.objects.create(
+            owner=self.owner,
+            name='p5-shared-instance',
+            image=self.image,
+            flavor=self.flavor,
+            ssh_key=self.key,
+            state='running',
+            desired_state='running',
+        )
+
+    def test_non_admin_can_view_shared_ssh_keys_and_instances(self):
+        self.client.force_authenticate(self.viewer)
+
+        keys_response = self.client.get('/api/ssh-keys/')
+        instances_response = self.client.get('/api/compute-instances/')
+
+        self.assertEqual(keys_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(instances_response.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(item['name'] == 'p5-shared-key' for item in keys_response.data))
+        self.assertTrue(any(item['name'] == 'p5-shared-instance' for item in instances_response.data))
+
+
 class ComputePhase5SSHKeyGenerateTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='p5-key-owner', password='testpass')

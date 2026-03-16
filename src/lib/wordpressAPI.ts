@@ -8,15 +8,17 @@ import { API_BASE_URL as BACKEND_BASE_URL } from '@/lib/api/config'
 const API_BASE_URL = `${BACKEND_BASE_URL}/api`;
 
 /**
- * Handle globally unauthorized responses: clear the stale token and
- * redirect to /login so the user can re-authenticate.
+ * Handle globally unauthorized responses: clear the local session so
+ * ProtectedRoute redirects the user to /login on the next render.
+ * We do NOT use window.location.href to avoid a full page reload which
+ * loses React state and causes a flash. ProtectedRoute watches isAuthenticated
+ * and will navigate to /login as soon as clearSession() fires.
+ * We do NOT call logout() because the token is already rejected — there is
+ * nothing to invalidate server-side, and a logout() call would itself return
+ * 401 and trigger another handleUnauthorized() loop.
  */
 function handleUnauthorized() {
-    useAuthStore.getState().logout()
-    // Use window.location so this works outside React component tree
-    if (!window.location.pathname.startsWith('/login')) {
-        window.location.href = '/login'
-    }
+    useAuthStore.getState().clearSession()
 }
 
 export interface WordPressSite {
@@ -248,6 +250,8 @@ class WordPressAPI {
     /** Throw on error; trigger logout+redirect on 401 */
     private async checkOkWithBody(response: Response, message: string) {
         if (response.status === 401) {
+            const token = useAuthStore.getState().token
+            console.error('[API] 401 Unauthorized on', message, '| token in store:', token ? token.slice(0,8)+'...' : 'NULL')
             handleUnauthorized();
             throw new Error('Session expired. Please log in again.');
         }
@@ -269,15 +273,34 @@ class WordPressAPI {
         }
     }
 
+    private async toJsonArray<T>(response: Response, message: string): Promise<T[]> {
+        await this.checkOkWithBody(response, message);
+        const payload = await response.json();
+        if (Array.isArray(payload)) {
+            return payload;
+        }
+        if (payload && Array.isArray(payload.results)) {
+            return payload.results;
+        }
+        throw new Error(`${message}: unexpected response shape`);
+    }
+
     /** Simple sync check for backward compat */
     private checkOk(response: Response, message: string) {
         if (response.status === 401) {
+            const token = useAuthStore.getState().token
+            console.error('[API] 401 Unauthorized on', message, '| token in store:', token ? token.slice(0,8)+'...' : 'NULL')
             handleUnauthorized();
             throw new Error('Session expired. Please log in again.');
         }
         if (!response.ok) {
             throw new Error(`${message} (HTTP ${response.status})`);
         }
+    }
+
+    private withCacheBuster(url: string): string {
+        const divider = url.includes('?') ? '&' : '?';
+        return `${url}${divider}_ts=${Date.now()}`;
     }
 
     /**
@@ -622,12 +645,12 @@ class WordPressAPI {
 
     // Compute (EC2-style) endpoints
     async getComputeImages(): Promise<ComputeImage[]> {
-        const response = await fetch(`${API_BASE_URL}/compute-images/`, {
+        const response = await fetch(this.withCacheBuster(`${API_BASE_URL}/compute-images/`), {
             method: 'GET',
             headers: this.getHeaders(),
+            cache: 'no-store',
         });
-        await this.checkOkWithBody(response, 'Failed to fetch compute images');
-        return response.json();
+        return this.toJsonArray<ComputeImage>(response, 'Failed to fetch compute images');
     }
 
     async createComputeImage(payload: {
@@ -651,12 +674,12 @@ class WordPressAPI {
     }
 
     async getComputeFlavors(): Promise<ComputeFlavor[]> {
-        const response = await fetch(`${API_BASE_URL}/compute-flavors/`, {
+        const response = await fetch(this.withCacheBuster(`${API_BASE_URL}/compute-flavors/`), {
             method: 'GET',
             headers: this.getHeaders(),
+            cache: 'no-store',
         });
-        await this.checkOkWithBody(response, 'Failed to fetch instance types');
-        return response.json();
+        return this.toJsonArray<ComputeFlavor>(response, 'Failed to fetch instance types');
     }
 
     async createComputeFlavor(payload: {
@@ -676,12 +699,12 @@ class WordPressAPI {
     }
 
     async getComputeSSHKeys(): Promise<ComputeSSHKey[]> {
-        const response = await fetch(`${API_BASE_URL}/ssh-keys/`, {
+        const response = await fetch(this.withCacheBuster(`${API_BASE_URL}/ssh-keys/`), {
             method: 'GET',
             headers: this.getHeaders(),
+            cache: 'no-store',
         });
-        await this.checkOkWithBody(response, 'Failed to fetch SSH keys');
-        return response.json();
+        return this.toJsonArray<ComputeSSHKey>(response, 'Failed to fetch SSH keys');
     }
 
     async createComputeSSHKey(payload: {
@@ -713,12 +736,12 @@ class WordPressAPI {
     }
 
     async getComputeSecurityGroups(): Promise<ComputeSecurityGroup[]> {
-        const response = await fetch(`${API_BASE_URL}/security-groups/`, {
+        const response = await fetch(this.withCacheBuster(`${API_BASE_URL}/security-groups/`), {
             method: 'GET',
             headers: this.getHeaders(),
+            cache: 'no-store',
         });
-        await this.checkOkWithBody(response, 'Failed to fetch security groups');
-        return response.json();
+        return this.toJsonArray<ComputeSecurityGroup>(response, 'Failed to fetch security groups');
     }
 
     async createComputeSecurityGroup(payload: {
@@ -766,12 +789,12 @@ class WordPressAPI {
     }
 
     async getComputeInstances(): Promise<ComputeInstance[]> {
-        const response = await fetch(`${API_BASE_URL}/compute-instances/`, {
+        const response = await fetch(this.withCacheBuster(`${API_BASE_URL}/compute-instances/`), {
             method: 'GET',
             headers: this.getHeaders(),
+            cache: 'no-store',
         });
-        await this.checkOkWithBody(response, 'Failed to fetch compute instances');
-        return response.json();
+        return this.toJsonArray<ComputeInstance>(response, 'Failed to fetch compute instances');
     }
 
     async createComputeInstance(payload: {
@@ -812,6 +835,7 @@ class WordPressAPI {
         const response = await fetch(`${API_BASE_URL}/compute-operations/${operationId}/poll/`, {
             method: 'GET',
             headers: this.getHeaders(),
+            cache: 'no-store',
         });
         await this.checkOkWithBody(response, 'Failed to poll compute operation');
         return response.json();
@@ -822,6 +846,7 @@ class WordPressAPI {
         const response = await fetch(`${API_BASE_URL}/compute-instances/${instanceId}/operation-status/${query}`, {
             method: 'GET',
             headers: this.getHeaders(),
+            cache: 'no-store',
         });
         await this.checkOkWithBody(response, 'Failed to fetch compute instance operation status');
         return response.json();
