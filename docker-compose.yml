@@ -9,15 +9,9 @@ services:
     image: nginx:1.27-alpine
     container_name: hostinger_api_gateway
     restart: unless-stopped
-    ports:
-      - "8088:80"
+    network_mode: host
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    # Required on Linux so the gateway container can reach Django on the host (localhost:8000)
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - hostinger_internal
 
   # Control Plane: PostgreSQL System Database
   db_system:
