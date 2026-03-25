@@ -31,4 +31,6 @@ ingress:
   service: http://localhost:9004
 - hostname: tes1.edubricz.online
   service: http://localhost:9026
+- hostname: ple.edubricz.online
+  service: http://localhost:9027
 - service: http_status:404

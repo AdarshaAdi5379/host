@@ -568,10 +568,21 @@ def clone_repository(repo_url, branch, destination):
     remote's default branch (auto-detected).
     """
     import subprocess
+    import os
+    import shutil
 
-    # Ensure destination exists
-    if not os.path.exists(destination):
-        os.makedirs(destination)
+    # Fix URL spacing issues (e.g. from copy-paste)
+    if repo_url:
+        repo_url = repo_url.strip()
+    if branch:
+        branch = branch.strip()
+
+    # Always wipe stale destination so git clone never hits
+    # "destination already exists and is not an empty directory"
+    # (this happens when a previous deployment attempt failed mid-way)
+    if os.path.exists(destination):
+        shutil.rmtree(destination)
+    os.makedirs(destination)
 
     try:
         # First attempt: clone the specific branch
@@ -582,8 +593,7 @@ def clone_repository(repo_url, branch, destination):
         stderr = e.stderr or ''
         # If the branch was not found, retry without --branch to use the default
         if 'not found' in stderr or 'Remote branch' in stderr:
-            # Clean up the failed partial clone if any
-            import shutil
+            # Clean up the partial clone and retry with default branch
             if os.path.exists(destination):
                 shutil.rmtree(destination)
                 os.makedirs(destination)

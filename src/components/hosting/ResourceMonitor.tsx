@@ -38,16 +38,17 @@ export function ResourceMonitor({ siteId, isRunning }: ResourceMonitorProps) {
 
         let timeoutId: ReturnType<typeof setTimeout>
         let cancelled = false
+        const abortControllerRef = { current: new AbortController() }
 
         const fetchStats = async () => {
             if (cancelled) return
 
-            const controller = new AbortController()
-            const timeoutHandle = setTimeout(() => controller.abort(), 5000)
+            abortControllerRef.current = new AbortController()
+            const timeoutHandle = setTimeout(() => abortControllerRef.current.abort(), 5000)
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/sites/${siteId}/stats/`, {
-                    signal: controller.signal,
+                    signal: abortControllerRef.current.signal,
                     headers: {
                         ...(token ? { 'Authorization': `Token ${token}` } : {}),
                     },
@@ -65,18 +66,19 @@ export function ResourceMonitor({ siteId, isRunning }: ResourceMonitorProps) {
                     consecutiveFailures.current++
                     setError(true)
                 }
-            } catch (err) {
+            } catch (err: any) {
                 clearTimeout(timeoutHandle)
                 if (cancelled) return
 
                 consecutiveFailures.current++
 
                 // Only log if it's not a transient network blip (aborts, network changes)
+                const isAbort = err?.name === 'AbortError'
                 const isTransient =
-                    err instanceof TypeError &&
-                    (err.message.includes('Failed to fetch') ||
-                        err.message.includes('NetworkError') ||
-                        err.message.includes('aborted'))
+                    isAbort ||
+                    (err instanceof TypeError &&
+                        (err.message.includes('Failed to fetch') ||
+                            err.message.includes('NetworkError')))
 
                 if (!isTransient || consecutiveFailures.current <= 1) {
                     console.warn(`[ResourceMonitor] site=${siteId} fetch failed (attempt ${consecutiveFailures.current}):`, err)
@@ -102,6 +104,7 @@ export function ResourceMonitor({ siteId, isRunning }: ResourceMonitorProps) {
         return () => {
             cancelled = true
             clearTimeout(timeoutId)
+            abortControllerRef.current.abort()
         }
     }, [siteId, isRunning, token])
 

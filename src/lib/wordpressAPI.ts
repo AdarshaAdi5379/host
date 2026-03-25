@@ -354,9 +354,7 @@ class WordPressAPI {
             headers: this.getHeaders(),
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to start site');
-        }
+        await this.checkOkWithBody(response, 'Failed to start site');
     }
 
     /**
