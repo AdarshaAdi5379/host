@@ -29,4 +29,6 @@ ingress:
   service: http://localhost:9023
 - hostname: rdscheck90474.edubricz.online
   service: http://localhost:9004
+- hostname: tes1.edubricz.online
+  service: http://localhost:9026
 - service: http_status:404

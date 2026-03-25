@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, Cpu, HardDrive } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { API_BASE_URL } from '@/lib/api/config'
@@ -17,53 +17,91 @@ interface ResourceMonitorProps {
     isRunning: boolean
 }
 
+// After this many consecutive failures, slow down polling to avoid console spam
+const BACKOFF_THRESHOLD = 3
+const NORMAL_INTERVAL_MS = 3000
+const BACKOFF_INTERVAL_MS = 15000
+
 export function ResourceMonitor({ siteId, isRunning }: ResourceMonitorProps) {
     const [stats, setStats] = useState<ResourceStats | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(false)
     const token = useAuthStore(state => state.token)
+    const consecutiveFailures = useRef(0)
 
     useEffect(() => {
-        let intervalId: ReturnType<typeof setInterval>
+        if (!isRunning) {
+            setStats(null)
+            setLoading(false)
+            return
+        }
+
+        let timeoutId: ReturnType<typeof setTimeout>
+        let cancelled = false
 
         const fetchStats = async () => {
-            if (!isRunning) {
-                setStats(null)
-                setLoading(false)
-                return
-            }
+            if (cancelled) return
+
+            const controller = new AbortController()
+            const timeoutHandle = setTimeout(() => controller.abort(), 5000)
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/sites/${siteId}/stats/`, {
+                    signal: controller.signal,
                     headers: {
                         ...(token ? { 'Authorization': `Token ${token}` } : {}),
                     },
                 })
+                if (cancelled) return
+
+                clearTimeout(timeoutHandle)
+
                 if (response.ok) {
                     const data = await response.json()
                     setStats(data)
                     setError(false)
+                    consecutiveFailures.current = 0
                 } else {
+                    consecutiveFailures.current++
                     setError(true)
                 }
             } catch (err) {
-                console.error('Failed to fetch stats:', err)
+                clearTimeout(timeoutHandle)
+                if (cancelled) return
+
+                consecutiveFailures.current++
+
+                // Only log if it's not a transient network blip (aborts, network changes)
+                const isTransient =
+                    err instanceof TypeError &&
+                    (err.message.includes('Failed to fetch') ||
+                        err.message.includes('NetworkError') ||
+                        err.message.includes('aborted'))
+
+                if (!isTransient || consecutiveFailures.current <= 1) {
+                    console.warn(`[ResourceMonitor] site=${siteId} fetch failed (attempt ${consecutiveFailures.current}):`, err)
+                }
+
                 setError(true)
             } finally {
-                setLoading(false)
+                if (!cancelled) {
+                    setLoading(false)
+                    // Back off polling interval when errors accumulate
+                    const interval =
+                        consecutiveFailures.current >= BACKOFF_THRESHOLD
+                            ? BACKOFF_INTERVAL_MS
+                            : NORMAL_INTERVAL_MS
+                    timeoutId = setTimeout(fetchStats, interval)
+                }
             }
         }
 
-        // Initial fetch
+        setLoading(true)
         fetchStats()
 
-        // Poll every 3 seconds if running
-        if (isRunning) {
-            intervalId = setInterval(fetchStats, 3000)
-        }
-
         return () => {
-            if (intervalId) clearInterval(intervalId)
+            cancelled = true
+            clearTimeout(timeoutId)
         }
     }, [siteId, isRunning, token])
 
@@ -84,10 +122,10 @@ export function ResourceMonitor({ siteId, isRunning }: ResourceMonitorProps) {
         )
     }
 
-    if (error) {
+    if (error && !stats) {
         return (
-            <div className="text-xs text-red-500 p-2">
-                Failed to load telemetry
+            <div className="text-xs text-amber-500 p-2">
+                Telemetry temporarily unavailable
             </div>
         )
     }
