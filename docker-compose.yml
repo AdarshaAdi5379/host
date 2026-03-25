@@ -1,7 +1,4 @@
-version: '3.8'
-
 # Load environment variables from backend/.env
-
 
 services:
   # API Gateway (Routing only - Phase 1)
