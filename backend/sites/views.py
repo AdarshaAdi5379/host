@@ -1486,27 +1486,80 @@ class WordPressSiteViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
         """
-        Get real-time statistics for the site's container
+        Get real-time statistics for the site's container(s).
+
+        WordPress  → single container  {name}_wp
+        React+Django → batches frontend + all backend replicas in ONE docker stats call
+          Backend container naming (Compose convention):
+            Single replica:  {name}-{name}_backend-1
+            Multi-replica:   {name}-{name}_backend_1-1, {name}-{name}_backend_2-1, …
         """
         site = self.get_object()
-        container_name = f"{site.name}_wp"
-        
-        # Import here to avoid circular dependency issues if any
-        from .docker_utils import get_container_stats
-        
-        stats = get_container_stats(container_name)
-        
-        if stats:
-            return Response(stats)
-        else:
-            # If stats are None, it might be offline or not found
+        from .docker_utils import get_container_stats_batch
+
+        OFFLINE = {
+            'status': 'offline',
+            'cpu_percent': 0,
+            'memory_usage_mb': 0,
+            'memory_limit_mb': 0,
+            'memory_percent': 0,
+        }
+
+        if site.framework == 'react_django':
+            name = site.name
+            containers = []
+
+            # Frontend (always this name)
+            containers.append(f"{name}_frontend")
+
+            # Backend replicas — Compose names them: {project}-{service}-{index}
+            # project = site name, service = {name}_backend or {name}_backend_{N}
+            replica_count = max(
+                len(site.backend_ports or []),
+                site.replica_count or 1,
+            )
+
+            if replica_count > 1:
+                for i in range(1, replica_count + 1):
+                    # Scaled: docker compose project=name, service={name}_backend_{i}
+                    containers.append(f"{name}-{name}_backend_{i}-1")
+            else:
+                # Single replica: service={name}_backend
+                containers.append(f"{name}-{name}_backend-1")
+
+            stats_map = get_container_stats_batch(containers)
+
+            total_cpu = 0.0
+            total_mem_mb = 0.0
+            limit_mb = 0.0
+            found_any = False
+
+            for s in stats_map.values():
+                if s and s.get('status') == 'online':
+                    found_any = True
+                    total_cpu += s['cpu_percent']
+                    total_mem_mb += s['memory_usage_mb']
+                    limit_mb = max(limit_mb, s['memory_limit_mb'])
+
+            if not found_any:
+                return Response(OFFLINE)
+
+            mem_pct = (total_mem_mb / limit_mb * 100) if limit_mb else 0
             return Response({
-                'status': 'offline',
-                'cpu_percent': 0,
-                'memory_usage_mb': 0,
-                'memory_limit_mb': 0,
-                'memory_percent': 0
+                'status': 'online',
+                'cpu_percent': round(total_cpu, 2),
+                'memory_usage_mb': round(total_mem_mb, 2),
+                'memory_limit_mb': round(limit_mb, 2),
+                'memory_percent': round(mem_pct, 2),
             })
+
+        else:
+            # WordPress — single container
+            container_name = f"{site.name}_wp"
+            stats = get_container_stats(container_name)
+            if stats:
+                return Response(stats)
+            return Response(OFFLINE)
     
     @action(detail=True, methods=['get'])
     def filebrowser_credentials(self, request, pk=None):

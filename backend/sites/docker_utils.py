@@ -260,80 +260,160 @@ def check_docker_running() -> bool:
 
 def get_container_stats(container_name: str) -> dict:
     """
-    Get real-time CPU and Memory stats for a container
-    
-    Args:
-        container_name: Name of the container to query
-        
+    Get real-time CPU and Memory stats for a container using docker stats CLI.
+
+    Uses `docker stats --no-stream` (same as Docker CLI) which is fast, accurate,
+    and avoids the Python SDK issue where the first sample has precpu_stats=0
+    (causing cpu_percent to always report 0%).
+
     Returns:
-        dict: {
-            'cpu_percent': float,
-            'memory_usage_mb': float,
-            'memory_limit_mb': float,
-            'memory_percent': float,
-            'status': str
-        } or None if container not found
+        dict with cpu_percent, memory_usage_mb, memory_limit_mb, memory_percent, status
+        or None if container not found / docker unavailable.
     """
+    import subprocess
+    import json
+
     try:
-        import docker
-        client = docker.from_env()
-        
-        try:
-            container = client.containers.get(container_name)
-            
-            if container.status != 'running':
-                return {
-                    'status': 'offline',
-                    'cpu_percent': 0,
-                    'memory_usage_mb': 0,
-                    'memory_limit_mb': 0,
-                    'memory_percent': 0
-                }
-                
-            # Get stats (stream=False to get a single snapshot)
-            stats = container.stats(stream=False)
-            
-            # --- CPU Calculation ---
-            # Based on Docker CLI implementation
-            cpu_delta = stats['cpu_stats']['cpu_usage']['total_usage'] - \
-                        stats['precpu_stats']['cpu_usage']['total_usage']
-                        
-            system_delta = stats['cpu_stats']['system_cpu_usage'] - \
-                           stats['precpu_stats']['system_cpu_usage']
-                           
-            online_cpus = stats['cpu_stats'].get('online_cpus', 1)
-            
-            if system_delta > 0 and cpu_delta > 0:
-                cpu_percent = (cpu_delta / system_delta) * online_cpus * 100.0
-            else:
-                cpu_percent = 0.0
-                
-            # --- Memory Calculation ---
-            memory_usage = stats['memory_stats']['usage']
-            # Adjust for cache if available (Docker CLI does this)
-            if 'cache' in stats['memory_stats'].get('stats', {}):
-                memory_usage -= stats['memory_stats']['stats']['cache']
-                
-            memory_limit = stats['memory_stats']['limit']
-            memory_percent = (memory_usage / memory_limit) * 100.0
-            
-            return {
-                'status': 'online',
-                'cpu_percent': round(cpu_percent, 2),
-                'memory_usage_mb': round(memory_usage / (1024 * 1024), 2),
-                'memory_limit_mb': round(memory_limit / (1024 * 1024), 2),
-                'memory_percent': round(memory_percent, 2)
-            }
-            
-        except docker.errors.NotFound:
+        result = subprocess.run(
+            [
+                'docker', 'stats', '--no-stream', '--format',
+                '{"cpu":"{{.CPUPerc}}","mem_usage":"{{.MemUsage}}","mem_perc":"{{.MemPerc}}","status":"{{.Status}}"}',
+                container_name,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if result.returncode != 0:
+            # Container not found or docker unavailable
             return None
-            
-    except ImportError:
-        # Fallback if docker-py is not installed (though it should be)
+
+        raw = result.stdout.strip()
+        if not raw:
+            return None
+
+        data = json.loads(raw)
+
+        def pct(s: str) -> float:
+            """Strip % and convert to float."""
+            return float(s.replace('%', '').strip() or '0')
+
+        def mem_mb(s: str) -> float:
+            """Convert memory string like '97.5MiB' or '2.1GiB' to MB."""
+            s = s.strip()
+            if s.endswith('GiB'):
+                return float(s[:-3]) * 1024
+            if s.endswith('MiB'):
+                return float(s[:-3])
+            if s.endswith('kB') or s.endswith('KiB'):
+                return float(s[:-2]) / 1024
+            if s.endswith('GB'):
+                return float(s[:-2]) * 1000
+            if s.endswith('MB'):
+                return float(s[:-2])
+            if s.endswith('B'):
+                return float(s[:-1]) / (1024 * 1024)
+            return 0.0
+
+        # mem_usage is "97.5MiB / 15.32GiB"
+        mem_parts = data.get('mem_usage', '0MiB / 0MiB').split('/')
+        usage_mb = mem_mb(mem_parts[0]) if len(mem_parts) > 0 else 0.0
+        limit_mb = mem_mb(mem_parts[1]) if len(mem_parts) > 1 else 0.0
+        mem_pct = pct(data.get('mem_perc', '0%'))
+        cpu_pct = pct(data.get('cpu', '0%'))
+
+        return {
+            'status': 'online',
+            'cpu_percent': round(cpu_pct, 2),
+            'memory_usage_mb': round(usage_mb, 2),
+            'memory_limit_mb': round(limit_mb, 2),
+            'memory_percent': round(mem_pct, 2),
+        }
+
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         return None
     except Exception as e:
         print(f"Error fetching stats for {container_name}: {e}")
         return None
+
+
+def get_container_stats_batch(container_names: list) -> dict:
+    """
+    Get stats for multiple containers in a SINGLE docker stats call.
+
+    Much faster than calling get_container_stats() per container — all
+    containers are queried simultaneously, so latency is O(1) not O(N).
+
+    Returns:
+        dict mapping container_name → stats dict (or None if not found).
+    """
+    import subprocess
+    import json
+
+    if not container_names:
+        return {}
+
+    result_map = {name: None for name in container_names}
+
+    try:
+        result = subprocess.run(
+            [
+                'docker', 'stats', '--no-stream', '--format',
+                '{"name":"{{.Name}}","cpu":"{{.CPUPerc}}","mem_usage":"{{.MemUsage}}","mem_perc":"{{.MemPerc}}"}',
+            ] + container_names,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if result.returncode != 0 or not result.stdout.strip():
+            return result_map
+
+        def pct(s: str) -> float:
+            return float(s.replace('%', '').strip() or '0')
+
+        def mem_mb(s: str) -> float:
+            s = s.strip()
+            if s.endswith('GiB'):
+                return float(s[:-3]) * 1024
+            if s.endswith('MiB'):
+                return float(s[:-3])
+            if s.endswith('kB') or s.endswith('KiB'):
+                return float(s[:-2]) / 1024
+            if s.endswith('GB'):
+                return float(s[:-2]) * 1000
+            if s.endswith('MB'):
+                return float(s[:-2])
+            if s.endswith('B'):
+                return float(s[:-1]) / (1024 * 1024)
+            return 0.0
+
+        for line in result.stdout.strip().splitlines():
+            try:
+                data = json.loads(line)
+                cname = data.get('name', '')
+                mem_parts = data.get('mem_usage', '0MiB / 0MiB').split('/')
+                usage_mb = mem_mb(mem_parts[0]) if len(mem_parts) > 0 else 0.0
+                limit_mb = mem_mb(mem_parts[1]) if len(mem_parts) > 1 else 0.0
+                cpu_pct = pct(data.get('cpu', '0%'))
+                mem_pct = pct(data.get('mem_perc', '0%'))
+                result_map[cname] = {
+                    'status': 'online',
+                    'cpu_percent': round(cpu_pct, 2),
+                    'memory_usage_mb': round(usage_mb, 2),
+                    'memory_limit_mb': round(limit_mb, 2),
+                    'memory_percent': round(mem_pct, 2),
+                }
+            except (json.JSONDecodeError, ValueError):
+                continue
+
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    except Exception as e:
+        print(f"Error in batch stats: {e}")
+
+    return result_map
 
 
 def scale_backend_service(site_directory: str, service_name: str, replica_count: int) -> tuple[bool, str]:

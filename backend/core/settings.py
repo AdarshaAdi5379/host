@@ -163,11 +163,11 @@ if DB_ENGINE == "postgresql":
             "CONN_MAX_AGE": 600,  # Connection pooling (10 minutes)
             "OPTIONS": {
                 "connect_timeout": 10,
-                # Uncomment for SSL/TLS in production
-                # 'sslmode': os.getenv('DB_SSL_MODE', 'require'),
-                # 'sslcert': os.getenv('DB_SSL_CERT'),
-                # 'sslkey': os.getenv('DB_SSL_KEY'),
-                # 'sslrootcert': os.getenv('DB_SSL_ROOT_CERT'),
+                # SSL mode: set DB_SSL_MODE=require in .env for RDS/production
+                # Leave unset or use 'prefer' for local dev
+                **({
+                    "sslmode": os.getenv("DB_SSL_MODE"),
+                } if os.getenv("DB_SSL_MODE") else {}),
             },
         }
     }
